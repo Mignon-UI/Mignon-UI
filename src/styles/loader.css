@@ -5,7 +5,7 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: #ffb7ce;
+    background-color: var(--bg-loader, var(--bg-window, #ffb7ce));
     background-image: none;
     display: flex;
     flex-direction: column;
@@ -14,6 +14,7 @@
     gap: 20px;
     z-index: 9999;
     font-family: sans-serif;
+    transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 .y2k-spinner-outer {
@@ -25,9 +26,9 @@
 .y2k-spinner {
     width: 100%;
     height: 100%;
-    border: 6px solid #f0f0f0;
-    border-top: 6px solid #6b3649;
-    border-right: 6px solid #a3defe;
+    border: 6px solid var(--bg-card, #f0f0f0);
+    border-top: 6px solid var(--primary, #6b3649);
+    border-right: 6px solid var(--pink, #a3defe);
     border-radius: 50%;
     animation: y2k-spin 1s cubic-bezier(0.53, 0.21, 0.29, 0.87) infinite;
 }
@@ -39,8 +40,8 @@
     width: 40px;
     height: 40px;
     border: 4px solid transparent;
-    border-bottom: 4px solid #ffb7ce;
-    border-left: 4px solid #ffb7ce;
+    border-bottom: 4px solid var(--pink, #ffb7ce);
+    border-left: 4px solid var(--pink, #ffb7ce);
     border-radius: 50%;
     animation: y2k-spin-reverse 1.5s linear infinite;
 }
@@ -51,7 +52,7 @@
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 2px;
-    color: #000000;
+    color: var(--text-loader, var(--text, #000000));
 }
 
 @keyframes y2k-spin {
@@ -64,24 +65,310 @@
     100% { transform: rotate(0deg); }
 }
 
-/* Dark Theme loader overrides */
+/* ── INITIAL LOADER THEME MAPPINGS ── */
+/* Explicitly defined color tokens to resolve instantly before Vite CSS compiles */
+
+/* 1. BUBBLEGUM */
+.theme-bubblegum-light {
+    --bg-loader: #ffb7ce;
+    --text-loader: #000000;
+    --bg-card: #f0f0f0;
+    --primary: #6b3649;
+    --pink: #ffb7ce;
+}
+.theme-bubblegum-light .y2k-mascot-svg {
+    --cat-fur: #ffffff;
+    --border: #000000;
+    --pink: #ffb7ce;
+    --cat-stripe: rgba(0, 0, 0, 0.15);
+    --cat-eye: #000000;
+}
+
+.theme-bubblegum-dark {
+    --bg-loader: #0d0714;
+    --text-loader: #f3eef9;
+    --bg-card: #1e162b;
+    --primary: #802b4d;
+    --pink: #e54b7c;
+}
+.theme-bubblegum-dark .y2k-mascot-svg {
+    --cat-fur: #ffffff;
+    --border: #4a2d6e;
+    --pink: #e54b7c;
+    --cat-stripe: rgba(243, 238, 249, 0.15);
+    --cat-eye: #f3eef9;
+}
+
+/* 2. NEO-CYBER */
+.theme-cyberpunk-light {
+    --bg-loader: #f0f4f9;
+    --text-loader: #0f172a;
+    --bg-card: #e4eaf2;
+    --primary: #100f24;
+    --pink: #ff007f;
+}
+.theme-cyberpunk-light .y2k-mascot-svg {
+    --cat-fur: #ffffff;
+    --border: #000000;
+    --pink: #ff007f;
+    --cat-stripe: rgba(15, 23, 42, 0.15);
+    --cat-eye: #0f172a;
+}
+
+.theme-cyberpunk-dark {
+    --bg-loader: #06050b;
+    --text-loader: #ffffff;
+    --bg-card: #1b162c;
+    --primary: #ff007f;
+    --pink: #00f0ff;
+}
+.theme-cyberpunk-dark .y2k-mascot-svg {
+    --cat-fur: #0e0b17;
+    --border: #00f0ff;
+    --pink: #ff007f;
+    --cat-stripe: rgba(255, 255, 255, 0.15);
+    --cat-eye: #00f0ff;
+}
+
+/* 3. DOLLHOUSE */
+.theme-dollhouse-light {
+    --bg-loader: #fff0f5;
+    --text-loader: #4a0e1c;
+    --bg-card: #fff5f8;
+    --primary: #ff1493;
+    --pink: #ffb7d5;
+}
+.theme-dollhouse-light .y2k-mascot-svg {
+    --cat-fur: #ffffff;
+    --border: #ff1493;
+    --pink: #ffb7d5;
+    --cat-stripe: rgba(74, 14, 28, 0.15);
+    --cat-eye: #4a0e1c;
+}
+
+.theme-dollhouse-dark {
+    --bg-loader: #210035;
+    --text-loader: #ffffff;
+    --bg-card: #e8d5ff;
+    --primary: #ff1493;
+    --pink: #ffccd5;
+}
+.theme-dollhouse-dark .y2k-mascot-svg {
+    --cat-fur: #ffffff;
+    --border: #ff1493;
+    --pink: #ffccd5;
+    --cat-stripe: rgba(255, 255, 255, 0.15);
+    --cat-eye: #2a001a;
+}
+
+/* 4. BUILDER */
+.theme-builder-light {
+    --bg-loader: #f5c400;
+    --text-loader: #1b1b1b;
+    --bg-card: #f0f2f5;
+    --primary: #d31212;
+    --pink: #0055a5;
+}
+.theme-builder-light .y2k-mascot-svg {
+    --cat-fur: #ffffff;
+    --border: #1b1b1b;
+    --pink: #d31212;
+    --cat-stripe: rgba(27, 27, 27, 0.15);
+    --cat-eye: #1b1b1b;
+}
+
+.theme-builder-dark {
+    --bg-loader: #1b1b1b;
+    --text-loader: #ffffff;
+    --bg-card: #26262b;
+    --primary: #f5c400;
+    --pink: #00852b;
+}
+.theme-builder-dark .y2k-mascot-svg {
+    --cat-fur: #ffffff;
+    --border: #ffffff;
+    --pink: #f5c400;
+    --cat-stripe: rgba(255, 255, 255, 0.15);
+    --cat-eye: #1b1b1b;
+}
+
+/* 5. DARF CLASSIC */
+.theme-classic-light {
+    --bg-loader: #f1f5f9;
+    --text-loader: #0f172a;
+    --bg-card: #cbd5e1;
+    --primary: #0f172a;
+    --pink: #2563eb;
+}
+.theme-classic-light .y2k-mascot-svg {
+    --cat-fur: #ffffff;
+    --border: #cbd5e1;
+    --pink: #dbeafe;
+    --cat-stripe: rgba(15, 23, 42, 0.08);
+    --cat-eye: #0f172a;
+}
+
+.theme-classic-dark {
+    --bg-loader: #090d16;
+    --text-loader: #f1f5f9;
+    --bg-card: #1e293b;
+    --primary: #38bdf8;
+    --pink: #2563eb;
+}
+.theme-classic-dark .y2k-mascot-svg {
+    --cat-fur: #ffffff;
+    --border: #1e293b;
+    --pink: #1e293b;
+    --cat-stripe: rgba(241, 245, 249, 0.08);
+    --cat-eye: #f1f5f9;
+}
+
+/* 6. DARK YELLOW */
+.theme-darkyellow-light {
+    --bg-loader: #c8c5be;
+    --text-loader: #0a0a0b;
+    --bg-card: #bab7b0;
+    --primary: #1a1a1c;
+    --pink: #f5c400;
+}
+.theme-darkyellow-light .y2k-mascot-svg {
+    --cat-fur: #1a1a1c;
+    --border: #1a1a1c;
+    --pink: #f5c400;
+    --cat-stripe: rgba(10, 10, 11, 0.15);
+    --cat-eye: #f5c400;
+}
+
+.theme-darkyellow-dark {
+    --bg-loader: #080808;
+    --text-loader: #e8e5dc;
+    --bg-card: #1a1a1e;
+    --primary: #f5c400;
+    --pink: #c9a200;
+}
+.theme-darkyellow-dark .y2k-mascot-svg {
+    --cat-fur: #1a1a1e;
+    --border: #2a2a2e;
+    --pink: #f5c400;
+    --cat-stripe: rgba(232, 229, 220, 0.15);
+    --cat-eye: #f5c400;
+}
+
+/* 7. SKETCH BOOK */
+.theme-sketchbook-light {
+    --bg-loader: #fcfaf2;
+    --text-loader: #1a2327;
+    --bg-card: #f3eedf;
+    --primary: #2f3e46;
+    --pink: #db2777;
+}
+.theme-sketchbook-light .y2k-mascot-svg {
+    --cat-fur: #ffffff;
+    --border: #2f3e46;
+    --pink: #f3eedf;
+    --cat-stripe: rgba(47, 62, 70, 0.15);
+    --cat-eye: #1a2327;
+}
+
+.theme-sketchbook-dark {
+    --bg-loader: #151518;
+    --text-loader: #f4f4f5;
+    --bg-card: #25252b;
+    --primary: #ffd700;
+    --pink: #c084fc;
+}
+.theme-sketchbook-dark .y2k-mascot-svg {
+    --cat-fur: #1e1e22;
+    --border: #a1a1aa;
+    --pink: #2c2c35;
+    --cat-stripe: rgba(244, 244, 245, 0.15);
+    --cat-eye: #ffd700;
+}
+
+/* Dark Theme fallback overrides (if variables aren't fully resolved yet) */
 .dark-theme .y2k-loader-container {
-    background-color: #0d0714;
-    background-image: none;
+    background-color: var(--bg-loader, var(--bg-window, #0d0714));
 }
 
 .dark-theme .y2k-spinner {
-    border: 6px solid #1e162b;
-    border-top: 6px solid #e54b7c;
-    border-right: 6px solid #4ba3e3;
+    border-color: var(--bg-card, #1e162b);
+    border-top-color: var(--primary, #e54b7c);
+    border-right-color: var(--pink, #4ba3e3);
 }
 
 .dark-theme .y2k-spinner-inner {
-    border-bottom: 4px solid #e54b7c;
-    border-left: 4px solid #e54b7c;
+    border-bottom-color: var(--pink, #e54b7c);
+    border-left-color: var(--pink, #e54b7c);
 }
 
 .dark-theme .y2k-loader-text {
-    color: #f3eef9;
+    color: var(--text-loader, var(--text, #f3eef9));
 }
+
+
+/* ── INITIAL LOADER MASCOT STYLES ── */
+.y2k-mascot-container {
+    display: none;
+    width: 160px;
+    height: 160px;
+    position: relative;
+    overflow: visible;
+}
+
+.y2k-mascot-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+/* Dynamic Mascot variables mapped to theme CSS custom properties */
+.y2k-mascot-svg {
+    --cat-fur: var(--cat-fur, #ffffff);
+    --border: var(--border, #1a1523);
+    --pink: var(--pink, #ffb7d5);
+    --cat-stripe: var(--text, #000000);
+    --cat-eye: var(--text, #000000);
+}
+
+/* Animated Mascot Eyes Blinking */
+.y2k-mascot-svg .cat-eye-left,
+.y2k-mascot-svg .cat-eye-right {
+    animation: y2k-mascot-blink 5s infinite;
+}
+
+.y2k-mascot-svg .cat-eye-left {
+    transform-origin: 36px 55px;
+}
+
+.y2k-mascot-svg .cat-eye-right {
+    transform-origin: 64px 55px;
+}
+
+@keyframes y2k-mascot-blink {
+    0%, 86%, 89%, 92%, 100% {
+        transform: scale(1);
+    }
+    87.5%, 90.5% {
+        transform: scale(1.08, 0.05);
+    }
+}
+
+/* Mobile Responsive Loading Toggle */
+@media (max-width: 768px) {
+    /* Hide the spinner loader */
+    .y2k-spinner-outer {
+        display: none !important;
+    }
+    
+    /* Show the mascot */
+    .y2k-mascot-container {
+        display: block !important;
+    }
+    
+    /* Extra spacing adjustment */
+    .y2k-loader-container {
+        gap: 24px;
+    }
+}
+
 

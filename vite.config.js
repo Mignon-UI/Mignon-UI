@@ -1,25 +1,35 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { networkInterfaces } from 'os'
+
+const getLocalIP = () => {
+  const nets = networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+  return 'localhost';
+};
+
+const localIP = getLocalIP();
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
+    port: 5173,
+    host: '0.0.0.0',
+    hmr: {
+      host: localIP
+    },
     proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8000',
+      '/api-proxy': {
+        target: 'http://127.0.0.1:11434',
         changeOrigin: true,
-        secure: false,
-      },
-      '/avatars': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/static/avatars': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-        secure: false,
+        rewrite: (path) => path.replace(/^\/api-proxy/, '')
       }
     }
   },

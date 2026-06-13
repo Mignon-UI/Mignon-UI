@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'venv', 'graphify-out', 'build', 'static']),
+  globalIgnores(['dist', 'venv', 'graphify-out', 'build', 'static', 'public', 'scratch', 'src-tauri']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [

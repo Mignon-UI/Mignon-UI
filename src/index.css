@@ -7,9 +7,48 @@
 @import './styles/cards.css';
 @import './styles/chat.css';
 @import './styles/modals.css';
+@import './styles/onboarding.css';
 @import './styles/forms.css';
 @import './styles/stickers.css';
 @import './styles/toasts.css';
 @import './styles/responsive.css';
+@import './styles/mobile.css';
+@import './styles/updatebanner.css';
 
 /* force postcss reload v2 */
+
+/* Remove background, border, and shadows for all buttons in any header on all devices */
+.chat-header button:not(.dropdown-item),
+.chat-header button:not(.dropdown-item).active,
+.world-detail-header button,
+.modal-header button,
+.crop-workspace-header button {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    transition: opacity 0.2s ease, transform 0.1s ease !important;
+}
+
+.chat-header button:not(.dropdown-item):hover,
+.chat-header button:not(.dropdown-item).active:hover,
+.world-detail-header button:hover,
+.modal-header button:hover,
+.crop-workspace-header button:hover {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    opacity: 0.7 !important;
+    transform: scale(1.05) !important;
+}
+
+.chat-header button:not(.dropdown-item):active,
+.chat-header button:not(.dropdown-item).active:active,
+.world-detail-header button:active,
+.modal-header button:active,
+.crop-workspace-header button:active {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    transform: scale(0.95) !important;
+}

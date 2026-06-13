@@ -4,7 +4,8 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Darf UI - Desktop</title>
   <meta name="description" content="A private AI roleplay sanctuary.">
   <!-- Google Fonts -->
@@ -20,9 +21,10 @@
   </noscript>
   <script>
     (function () {
-      const savedTheme = localStorage.getItem('theme');
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+      const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      const savedDesign = localStorage.getItem('theme_design') || 'bubblegum';
+      document.documentElement.classList.add(`theme-${savedDesign}-${savedTheme}`);
+      if (savedTheme === 'dark') {
         document.documentElement.classList.add('dark-theme');
       }
     })();
@@ -38,7 +40,62 @@
         <div class="y2k-spinner"></div>
         <div class="y2k-spinner-inner"></div>
       </div>
-      <div class="y2k-loader-text">Loading...</div>
+
+      <!-- Feline Mascot for Mobile Loading -->
+      <div class="y2k-mascot-container">
+        <svg viewBox="0 0 100 100" class="y2k-mascot-svg" xmlns="http://www.w3.org/2000/svg">
+          <!-- Unified Feline Silhouette -->
+          <path
+            d="M 36,28 C 34,20 30,10 26,10 C 16,10 12,24 20,34 C 15,42 15,52 15,52 C 15,74 30,86 50,86 C 70,86 85,74 85,52 C 85,52 85,42 80,34 C 88,24 84,10 74,10 C 70,10 66,20 64,28 Q 50,23 36,28 Z"
+            fill="var(--cat-fur, #ffffff)" stroke="var(--border, #1a1523)" stroke-width="3" stroke-linejoin="round"
+            class="cat-head" />
+          <!-- Left Inner Ear -->
+          <path d="M 23,31 C 18,23 21,17 26,17 C 29,17 31,22 33,27 Z" fill="var(--pink, #ffb7d5)" />
+          <!-- Right Inner Ear -->
+          <path d="M 77,31 C 82,23 79,17 74,17 C 71,17 69,22 67,27 Z" fill="var(--pink, #ffb7d5)" />
+          <!-- Forehead Tabby Stripes -->
+          <polygon points="48,27 52,27 50,38" fill="var(--cat-stripe, #000000)" opacity="0.15" />
+          <polygon points="41,28 45,27 44,36" fill="var(--cat-stripe, #000000)" opacity="0.15" />
+          <polygon points="59,28 55,27 56,36" fill="var(--cat-stripe, #000000)" opacity="0.15" />
+          <!-- Cheek Tabby Stripes -->
+          <polygon points="15,48 24,50 16,52" fill="var(--cat-stripe, #000000)" opacity="0.15" />
+          <polygon points="14,54 22,55 15,58" fill="var(--cat-stripe, #000000)" opacity="0.15" />
+          <polygon points="16,60 21,60 17,63" fill="var(--cat-stripe, #000000)" opacity="0.15" />
+          <polygon points="85,48 76,50 84,52" fill="var(--cat-stripe, #000000)" opacity="0.15" />
+          <polygon points="86,54 78,55 85,58" fill="var(--cat-stripe, #000000)" opacity="0.15" />
+          <polygon points="84,60 79,60 83,63" fill="var(--cat-stripe, #000000)" opacity="0.15" />
+          <!-- Left Eye -->
+          <g class="cat-eye-left">
+            <circle cx="36" cy="55" r="7" fill="#000000" />
+            <circle cx="34" cy="52" r="2.5" fill="#ffffff" />
+            <circle cx="38" cy="58" r="1" fill="#ffffff" />
+          </g>
+          <!-- Right Eye -->
+          <g class="cat-eye-right">
+            <circle cx="64" cy="55" r="7" fill="#000000" />
+            <circle cx="62" cy="52" r="2.5" fill="#ffffff" />
+            <circle cx="66" cy="58" r="1" fill="#ffffff" />
+          </g>
+          <!-- Blush Cheeks -->
+          <ellipse cx="28" cy="66" rx="5" ry="3" fill="var(--pink, #ffb7d5)" opacity="0.65" />
+          <ellipse cx="72" cy="66" rx="5" ry="3" fill="var(--pink, #ffb7d5)" opacity="0.65" />
+          <!-- Whisker Lines -->
+          <line x1="20" y1="62" x2="8" y2="60" stroke="#000000" stroke-width="2.5"
+            stroke-linecap="round" />
+          <line x1="20" y1="68" x2="6" y2="69" stroke="#000000" stroke-width="2.5"
+            stroke-linecap="round" />
+          <line x1="80" y1="62" x2="92" y2="60" stroke="#000000" stroke-width="2.5"
+            stroke-linecap="round" />
+          <line x1="80" y1="68" x2="94" y2="69" stroke="#000000" stroke-width="2.5"
+            stroke-linecap="round" />
+          <!-- Nose -->
+          <polygon points="50,68 46,64 54,64" fill="#000000" />
+          <!-- Smiling Cat Mouth -->
+          <path d="M45,71 Q50,75 50,71 Q50,75 55,71" fill="none" stroke="#000000" stroke-width="3"
+            stroke-linecap="round" />
+        </svg>
+      </div>
+
     </div>
   </div>
   <script type="module" src="/src/main.jsx"></script>
@@ -52,28 +109,16 @@
   <svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden;pointer-events:none"
     aria-hidden="true" focusable="false">
     <defs>
-      <!-- Gentle pencil wobble & waxy paint stroke texture for layout panels, cards, buttons -->
-      <filter id="sketch-border" x="-5%" y="-5%" width="110%" height="110%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.04 0.04" numOctaves="3" seed="2" result="noise" />
-        <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.0" xChannelSelector="R" yChannelSelector="G" result="displaced" />
-        
-        <!-- Grainy paint/chalk stroke texture overlay -->
-        <feTurbulence type="fractalNoise" baseFrequency="0.6 0.7" numOctaves="2" seed="4" result="paintGrain" />
-        <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.15 0" result="softGrain" />
-        <feComposite operator="in" in="softGrain" in2="displaced" result="clippedGrain" />
-        <feBlend mode="multiply" in="clippedGrain" in2="displaced" />
+      <!-- Gentle pencil wobble for layout panels, cards, buttons -->
+      <filter id="sketch-border" x="-2%" y="-2%" width="104%" height="104%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.04 0.04" numOctaves="1" seed="2" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.0" xChannelSelector="R" yChannelSelector="G" />
       </filter>
-      
-      <!-- Slightly stronger bubble wobble & rich painted watercolor/chalk stroke texture for chat message bubbles -->
-      <filter id="sketch-bubble" x="-5%" y="-5%" width="110%" height="110%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.04 0.05" numOctaves="3" seed="5" result="noise" />
-        <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G" result="displaced" />
-        
-        <!-- Richer stroke texture for bubbles -->
-        <feTurbulence type="fractalNoise" baseFrequency="0.5 0.6" numOctaves="3" seed="8" result="paintGrain" />
-        <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.20 0" result="softGrain" />
-        <feComposite operator="in" in="softGrain" in2="displaced" result="clippedGrain" />
-        <feBlend mode="multiply" in="clippedGrain" in2="displaced" />
+
+      <!-- Slightly stronger bubble wobble for chat message bubbles -->
+      <filter id="sketch-bubble" x="-2%" y="-2%" width="104%" height="104%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.04 0.05" numOctaves="1" seed="5" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G" />
       </filter>
     </defs>
   </svg>

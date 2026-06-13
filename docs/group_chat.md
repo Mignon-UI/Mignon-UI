@@ -1,111 +1,119 @@
 # 🎭 Lobbies & Cognitive Turn Allocation
 
-Darf UI supports immersive sandbox rooms where multiple AI characters can interact dynamically with the player and with one another. To coordinate turns cleanly without expensive LLM overhead, Darf UI implements a custom turn-taking orchestrator inside [group_reply_order.py](../app/services/group_reply_order.py).
+Mignon UI supports immersive sandbox rooms where multiple AI characters can interact dynamically with the player and with one another. To coordinate turns cleanly without expensive LLM overhead, Mignon UI implements a custom, psychologically complete turn-taking orchestrator inside [turnTaking.js](../src/services/turnTaking.js).
 
 ---
 
-## 🗣️ Sociolinguistic Turn-Taking (CA Model)
+## 🗣️ Sociolinguistic Turn-Taking (Formula 3 Model)
 
 In classic conversation analysis (Sacks, Schegloff, and Jefferson), dialogue flows smoothly via three core rules:
 1. **Rule 1 (Direct Address)**: The current speaker explicitly selects the next speaker (e.g., *"What is your opinion on this, Alice?"*). Alice must take the floor.
-2. **Rule 2 (Self-Selection)**: If no speaker is explicitly selected, other room members self-select based on proactivity, interest, and conversational drive.
-3. **Rule 3 (Silence/Lapse)**: If no member self-selects, a conversation lapse occurs, prompting either a pause or the original speaker continuing.
+2. **Rule 2 (Self-Selection)**: If no speaker is explicitly selected, other room members self-select based on proactivity, interest, relationship comfort, and conversational drive.
+3. **Rule 3 (Silence/Lapse)**: If no member self-selects, a conversation lapse occurs, prompting either a pause or forcing a quiet/neurotic character to break the silence.
 
-Darf UI models this sociolinguistic structure with **zero VRAM overhead** using a hybrid keyword scanner and numerical scoring heuristic.
-
----
-
-## 🧮 The Turn Eagerness Score (TES) Heuristics
-
-When no direct address is detected, the platform computes a **Turn Eagerness Score (TES)** for each room member. The character with the highest score is selected to speak next.
-
-The complete TES formula is calculated as follows:
-
-$$TES = (4.0 \times R_i) + (2.0 \times P_i) + (3.0 \times H_i) - F_i + M_i + S_i + N_i$$
-
-### Core Factors Breakdown:
-
-#### 1. Topic Relevance ($R_i$)
-Measures the character's semantic interest. The system extracts alphanumeric keywords of 3+ letters from the last message and matches them against the character's `personality` and `scenario` fields:
-
-$$R_i = \frac{\min(\text{Keyword Overlaps}, 5)}{5.0}$$
-
-#### 2. Proactivity Index ($P_i$)
-Tracks conversational drive. The engine scans the character profile for proactive traits (e.g. *extroverted, talkative, chatty, assertive*) and passive traits (e.g. *shy, quiet, introverted, stoic*):
-* **Proactive Traits**: $P_i = 0.8$
-* **Passive Traits**: $P_i = 0.2$
-* **Neutral / Mixed**: $P_i = 0.5$
-
-#### 3. Floor Hunger ($H_i$)
-Represents turn deprivation. Counts how many dialogue turns have elapsed since this specific character last spoke:
-
-$$H_i = \min\left(\frac{\text{Turns Since Last Spoken}}{10.0}, 1.0\right)$$
-
-> [!NOTE]
-> Shy characters ($P_i \le 0.3$) have their floor hunger artificially capped at **0.15** to prevent passive characters from eventually dominating the chat simply because they haven't spoken in a while.
-
-#### 4. Floor Fatigue Penalty ($F_i$)
-Prevents a single character from highjacking the floor with consecutive monologues. If the character was the absolute last speaker in the transcript, they receive a heavy penalty:
-* **Last Speaker**: $F_i = 2.0$
-* **Others**: $F_i = 0.0$
-
-#### 5. Rambling Momentum ($M_i$)
-An exception for eccentric or chaotic characters. If the character's profile explicitly contains rambling keywords (e.g. *eccentric, chaotic, rambling, hyperactive*), they receive a momentum boost:
-* **Is Last Speaker & Is Rambler**: $M_i = 1.0$
-* **Others**: $M_i = 0.0$
-
-#### 6. Spatial Proximity ($S_i$)
-Provides situational awareness. If the character's current location on the Scene Board is explicitly mentioned in the recent chat exchange, they receive a substantial boost to speak up:
-* **Location Mentioned**: $S_i = 2.0$
-* **Others**: $S_i = 0.0$
-
-#### 7. Spontaneity Noise ($N_i$)
-A small random float introduced to add organic variety and prevent deterministic conversational cycles:
-
-$$N_i \sim \text{Uniform}(-0.05, 0.05)$$
+Mignon UI models this sociolinguistic structure with **zero VRAM overhead** using a deterministic, rule-based personality parser combined with cached local **SQLite embeddings** for semantic topic matching and a probabilistic Softmax selection engine.
 
 ---
 
-## 🛑 Conversation Lapses & Silence
+## 🧠 The Zero-Input Rule-Based Parser
 
-To prevent characters from generating boring, repetitive filler dialogue when nothing interesting is occurring, the selector enforces a global **Lapse Threshold**:
+When a character card is loaded, the backend runs a rule-based parser that scans their free-form biography/description and auto-generates their psychological parameters in milliseconds.
 
-```
-Is Max(TES) across all members < 1.2?
-  ├── Yes ──> Lapse Triggered: Nobody self-selects. Floor returns to the User.
-  └── No  ──> Winner Selected: Character with highest TES executes prompt.
-```
+### 1. The Big Five Traits
+Calculated from weighted keyword dictionaries scanned against the character description, clamped to a range of `[0.0, 1.0]` (starting at a neutral base of `0.5`):
+* **Extraversion ($E_{xt}$):** Drive to initiate talk. Keywords: `shy`/`timid` (-0.4), `loner` (-0.6), `chatty`/`outgoing` (+0.4), `loud`/`extroverted` (+0.5).
+* **Assertiveness ($A_{ss}$):** Readiness to self-select competitively. Keywords: `meek`/`submissive` (-0.4), `aggressive`/`dominant` (+0.4), `assertive`/`bold` (+0.3), `natural leader` (+0.5).
+* **Agreeableness ($A_{gr}$):** Warmth/cooperation. Keywords: `kind`/`warm` (+0.3), `polite`/`cooperative` (+0.2), `cold`/`harsh` (-0.3), `argumentative`/`hostile` (-0.2).
+* **Neuroticism ($N_{eu}$):** Anxiety/volatility. Keywords: `anxious`/`nervous` (+0.4), `calm`/`relaxed` (-0.3), `moody`/`volatile` (+0.3), `stoic`/`emotionless` (-0.2).
+* **Openness ($O_{pe}$):** Intellectual curiosity. Keywords: `curious`/`creative` (+0.4), `adventurous` (+0.3), `stubborn`/`conservative` (-0.3).
+
+### 2. Derived Traits
+* **Impulsivity:** Calculated as $\frac{E_{xt} + (1.0 - A_{gr})}{2.0}$.
+* **Silence Discomfort:** Calculated as $0.7 \times E_{xt} + 0.3 \times N_{eu}$.
+* **SLC (Sensitivity to Least Comfortable Person):** Equals $N_{eu}$ directly.
+
+### 3. Asymmetric Relationship Comfort Matrix
+Scans the bio against the names of all active room members to identify relationship verbs and phrases, assigning a base comfort value:
+* `best friend of X` / `closest to X` $\rightarrow$ **0.95**
+* `friend of X` / `likes X` $\rightarrow$ **0.80**
+* `childhood friend of X` $\rightarrow$ **0.85**
+* `rival of X` $\rightarrow$ **0.20**
+* `enemy of X` / `hates X` $\rightarrow$ **0.10**
+* `terrified of X` / `fears X` $\rightarrow$ **0.15**
+* `default stranger` $\rightarrow$ **0.45**
 
 ---
 
-## 📋 Shared Environment Scene Status Board
+## 🧮 Score Calculation & Multiplicative Gating
 
-All character interactions are contextualized on a shared **Scene Status Board** stored inside the room's `scene_state` column. This JSON dictionary tracks active locations, moods, actions, and motivations:
+When no direct address is detected, the platform computes a **Next-Speaker Score ($S_i$)** for each active character:
 
-```json
-{
-  "environment": {
-    "location": "The Whispering Tavern",
-    "atmosphere": "Dimly lit, cozy, smelling of roasted barley and pine wood"
-  },
-  "2": {
-    "name": "Evelyn",
-    "location": "The Whispering Tavern",
-    "action": "Leaning against the bar counter, sipping red wine",
-    "mood": "contemplative"
-  },
-  "3": {
-    "name": "Lilith",
-    "location": "The Courtyard",
-    "action": "Asleep on the wooden bench under the starry sky",
-    "mood": "sleeping"
-  },
-  "active_motivation": "Evelyn wants to overhear the traveler's conversation"
-}
-```
+$$S_i = W_i \times E_i \times B_i \times \mathbf{1}_{\text{sel}}(i) \times (1 - D_i)$$
 
-### Physical Incapacitation Filters
-Before computing the TES array, the orchestrator passes each room member through a **Physical Incapacitation Filter**:
-* It checks the active `action` and `mood` strings of the member.
-* If terms like *sleeping, unconscious, fainted, knocked out, or paralyzed* are detected, that character is **instantly skipped** and removed from the active speaker pool.
-* In the JSON example above, **Lilith** is skipped because her mood is `"sleeping"`, leaving Evelyn to coordinate turns with the player.
+Where:
+
+### 1. Willingness ($W_i$)
+Tracks social drive adjusted by overall group comfort and active mood.
+$$W_i = (E_{xt} \times A_{ss}) \times C_i \times \text{mood\_factor}$$
+
+The **Comfort Multiplier ($C_i$)** determines how safe the character feels in the current group:
+$$C_i = \max(0.1, \; 1.0 - [\text{slc}_i \cdot (1 - c^{\min}_i) + (1 - \text{slc}_i) \cdot (1 - \bar{c}_i)])$$
+*If an intimidating enemy is present (low $c^{\min}_i$), shy/neurotic characters with a high SLC automatically clam up ($C_i \to 0.1$).*
+
+### 2. Topic Engagement ($E_i$)
+Measures keyword overlap between the last message and the character card biography to calculate topic relevance.
+$$E_i = \max(\text{Keyword Overlap Ratio}(\text{last\_message}, \; \text{bio}), \; 0.5)$$
+Calculated via a fast, sub-millisecond local token overlap matcher. No slow embedding models or network API calls required, ensuring optimal client performance and battery efficiency.
+
+### 3. Silence-Breaking Boost ($B_i$)
+Escalates dynamically as silence stretches ($\tau$ in seconds) past the threshold ($T_{\text{sil}} = 1.5$ s):
+$$B_i = 1.0 + \text{silence\_discomfort}_i \times (\tau - T_{\text{sil}}) \times 0.5 \quad (\text{if } \tau \ge T_{\text{sil}})$$
+*Extroverts and anxious characters who hate awkward pauses eventually force themselves to break the silence.*
+
+### 4. Selection Boost ($\mathbf{1}_{\text{sel}}(i)$)
+Equals `100.0` if the last speaker explicitly named or selected character $i$, otherwise `1.0`.
+
+### 5. Deference Penalty ($D_i$)
+Low-status or highly agreeable characters defer speaking when a high-status character ($s$) has the floor:
+$$D_i = A_{gr} \times (1.0 - A_{ss}) \times \Delta_{i,s}$$
+Where status is determined from rank keywords (e.g. *king = 10, general = 9, servant = 3*), and status differential is:
+$$\Delta_{i,s} = \max\left(0.0, \; \min\left(1.0, \; \frac{\text{status}_s - \text{status}_i}{10.0}\right)\right)$$
+
+---
+
+## 🎲 Probabilistic Speaker Selection
+
+Once scores $S_i$ are calculated, the backend does **not** pick the winner deterministically. Instead, it converts scores to probability distributions using a **Softmax function with Temperature ($T = 0.5$)**:
+
+$$P(\text{speaker} = i) = \frac{\exp(S_i / T)}{\sum_j \exp(S_j / T)}$$
+
+The next speaker is sampled from this distribution, allowing organic variety and preventing repetitive A-B-A-B conversational loops.
+
+### 🛑 Silence Lapses
+If the highest score $S_i$ among all candidates is **below 0.05**, the selector triggers a **Lapse**. The floor returns to the player, allowing the user to chime in.
+
+---
+
+## 📋 Environment Scene Status Board Integration
+
+Active environment status board variables (like `"location"`, `"action"`, and `"mood"`) stored in the SQLite `scene_state` column integrate with the turn selector:
+* **Spatial Proximity Boost:** If a character is located in a scene room (e.g. *kitchen*, *balcony*) and that room name is mentioned in recent dialogue, they receive a proximity boost of **$+1.5$** to join the conversation.
+* **Physical Incapacitation check:** Characters whose active status is set to *asleep, sleeping, unconscious, or fainted* are automatically filtered out before scores are computed.
+
+---
+
+## 🧠 Cognitive Mode (LLM-Guided Turn Hinting)
+
+In addition to the mathematical **Formula 3 Model**, Mignon UI provides an **Intelligence-driven Cognitive Mode**. Rather than relying on separate offline bidding queries (which double API latency and token costs) or purely mathematical heuristics, Cognitive Mode uses a single-pass **LLM Turn Hinting** architecture.
+
+### How it Works
+1. **Context-Aware Prompting**: When generating a joint response, the prompt compiler injects the candidate roster (with IDs) and the active room state (locations, moods, and actions). It instructs the LLM:
+   > "At the absolute end of the character's response, after all dialogue and actions, you MUST decide who should speak next in the room and output a next speaker XML tag: `<next_speaker id="NEXT_CHARACTER_ID">` or `<next_speaker id="user">`."
+2. **Streaming Parser Extraction**: As the LLM streams the response tokens, the system buffers the trailing portion. If it detects a `<next_speaker>` tag:
+   - It parses the target speaker ID (or `"user"`).
+   - It strips the tag completely from the text before saving the message, so users never see the metadata.
+   - It updates the room's `scene_state` with `next_speaker_id`.
+3. **Zero-Overhead Orchestration**: During auto-chaining, the orchestrator queries `runCognitiveAuction` (which executes in 0ms). It reads the `next_speaker_id` from the room state:
+   - If it's a bot ID, it triggers that bot next.
+   - If it's `"user"` or missing, the chain halts.
+   - If the tag is missing due to generation cutoffs, a robust fallback automatically triggers the local **Efficient Selector**.

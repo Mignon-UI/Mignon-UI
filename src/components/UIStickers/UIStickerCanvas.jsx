@@ -108,6 +108,35 @@ const getStableSelector = (el) => {
   return path.join(' > ');
 };
 
+function isStickerAnchorTarget(node) {
+  if (node.nodeType !== Node.ELEMENT_NODE) return false;
+  const el = node;
+  return (
+    el.id?.startsWith('msg-bubble-') ||
+    el.id?.startsWith('modal-') ||
+    el.id?.startsWith('char-card-') ||
+    el.id?.startsWith('room-item-') ||
+    el.id?.startsWith('lore-item-') ||
+    el.classList?.contains('modal-box') ||
+    el.classList?.contains('chat-view') ||
+    el.querySelector?.('[id^="msg-bubble-"], [id^="modal-"], .chat-view, .char-card')
+  );
+}
+
+function findLockableTargetFromPoints(points) {
+  for (const pt of points) {
+    const candidate = document.elementFromPoint(pt.x, pt.y);
+    if (!candidate) continue;
+    for (const selector of LOCKABLE_SELECTORS) {
+      const closest = candidate.closest(selector);
+      if (closest) {
+        return closest;
+      }
+    }
+  }
+  return null;
+}
+
 export default function UIStickerCanvas() {
   const [stickers, setStickers] = useState([]);
   const [activeStickerId, setActiveStickerId] = useState(null);
@@ -126,15 +155,40 @@ export default function UIStickerCanvas() {
   // Tracks highlighted DOM targets during active dragging
   const prevLockTarget = useRef(null);
 
+  // Throttled mouse tracking variables for requestAnimationFrame
+  const mouseMovePending = useRef(false);
+  const latestMousePos = useRef({ x: 0, y: 0 });
+  const resizeRotatePending = useRef(false);
+  const latestResizeMousePos = useRef({ x: 0, y: 0 });
+
   // High-performance MutationObserver to track when dynamic modal/chat nodes mount/unmount
   useEffect(() => {
     let timeoutId = null;
-    const observer = new MutationObserver(() => {
-      // Debounce to prevent massive re-renders during text typing or token streaming
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        setDomTick(prev => prev + 1);
-      }, 150);
+    const observer = new MutationObserver((mutations) => {
+      let shouldUpdate = false;
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (isStickerAnchorTarget(node)) {
+            shouldUpdate = true;
+            break;
+          }
+        }
+        if (shouldUpdate) break;
+        for (const node of mutation.removedNodes) {
+          if (isStickerAnchorTarget(node)) {
+            shouldUpdate = true;
+            break;
+          }
+        }
+        if (shouldUpdate) break;
+      }
+
+      if (shouldUpdate) {
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          setDomTick(prev => prev + 1);
+        }, 150);
+      }
     });
     observer.observe(document.body, { childList: true, subtree: true });
     return () => {
@@ -294,34 +348,31 @@ export default function UIStickerCanvas() {
     window.addEventListener('mouseup', handleMouseUp);
   };
 
-  const handleMouseMove = (e) => {
-    if (!dragInfo.current.isDragging) return;
-
+  const updateDragPosition = () => {
+    mouseMovePending.current = false;
     const info = dragInfo.current;
+    if (!info.isDragging) return;
+
     if (!info.el) {
       info.el = document.getElementById(`sticker-${info.stickerId}`);
     }
+    if (!info.el) return;
 
-    const deltaX = e.clientX - info.startX;
-    const deltaY = e.clientY - info.startY;
+    const deltaX = latestMousePos.current.x - info.startX;
+    const deltaY = latestMousePos.current.y - info.startY;
 
     const dragX = Math.round(info.initialX + deltaX);
     const dragY = Math.round(info.initialY + deltaY);
 
-    if (info.el) {
-      info.el.style.left = `${dragX}px`;
-      info.el.style.top = `${dragY}px`;
-    }
+    info.el.style.left = `${dragX}px`;
+    info.el.style.top = `${dragY}px`;
 
     // --- REAL-TIME SCROLL-LOCK MICRO ELEMENT OVERLAP DETECTION ---
     // Sample 9 points around the sticker bounding box. Break as soon as any
     // point lands on an element that has a lockable ancestor — this means the
     // lock triggers the moment any sticker edge overlaps the target, not just
     // when the cursor reaches the center.
-    if (info.el) {
-      info.el.style.display = 'none'; // Hide sticker so hit-test passes through it
-    }
-
+    // NOTE: pointer-events: none is applied during drag, so hit-test naturally passes through.
     const stickerRectMove = {
       left: dragX - 90,
       right: dragX + 90,
@@ -332,7 +383,7 @@ export default function UIStickerCanvas() {
     };
 
     const samplePointsMove = [
-      { x: e.clientX, y: e.clientY },
+      { x: latestMousePos.current.x, y: latestMousePos.current.y },
       { x: stickerRectMove.cx, y: stickerRectMove.top + 8 },
       { x: stickerRectMove.cx, y: stickerRectMove.bottom - 8 },
       { x: stickerRectMove.left + 8, y: stickerRectMove.cy },
@@ -343,22 +394,7 @@ export default function UIStickerCanvas() {
       { x: stickerRectMove.right - 8, y: stickerRectMove.bottom - 8 },
     ];
 
-    let lockableTarget = null;
-    outer: for (const pt of samplePointsMove) {
-      const candidate = document.elementFromPoint(pt.x, pt.y);
-      if (!candidate) continue;
-      for (const selector of LOCKABLE_SELECTORS) {
-        const closest = candidate.closest(selector);
-        if (closest) {
-          lockableTarget = closest;
-          break outer;
-        }
-      }
-    }
-
-    if (info.el) {
-      info.el.style.display = ''; // Restore sticker visibility
-    }
+    const lockableTarget = findLockableTargetFromPoints(samplePointsMove);
 
     let highlightTarget = lockableTarget;
     if (lockableTarget) {
@@ -385,6 +421,16 @@ export default function UIStickerCanvas() {
       prevLockTarget.current = highlightTarget;
     } else {
       prevLockTarget.current = null;
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!dragInfo.current.isDragging) return;
+    latestMousePos.current = { x: e.clientX, y: e.clientY };
+
+    if (!mouseMovePending.current) {
+      mouseMovePending.current = true;
+      requestAnimationFrame(updateDragPosition);
     }
   };
 
@@ -416,10 +462,7 @@ export default function UIStickerCanvas() {
     // --- LOCK TARGET EVALUATION ENGINE ---
     // Same fixed multi-point sampling: test each point against LOCKABLE_SELECTORS
     // directly so we break only when a lockable match is found.
-    if (el) {
-      el.style.display = 'none'; // Hide sticker so hit-test passes through it
-    }
-
+    // NOTE: pointer-events: none is applied during drag, so hit-test naturally passes through.
     const hitEl = document.elementFromPoint(e.clientX, e.clientY);
 
     const stickerRectUp = {
@@ -443,22 +486,7 @@ export default function UIStickerCanvas() {
       { x: stickerRectUp.right - 8, y: stickerRectUp.bottom - 8 },
     ];
 
-    let lockableTarget = null;
-    outerUp: for (const pt of samplePointsUp) {
-      const candidate = document.elementFromPoint(pt.x, pt.y);
-      if (!candidate) continue;
-      for (const selector of LOCKABLE_SELECTORS) {
-        const closest = candidate.closest(selector);
-        if (closest) {
-          lockableTarget = closest;
-          break outerUp;
-        }
-      }
-    }
-
-    if (el) {
-      el.style.display = ''; // Restore sticker visibility
-    }
+    const lockableTarget = findLockableTargetFromPoints(samplePointsUp);
 
     let finalX = finalScreenX;
     let finalY = finalScreenY;
@@ -574,12 +602,13 @@ export default function UIStickerCanvas() {
     window.addEventListener('mouseup', handleResizeRotateMouseUp);
   };
 
-  const handleResizeRotateMouseMove = (e) => {
+  const updateResizeRotate = () => {
+    resizeRotatePending.current = false;
     const info = resizeRotateInfo.current;
     if (!info.isResizing) return;
 
-    const dx = e.clientX - info.center.x;
-    const dy = e.clientY - info.center.y;
+    const dx = latestResizeMousePos.current.x - info.center.x;
+    const dy = latestResizeMousePos.current.y - info.center.y;
 
     const currentDistance = Math.sqrt(dx * dx + dy * dy);
     const currentAngle = Math.atan2(dy, dx);
@@ -599,6 +628,17 @@ export default function UIStickerCanvas() {
 
     if (info.el) {
       info.el.style.transform = `translate(-50%, -50%) rotate(${newRotation}deg) scale(${newScale})`;
+    }
+  };
+
+  const handleResizeRotateMouseMove = (e) => {
+    const info = resizeRotateInfo.current;
+    if (!info.isResizing) return;
+    latestResizeMousePos.current = { x: e.clientX, y: e.clientY };
+
+    if (!resizeRotatePending.current) {
+      resizeRotatePending.current = true;
+      requestAnimationFrame(updateResizeRotate);
     }
   };
 
@@ -726,7 +766,7 @@ export default function UIStickerCanvas() {
               opacity: sticker.opacity,
               cursor: isEditingMode ? 'move' : 'default',
               zIndex: isActive ? 100000 : 99999,
-              pointerEvents: isEditingMode ? 'auto' : 'none', // CLICK-THROUGH BUGFIX
+              pointerEvents: isDraggingThis ? 'none' : (isEditingMode ? 'auto' : 'none'), // CLICK-THROUGH BUGFIX
               userSelect: 'none'
             }}
             onClick={(e) => {

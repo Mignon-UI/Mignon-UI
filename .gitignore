@@ -1,66 +1,47 @@
-# Python virtual environment
-venv/
-.venv/
-ENV/
-env/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
 # Node.js dependencies
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Production builds
 dist/
 dist-ssr/
-*.local
+static/
+build/
 
-# Local Database and Vector Store files (all private user data)
+# Tauri build artifacts
+src-tauri/target/
+
+# Local databases and SQLite files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
 data/
 lancedb/
-*.db
-*.sqlite
 
-# Serialised JSON dumps (allow seed data, block private dumps)
-*.json
-!data/**/*.json
-!public/**/*.json
-database_dump.json
-AR2.json
-
-# Private Seed Files (personal character cards and custom configs)
-data/seed_*.py
-data/seed_*.py.example
-
-# Ignore compiled frontend assets and custom user-uploaded avatars
-static/assets/
-static/avatars/*
-
-# PyInstaller build artifacts
-build/
-packaging/*.spec
-resources/mascot/*.ico
+# Local Environment Secrets
+.env
+.env.local
+.env.*.local
 
 # IDE / System files
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+*.suo
+*.ntvsca*
+*.njsproj
+*.sln
+*.sw?
 
-# Local Environment secrets
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Developer testing scripts
-scratch/
-tests/
-test.py
-test_benchmark.py
-test_rag_improvements.py
-
-# Tooling
-.agents
+# Project & tooling configs
+.agents/
+.fallow/
 graphify-out/
 .graphifyignore
+AR2.json
+scratch/
+*.log

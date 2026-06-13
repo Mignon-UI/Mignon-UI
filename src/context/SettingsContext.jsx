@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import * as api from '../services/api';
+import { getProviderDefaultSettings } from '../utils/providerSettings';
 
 const SettingsContext = createContext(null);
 
@@ -12,6 +13,7 @@ export function SettingsProvider({ children }) {
   const [settingsForm, setSettingsForm] = useState({
     provider: 'ollama',
     openrouter_key: '',
+    custom_key: '',
     local_endpoint: 'http://127.0.0.1:11434/v1',
     selected_model: '',
     temperature: 0.9,
@@ -22,12 +24,14 @@ export function SettingsProvider({ children }) {
     persona_description: '',
     persona_character_id: null,
     cloud_rate_limit: 15,
+    current_profile_id: null,
   });
 
-  const _applySettingsToForm = useCallback((data) => {
+  const applySettingsToForm = useCallback((data) => {
     setSettingsForm({
       provider: data.provider || 'ollama',
       openrouter_key: data.openrouter_key || '',
+      custom_key: data.custom_key || '',
       local_endpoint: data.local_endpoint || 'http://127.0.0.1:11434/v1',
       selected_model: data.selected_model || '',
       temperature: data.temperature !== undefined ? data.temperature : 0.9,
@@ -38,18 +42,20 @@ export function SettingsProvider({ children }) {
       persona_description: data.persona_description || '',
       persona_character_id: data.persona_character_id || null,
       cloud_rate_limit: data.cloud_rate_limit !== undefined ? data.cloud_rate_limit : 15,
+      current_profile_id: data.current_profile_id !== undefined ? data.current_profile_id : null,
     });
   }, []);
 
   const fetchSettings = useCallback(async () => {
     try {
+      await api.initializeApp(); // Initialize SQLite tables and seed defaults
       const data = await api.fetchSettings();
       setSettings(data);
-      _applySettingsToForm(data);
+      applySettingsToForm(data);
     } catch (e) {
       console.error('Failed to load settings:', e);
     }
-  }, [_applySettingsToForm]);
+  }, [applySettingsToForm]);
 
   const checkEngineConnection = useCallback(async () => {
     try {
@@ -91,31 +97,14 @@ export function SettingsProvider({ children }) {
 
   const handleSettingsProviderChange = useCallback((providerVal) => {
     setSettingsForm(prev => {
-      let { selected_model: model, local_endpoint: endpoint } = prev;
-      if (providerVal === 'openrouter') {
-        if (!model || ['dolphin-llama3', 'kobold-model'].includes(model)) {
-          model = 'nousresearch/hermes-3-llama-3-8b';
-        }
-      } else if (providerVal === 'kobold') {
-        if (!endpoint || endpoint === 'http://127.0.0.1:11434/v1' || endpoint === 'http://localhost:1234/v1') endpoint = 'http://127.0.0.1:5001/v1';
-        if (!model || model === 'nousresearch/hermes-3-llama-3-8b') model = 'kobold-model';
-      } else if (providerVal === 'custom') {
-        if (!endpoint || endpoint === 'http://127.0.0.1:11434/v1' || endpoint === 'http://127.0.0.1:5001/v1') endpoint = 'http://localhost:1234/v1';
-        if (!model || ['dolphin-llama3', 'kobold-model', 'nousresearch/hermes-3-llama-3-8b'].includes(model)) {
-          model = 'custom-model';
-        }
-      } else {
-        // ollama
-        if (!endpoint || endpoint === 'http://127.0.0.1:5001/v1' || endpoint === 'http://localhost:1234/v1') endpoint = 'http://127.0.0.1:11434/v1';
-        if (!model || model === 'nousresearch/hermes-3-llama-3-8b' || model === 'kobold-model') model = 'dolphin-llama3';
-      }
+      const { model, endpoint } = getProviderDefaultSettings(providerVal, prev.selected_model, prev.local_endpoint);
       return { ...prev, provider: providerVal, selected_model: model, local_endpoint: endpoint };
     });
   }, []);
 
   const resetForm = useCallback(() => {
-    _applySettingsToForm(settings);
-  }, [_applySettingsToForm, settings]);
+    applySettingsToForm(settings);
+  }, [applySettingsToForm, settings]);
 
   // Boot sync
   useEffect(() => {
@@ -136,14 +125,14 @@ export function SettingsProvider({ children }) {
     engineStatus, engineOnline,
     fetchSettings, checkEngineConnection,
     handleSettingsSubmit, handleSettingsProviderChange,
-    resetForm,
+    resetForm, applySettingsToForm,
   }), [
     settings,
     settingsForm,
     engineStatus, engineOnline,
     fetchSettings, checkEngineConnection,
     handleSettingsSubmit, handleSettingsProviderChange,
-    resetForm,
+    resetForm, applySettingsToForm,
   ]);
 
   return (

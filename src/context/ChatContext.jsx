@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import * as api from '../services/api';
 import { useCharacterContext } from './CharacterContext';
+import { parseSseStream } from '../utils/sseParser';
 
 const ChatContext = createContext(null);
 
@@ -109,7 +110,16 @@ export function ChatProvider({ children }) {
   // Auto-scroll
   useEffect(() => {
     if (chatHistoryRef.current && isNearBottomRef.current) {
-      chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
+      const lastMsg = roomMessages[roomMessages.length - 1];
+      const isStreaming = lastMsg?.is_streaming || isGenerating;
+      if (isStreaming) {
+        chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
+      } else {
+        chatHistoryRef.current.scrollTo({
+          top: chatHistoryRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
     }
   }, [roomMessages, typingBot, isGenerating]);
 
@@ -256,76 +266,62 @@ export function ChatProvider({ children }) {
       const room = rooms.find(r => r.id === currentRoomId);
       const isAuto = room?.is_group && (selectedTriggerBotIdRef.current === 'auto' || selectedTriggerBotIdRef.current === 'cognitive' || selectedTriggerBotIdRef.current === 'efficient');
       const activeMode = selectedTriggerBotIdRef.current || 'auto';
-      const response = await fetch(`/api/rooms/${currentRoomId}/generate?character_id=${botId}&auto_chain=${isAuto}&muted_ids=${mutedIdsStr}&mode=${activeMode}`, { 
-        method: 'POST',
-        signal: signal
-      });
+      const response = await api.generateBotResponse(currentRoomId, botId, isAuto, mutedIdsStr, activeMode, signal);
       setTypingBot(null);
       if (!response.ok) {
         toast?.error('Backend returned an error. Make sure Ollama/LM Studio is running and connected.');
         setIsGenerating(false); return;
       }
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let buffer = '';
-      
+
       let currentTempId = `streaming-temp-${botId}`;
       let compiled = '';
-      
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop();
-        for (const line of lines) {
-          if (!line.trim().startsWith('data: ')) continue;
-          try {
-            const data = JSON.parse(line.trim().substring(6));
-            
-            if (data.bot_start) {
-              const { character_id, name } = data.bot_start;
-              compiled = '';
-              currentTempId = `streaming-temp-${character_id}-${Date.now()}`;
-              const tempMsg = { 
-                id: currentTempId, 
-                sender_type: 'character', 
-                character_id: character_id, 
-                sender_name: name, 
-                content: '', 
-                is_streaming: true 
-              };
-              setRoomMessages(prev => {
-                const filtered = prev.filter(m => !m.is_streaming || m.id === currentTempId);
-                if (filtered.some(m => m.id === currentTempId)) return filtered;
-                return [...filtered, tempMsg];
-              });
-            }
-            
-            if (data.token) { 
-              compiled += data.token; 
-              setRoomMessages(prev => prev.map(m => m.id === currentTempId ? { ...m, content: compiled } : m)); 
-            }
-            
-            if (data.done) {
-              const dbMsgId = data.message_id;
-              setRoomMessages(prev => prev.map(m => m.id === currentTempId ? { ...m, id: dbMsgId, is_streaming: false } : m));
-              fetchRooms();
-            }
-            
-            if (data.chain_done) {
-              console.log("[Chaining] Backend auto-chain completed successfully.");
-              changeChainingState(false);
-            }
-            
-            if (data.error) {
-              toast?.error(`Generation error: ${data.error}`);
-            }
-          } catch (err) {
-            console.warn("[Streaming] Failed to parse SSE line JSON:", err);
+
+      await parseSseStream(response, (dataContent) => {
+        try {
+          const data = JSON.parse(dataContent);
+          
+          if (data.bot_start) {
+            const { character_id, name } = data.bot_start;
+            compiled = '';
+            currentTempId = `streaming-temp-${character_id}-${Date.now()}`;
+            const tempMsg = { 
+              id: currentTempId, 
+              sender_type: 'character', 
+              character_id: character_id, 
+              sender_name: name, 
+              content: '', 
+              is_streaming: true 
+            };
+            setRoomMessages(prev => {
+              const filtered = prev.filter(m => !m.is_streaming || m.id === currentTempId);
+              if (filtered.some(m => m.id === currentTempId)) return filtered;
+              return [...filtered, tempMsg];
+            });
           }
+          
+          if (data.token) { 
+            compiled += data.token; 
+            setRoomMessages(prev => prev.map(m => m.id === currentTempId ? { ...m, content: compiled } : m)); 
+          }
+          
+          if (data.done) {
+            const dbMsgId = data.message_id;
+            setRoomMessages(prev => prev.map(m => m.id === currentTempId ? { ...m, id: dbMsgId, is_streaming: false } : m));
+            fetchRooms();
+          }
+          
+          if (data.chain_done) {
+            console.log("[Chaining] Backend auto-chain completed successfully.");
+            changeChainingState(false);
+          }
+          
+          if (data.error) {
+            toast?.error(`Generation error: ${data.error}`);
+          }
+        } catch (err) {
+          console.warn("[Streaming] Failed to parse SSE line JSON:", err);
         }
-      }
+      });
     } catch (e) {
       if (e.name === 'AbortError') {
         console.log('[Streaming] Aborted by user.');
@@ -346,7 +342,7 @@ export function ChatProvider({ children }) {
         console.error("Failed to load room messages after generate:", e);
       }
     }
-  }, [isGenerating, currentRoomId, activeRoomBots, changeChainingState, mutedCharacterIds, fetchRooms]);
+  }, [isGenerating, currentRoomId, activeRoomBots, changeChainingState, mutedCharacterIds, fetchRooms, rooms]);
 
   const handleSendMessage = useCallback(async (toast) => {
     if (!currentRoomId || !chatMessage.trim()) return;
@@ -367,6 +363,7 @@ export function ChatProvider({ children }) {
       await api.sendMessage(currentRoomId, content, 'User');
       const freshMessages = await api.fetchRoomMessages(currentRoomId);
       setRoomMessages(freshMessages);
+      await fetchRooms();
 
       const room = rooms.find(r => r.id === currentRoomId);
       if (!room?.is_group) {
@@ -387,7 +384,7 @@ export function ChatProvider({ children }) {
           changeChainingState(false);
         }
       } else if (triggerId === 'auto' || triggerId === 'efficient') {
-        // Fallback or mathematical mode continues using the fast local SSJC selector
+        // Fallback or mathematical mode continues using the fast local efficient selector
         changeChainingState(true);
         const mutedIdsStr = Array.from(mutedCharacterIds).join(',');
         const firstSpeaker = await api.fetchNextSpeaker(currentRoomId, content, mutedIdsStr, triggerId || 'auto');
@@ -403,7 +400,7 @@ export function ChatProvider({ children }) {
     } catch {
       toast.error('Failed to deliver message.');
     }
-  }, [isGenerating, currentRoomId, chatMessage, activeRoomBots, triggerBotResponse, changeChainingState, mutedCharacterIds, handleStopResponseGeneration]);
+  }, [isGenerating, currentRoomId, chatMessage, activeRoomBots, triggerBotResponse, changeChainingState, mutedCharacterIds, handleStopResponseGeneration, rooms, fetchRooms]);
 
   const handleTextareaKeyDown = useCallback((e, toast) => {
     const textarea = chatTextareaRef.current;
@@ -450,25 +447,29 @@ export function ChatProvider({ children }) {
     if (newIndex < 0 || newIndex >= total || isGenerating) return;
     await api.swipeMessage(currentRoomId, msgId, newIndex);
     await loadRoomMessages(currentRoomId);
-  }, [currentRoomId, isGenerating, loadRoomMessages]);
+    await fetchRooms();
+  }, [currentRoomId, isGenerating, loadRoomMessages, fetchRooms]);
 
   const handleDeleteMessage = useCallback(async (msgId) => {
     if (isGenerating) return;
     await api.deleteMessage(msgId);
     await loadRoomMessages(currentRoomId);
-  }, [isGenerating, currentRoomId, loadRoomMessages]);
+    await fetchRooms();
+  }, [isGenerating, currentRoomId, loadRoomMessages, fetchRooms]);
 
   const handleEditMessage = useCallback(async (msgId, content) => {
     if (isGenerating) return;
     await api.updateMessage(msgId, content);
     await loadRoomMessages(currentRoomId);
-  }, [isGenerating, currentRoomId, loadRoomMessages]);
+    await fetchRooms();
+  }, [isGenerating, currentRoomId, loadRoomMessages, fetchRooms]);
 
   const handleTruncateMessages = useCallback(async (msgId) => {
     if (isGenerating || !currentRoomId) return;
     await api.truncateMessages(currentRoomId, msgId);
     await loadRoomMessages(currentRoomId);
-  }, [isGenerating, currentRoomId, loadRoomMessages]);
+    await fetchRooms();
+  }, [isGenerating, currentRoomId, loadRoomMessages, fetchRooms]);
 
   const handleAddCompanion = useCallback(async (characterId) => {
     if (!currentRoomId) return;
@@ -528,8 +529,9 @@ export function ChatProvider({ children }) {
       setSwipeRegenMsgId(null);
       setIsGenerating(false);
       await loadRoomMessages(currentRoomId);
+      await fetchRooms();
     }
-  }, [isGenerating, currentRoomId, loadRoomMessages]);
+  }, [isGenerating, currentRoomId, loadRoomMessages, fetchRooms]);
 
   const insertAsteriskHelper = useCallback(() => {
     const textarea = chatTextareaRef.current;

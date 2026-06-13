@@ -600,3 +600,262 @@
     0% { transform: scale(0); }
     100% { transform: scale(1); }
 }
+
+/* ── COLLAPSIBLE CARDS FOR CHARACTER CREATION ── */
+.card-definition-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.right-column-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-radius: var(--r-md);
+    background: var(--bg-window);
+    border: var(--border-width) solid var(--border);
+    margin-bottom: 8px;
+    box-shadow: var(--shadow-sm);
+}
+
+.right-column-section-header h3 {
+    font-family: var(--font-head);
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: var(--text);
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.right-column-section-header svg {
+    color: var(--purple);
+}
+
+.collapsible-card {
+    border: var(--border-width) solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--bg-window);
+    overflow: hidden;
+    transition: box-shadow var(--tf), border-color var(--tf);
+    box-shadow: var(--shadow-sm);
+}
+
+.collapsible-card:hover {
+    border-color: var(--pink);
+}
+
+.collapsible-card.expanded {
+    box-shadow: var(--shadow-md);
+}
+
+.collapsible-header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    color: var(--text);
+    font-family: var(--font-body);
+    transition: background-color var(--tf);
+}
+
+.collapsible-header:hover {
+    background: rgba(255, 183, 206, 0.05);
+}
+
+.collapsible-header .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.collapsible-header .header-icon {
+    color: var(--text-sec);
+    transition: color var(--tf);
+}
+
+.collapsible-card:hover .header-icon,
+.collapsible-card.expanded .header-icon {
+    color: var(--pink);
+}
+
+.collapsible-header .header-title {
+    font-family: var(--font-head);
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: var(--text);
+}
+
+.collapsible-header .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.collapsible-header .token-badge {
+    font-size: 0.72rem;
+    font-family: var(--font-code);
+    font-weight: bold;
+    color: var(--text);
+    background: var(--bg-input);
+    border: var(--border-width) solid var(--border);
+    padding: 2px 8px;
+    border-radius: var(--r-full);
+}
+
+.collapsible-header svg {
+    color: var(--text-sec);
+    transition: transform var(--tf);
+}
+
+.collapsible-content-wrapper {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.collapsible-card.expanded .collapsible-content-wrapper {
+    max-height: 1000px;
+}
+
+.collapsible-content {
+    padding: 0 18px 18px 18px;
+    border-top: var(--border-width) dashed var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.collapsible-card.expanded .collapsible-content {
+    padding-top: 14px;
+}
+
+.collapsible-content .field-desc {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: var(--text-sec);
+    font-family: var(--font-body);
+}
+
+.collapsible-content textarea.collapsible-textarea {
+    width: 100%;
+    min-height: 120px;
+    background: var(--bg-input);
+    border: var(--border-width) solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: var(--font-code);
+    font-size: 0.88rem;
+    line-height: 1.4;
+    resize: vertical;
+    box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.1);
+}
+
+.collapsible-content textarea.collapsible-textarea.textarea-desc {
+    min-height: 250px;
+}
+
+.collapsible-content textarea.collapsible-textarea.textarea-greeting {
+    min-height: 140px;
+}
+
+.collapsible-content textarea.collapsible-textarea.textarea-scenario {
+    min-height: 100px;
+}
+
+.collapsible-content textarea.collapsible-textarea.textarea-dialogue {
+    min-height: 140px;
+}
+
+.collapsible-content input.collapsible-input {
+    width: 100%;
+    background: var(--bg-input);
+    border: var(--border-width) solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: var(--font-code);
+    font-size: 0.88rem;
+    box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.1);
+}
+
+/* Divider: Legacy Fields */
+.legacy-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 12px 0;
+    width: 100%;
+}
+
+.legacy-divider-line {
+    flex: 1;
+    height: 0;
+    border-top: var(--border-width) dashed var(--border);
+    opacity: 0.3;
+}
+
+.legacy-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: var(--bg-window);
+    border: var(--border-width) solid var(--border);
+    border-radius: var(--r-full);
+    font-family: var(--font-head);
+    font-size: 0.72rem;
+    font-weight: bold;
+    color: var(--text-sec);
+    text-transform: uppercase;
+    box-shadow: var(--shadow-sm);
+}
+
+.legacy-badge svg {
+    color: var(--purple);
+}
+
+/* Add Optional Fields Pill Buttons */
+.add-field-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--bg-window);
+    border: var(--border-width) solid var(--border);
+    border-radius: var(--r-full);
+    color: var(--text);
+    font-family: var(--font-head);
+    font-size: 0.78rem;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--tf), box-shadow var(--tf), background-color var(--tf);
+}
+
+.add-field-pill-btn:hover {
+    background: var(--bg-input);
+    transform: translateY(-1px);
+    box-shadow: 3px 3px 0px var(--shadow-color);
+}
+
+.add-field-pill-btn:active {
+    transform: translateY(1px);
+    box-shadow: 1px 1px 0px var(--shadow-color);
+}
+
+.add-field-pill-btn svg {
+    color: var(--pink);
+}
+

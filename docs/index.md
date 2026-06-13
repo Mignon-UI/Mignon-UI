@@ -1,6 +1,6 @@
-# ✦ Darf UI Documentation ✦
+# ✦ Mignon UI Documentation ✦
 
-Welcome to the official developer and user documentation suite for **Darf UI**—the ultra-premium, offline-first local AI roleplay sandbox. 
+Welcome to the official developer and user documentation suite for **Mignon UI**—the ultra-premium, offline-first local AI roleplay sandbox. 
 
 This project is engineered to provide fully private, uncensored, and deeply immersive multi-agent storytelling, specifically optimized to run at maximum throughput on standard consumer hardware setups (such as gaming laptops with **6GB VRAM and 16GB RAM** footprints).
 
@@ -49,16 +49,16 @@ graph TD
 
 ## 📖 Complete Documentation Directory
 
-### 🚀 [1. Installation & launch Guide (setup.md)](setup.md)
-* **What's Covered**: Prerequisite requirements, automated OS setups (`install.bat` vs UNIX shells), the launcher system sequence, native PyWebView Windows package creation scripts, and CORS/port troubleshooting guides.
+### 🚀 [1. Installation & Launch Guide (setup.md)](setup.md)
+* **What's Covered**: Prerequisite requirements, system dependency setups (Rust toolchain, Node.js, OS build tools), standalone desktop and mobile packaging (MSI/EXE, AppImage, APK/AAB, iOS), and troubleshooting guides.
 * **Best For**: Setting up the sandbox environment and packaging custom application installations.
 
 ### 🧱 [2. Architecture & Database Blueprint (architecture.md)](architecture.md)
-* **What's Covered**: Decoupled component layers (FastAPI + Vite React), exact field-level SQLite ORM definitions, and serverless LanceDB schema layouts with CPU-bound embedding configurations.
+* **What's Covered**: Serverless client-side architecture (Tauri v2 + Vite/React), Tauri native plugins (`@tauri-apps/plugin-sql` and `@tauri-apps/plugin-http`), local SQLite schema, and secure hex-encrypted credential storage.
 * **Best For**: Understanding the relational schema mapping, cascading database constraints, and vector coordinate arrays.
 
 ### 🧠 [3. Semantic RAG & Chronicle Memory (memory.md)](memory.md)
-* **What's Covered**: Asynchronous milestone summaries compilation, SentenceTransformers performance optimizations, hybrid SQLite-vector search engines, and prompt prefix KV cache layouts.
+* **What's Covered**: Asynchronous milestone summaries compilation, multi-tiered embedding pipeline (OpenRouter, local API offload, browser-worker WASM Jina v2 fallback), client-side JS cosine similarity RAG, and prompt prefix KV cache layouts.
 * **Best For**: Configuring long-term character memories and squeezing fast evaluation speeds (<150ms) out of massive contexts.
 
 ### 🎭 [4. Lobbies & Cognitive Turn Allocation (group_chat.md)](group_chat.md)
@@ -66,7 +66,7 @@ graph TD
 * **Best For**: Customizing active room scenes and controlling the conversational pacing of bot-to-bot interactions.
 
 ### 🖼️ [5. Snapping Decals Overlay (stickers.md)](stickers.md)
-* **What's Covered**: Pointer gesture transformations matrices (scale, rotation, transparency limits), snapping boundaries algorithms, and database-state synchronization REST endpoints.
+* **What's Covered**: Pointer gesture transformation matrices (scale, rotation, transparency limits), snapping boundaries algorithms, and client-side database synchronization via the JS API broker.
 * **Best For**: Customizing the interactive sticker canvas overlay layer.
 
 ### 🎨 [6. Design Tokens & Premium Themes (design_system.md)](design_system.md)

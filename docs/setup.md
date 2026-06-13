@@ -1,6 +1,6 @@
-# 🚀 Setup, Launch, & Package Blueprints
+# 🚀 Setup, Launch, & Package Blueprints (Tauri v2)
 
-This guide covers the system requirements, installation workflows, automatic launcher mechanics, standalone desktop compiling, and comprehensive troubleshooting protocols for **Darf UI**.
+This guide covers system requirements, installation workflows, local development execution, standalone desktop/mobile compiling, and troubleshooting protocols for the serverless **Tauri v2** version of **Mignon UI**.
 
 ---
 
@@ -10,159 +10,129 @@ Ensure your local development machine matches these environmental guidelines bef
 
 | Dependency | Minimum Version | Target Version | Purpose |
 | :--- | :--- | :--- | :--- |
-| **Node.js** | v18.0.0 | v20.11.0 (LTS) | Powers the Vite dev server, launcher subprocesses, and packaging. |
-| **Python** | v3.10.0 | v3.11.9 (Recommended) | Backend server stack, database ORM engine, and LanceDB Arrow queries. |
-| **Ollama** *(Local Host)* | v0.1.30 | v0.1.48+ | Extremely simple local model engine with zero setup. |
-| **Kobold.cpp** *(Highly Rec)* | v1.50 | v1.68+ | Recommended for physical laptop optimization (ContextShift & KV cache compression). |
+| **Node.js** | v18.0.0 | v20.11.0 (LTS) | Powers the Vite dev server, frontend dependencies, and Tauri dev commands. |
+| **Rust / Cargo** | v1.75.0 | v1.78.0+ | Native compiler engine and package manager building the native wrapper. |
+| **OS Build Tools** | - | Latest | Compiler packages (MSVC Build Tools on Windows, Xcode on macOS, build-essential on Linux). |
+| **Ollama** *(Optional)* | v0.1.30 | Latest | For local offline LLM inference and hosting. |
+| **Kobold.cpp** *(Optional)* | v1.50 | Latest | Recommended for offline laptops (supporting ContextShift & KV cache compression). |
 
 ---
 
 ## 🛠️ Step-by-Step Installation
 
-Darf UI offers both a fully automated **one-click installer package** and a modular **manual terminal layout** to fit your workflow.
+### 🔷 Step 1: Install OS System Dependencies
 
-### 🔷 Option A: One-Click Automated Installers (Recommended)
+#### Windows:
+1. Download and run the [Visual Studio Community Installer](https://visualstudio.microsoft.com/downloads/) or [Build Tools for Visual Studio](https://visualstudio.microsoft.com/visual-cpp-build-tools/).
+2. Select the **Desktop development with C++** workload.
+3. Click Install and wait for it to complete.
 
-The workspace includes preconfigured OS shell scripts that automatically verify dependencies, construct a localized Python virtual environment (`venv`), compile local dependencies, and synchronize node packages in a single step.
+#### macOS:
+1. Install Xcode Command Line Tools:
+   ```bash
+   xcode-select --install
+   ```
 
-1. Extract the Darf UI workspace into a dedicated folder.
-2. Trigger the specific setup shortcut for your operating system:
-
-| OS | Desktop Action | CLI Execution | Launch Shortcut |
-| :--- | :--- | :--- | :--- |
-| **Windows** | Double-click **`install.bat`** | `.\install.bat` | **`start.bat`** |
-| **macOS** | Double-click **`install.command`** | `chmod +x install.command && ./install.command` | **`start.command`** |
-| **Linux** | Run standard shell script | `chmod +x install.sh && ./install.sh` | **`start.sh`** |
+#### Linux (Debian/Ubuntu):
+1. Install development and Webview packages:
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+   # For Tauri v2:
+   sudo apt-get install -y webkit2gtk-4.1
+   ```
 
 ---
 
-### 🔷 Option B: Manual Terminal Execution
+### 🔷 Step 2: Install Rustup (The Rust Toolchain)
+1. **Windows**: Download and run [rustup-init.exe](https://rustup.rs/). Choose option `1` (default).
+2. **macOS / Linux**: Run the installer in your terminal:
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   ```
+3. Restart your terminal or IDE after installation to update your system's `PATH`.
 
-For developers seeking direct console logging during environment configuration:
+---
 
-#### Step 1: Initialize Python Virtual Environment
-Open a terminal in the root workspace folder and build the Python virtual sandbox:
-```bash
-python -m venv venv
-```
-> [!IMPORTANT]
-> **Do not activate the virtual environment manually.** The Darf UI launcher script automatically detects the virtual environment folder in your root directory and resolves the correct absolute python binary path on all platforms.
-
-#### Step 2: Compile Python Dependencies
-Install required packages into your virtual environment:
-```bash
-# On Windows platforms:
-venv\Scripts\pip install -r requirements.txt
-
-# On macOS / Linux platforms:
-venv/bin/pip install -r requirements.txt
-```
-
-#### Step 3: Synchronize Node Modules
-Install frontend UI packages:
+### 🔷 Step 3: Install Frontend Dependencies
+Open a terminal in the root workspace folder and sync node modules:
 ```bash
 npm install
 ```
 
 ---
 
-## ⚡ Subprocess Launcher Sequence
+## ⚡ Launching the Application
 
-Darf UI utilizes a smart launcher orchestrator (`scripts/launcher.cjs`) to concurrently launch and clean up the backend FastAPI server and the frontend Vite web server under a unified parent process.
+Mignon UI uses Vite for high-speed hot reloading during development and Tauri to coordinate the native bridge.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Player as User / Developer
-    participant Launcher as scripts/launcher.cjs
-    participant DevServer as npm run dev
-    participant API as scripts/start-api.cjs
-    participant Web as Vite Dev Server
-    participant DB as SQLite / WAL
-
-    Player->>Launcher: Trigger start.bat / npm run start
-    activate Launcher
-    Launcher->>Player: Display neobrutalist Y2K boot banner
-    Launcher->>DevServer: Spawn 'npm run dev' parent subprocess
-    activate DevServer
-    
-    DevServer->>API: Execute 'node scripts/start-api.cjs'
-    activate API
-    API->>API: Detect host OS layout (Windows vs UNIX)
-    API->>API: Resolve binary path (./venv/Scripts/python vs ./venv/bin/python)
-    API->>DB: Invoke init_db() migration check
-    activate DB
-    DB-->>API: DB Synced & Migrated
-    deactivate DB
-    API->>Player: Spawns uvicorn API host on http://127.0.0.1:8000
-    
-    DevServer->>Web: Spawn 'vite --host 127.0.0.1'
-    activate Web
-    Web-->>Player: UI accessible on http://localhost:5173
-    deactivate Web
-    deactivate API
-    deactivate DevServer
-    
-    Launcher->>Player: Auto-open default browser to http://localhost:5173 after 2s delay
-    deactivate Launcher
+### Running in Development Mode
+To start the Vite server and launch the desktop window container simultaneously:
+```bash
+npm run tauri:dev
 ```
+*Behind the scenes, Tauri launches `npm run dev` to host the React application on `http://127.0.0.1:5173` and binds the native Webview frame directly to it.*
 
 ---
 
-## 📦 Standalone Native Desktop Packaging
+## 📦 Standalone Native Packaging
 
-For end-user distributions, Darf UI packages cleanly into a **fully standalone Windows Desktop Application installer (`.exe`)** with an absolute installation wizard.
+Mignon UI packages cleanly into self-contained, standalone binaries for desktop and mobile platforms.
 
-### The Desktop Build Pipeline:
-1. Open an Administrator PowerShell terminal in the root workspace folder.
-2. Trigger the PowerShell packaging orchestrator:
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File scripts/build-desktop.ps1
+### 🔷 Desktop Compilers (Windows, macOS, Linux)
+To compile and bundle optimized installer executables:
+```bash
+npm run tauri:build
+```
+* **Windows**: Compiles to a standalone `.msi` and `.exe` installer.
+* **macOS**: Compiles to a `.app` container and `.dmg` disk image.
+* **Linux**: Compiles to a `.deb` package and standard `.AppImage`.
+
+### 🔷 Mobile Targets (Android & iOS)
+Tauri v2 supports compiling for mobile screens out of the box.
+
+#### Android Setup:
+1. Ensure the **Android SDK**, **Android NDK**, and **Java JDK** are configured.
+2. Initialize mobile capabilities:
+   ```bash
+   npx tauri android init
    ```
-3. **Under the Hood mechanics**:
-   - Compiles Vite React assets into statically optimized HTML/CSS structures (`dist/`).
-   - Invokes `PyInstaller` to bundle the FastAPI backend, Uvicorn service, and all virtual environment libraries into a consolidated, native executable.
-   - Compiles Inno Setup scripts to pack everything into a high-fidelity Windows installer wizard written directly to `dist\DarfUI-Setup.exe`.
+3. Launch development mode on a connected device or emulator:
+   ```bash
+   npm run tauri android dev
+   ```
+4. Build a release APK or AAB:
+   ```bash
+   npm run tauri android build
+   ```
 
-### The Desktop Runtime Shell:
-- Once installed via `DarfUI-Setup.exe`, the application launches directly inside a **custom native Edge WebView2 frame shell** (via PyWebView).
-- Operates serverless and borderless, running local database routines in the background and eliminating standard browser navigation bars for a fully premium, immersive roleplay sandbox.
+#### iOS Setup:
+1. Requires a macOS machine with **Xcode** and **CocoaPods** installed.
+2. Initialize iOS capabilities:
+   ```bash
+   npx tauri ios init
+   ```
+3. Launch development mode on iOS simulator or device:
+   ```bash
+   npm run tauri ios dev
+   ```
 
 ---
 
-## 🔧 Troubleshooting & Port Resolutions
+## 🔧 Troubleshooting
 
-### 1. "venv/Scripts/python" Spawn Failure
-* **Root Cause**: The Python virtual environment was created outside the root directory, or the python installation failed to link.
-* **Resolution**: Delete any corrupt `venv` directories in your root and rebuild cleanly:
-  ```bash
-  rmdir /s /q venv  # (Windows Command Prompt)
-  python -m venv venv
-  venv\Scripts\pip install -r requirements.txt
-  ```
+### 1. "cargo metadata... program not found"
+* **Root Cause**: The Rust toolchain is either not installed or your terminal has not loaded the updated environmental path settings.
+* **Resolution**: Install Rust from [rustup.rs](https://rustup.rs/) and close/re-open your terminal or IDE window to reload the system variables.
 
 ### 2. Local LLM Connection Refused (CORS Blocking)
-* **Root Cause**: The local LLM backend (Ollama or Kobold.cpp) is running but blocking cross-origin HTTP calls from `localhost:5173`.
-* **Resolution for Ollama**: Stop Ollama from your taskbar/systray and relaunch it in a console session with global origins unlocked:
-  * **Windows (PowerShell)**: `$env:OLLAMA_ORIGINS="*" ; ollama serve`
-  * **macOS / Linux**: `OLLAMA_ORIGINS="*" ollama serve`
-* **Resolution for Kobold.cpp**: Ensure you tick the **`CORS`** flag in the GUI loader, or launch via console appending the command-line argument:
-  ```bash
-  koboldcpp.exe --cors
-  ```
+* **Root Cause**: The local Ollama/Kobold instance blocks cross-origin requests.
+* **Resolution**: Since Tauri v2 uses `@tauri-apps/plugin-http` for LLM routing, calls bypass browser CORS boundaries entirely. Ensure your local LLM engine is running at the configured endpoint (e.g. `http://127.0.0.1:11434/v1` for Ollama).
 
-### 3. Port 8000 (FastAPI) or 5173 (Vite) Collision
-* **Root Cause**: A previous uvicorn session crashed or remains locked in the background, blocking the network ports.
-* **Resolution**: Kill the active background tasks locking the TCP ports:
-  * **Windows (PowerShell)**:
-    ```powershell
-    Get-NetTCPConnection -LocalPort 8000 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
-    ```
-  * **macOS / Linux**:
-    ```bash
-    kill -9 $(lsof -t -i:8000)
-    ```
-
-### 4. SQLite "database is locked" (WAL File locks)
-* **Root Cause**: Multiple background Python processes are concurrent-writing to `darf.db` without WAL concurrency resolved.
-* **Resolution**: Press `Ctrl+C` in all active terminal sheets. If a lock persists, navigate to the `data/` folder and manually delete `darf.db-shm` and `darf.db-wal` (these are temporary write-ahead log files; deleting them is completely safe). Relaunch `start.bat`.
+### 3. SQLite Database Locks or Access Errors
+* **Root Cause**: Multiple window threads attempting to write concurrently, or permissions issues.
+* **Resolution**: The database file `darf.db` is stored inside the secure OS AppData directory. You can locate it at:
+  * **Windows**: `%APPDATA%\com.tauri.dev\darf.db`
+  * **macOS**: `~/Library/Application Support/com.tauri.dev/darf.db`
+  * **Linux**: `~/.config/com.tauri.dev/darf.db`
+  If the schema becomes corrupt, you can safely delete this file; the app will recreate and seed it on the next launch.

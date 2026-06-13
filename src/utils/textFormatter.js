@@ -1,4 +1,4 @@
-export function escapeHTML(text) {
+function escapeHTML(text) {
   if (!text) return "";
   return text
     .replace(/&/g, "&amp;")

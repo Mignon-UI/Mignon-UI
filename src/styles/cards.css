@@ -7,32 +7,44 @@
 .character-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-    align-content: start; /* Stack rows tightly from the top, preventing vertical space distribution */
-    gap: 0; /* No space between them */
-    padding: 0; /* Align perfectly to the bounds */
-    border-top: 1px solid var(--border); /* Container top boundary border */
-    border-left: 1px solid var(--border); /* Clean left boundary only for the card rows */
+    align-content: start;
+    /* Stack rows tightly from the top, preventing vertical space distribution */
+    gap: 0;
+    /* No space between them */
+    padding: 0;
+    /* Align perfectly to the bounds */
+    border-top: 1px solid var(--border);
+    /* Container top boundary border */
+    border-left: 1px solid var(--border);
+    /* Clean left boundary only for the card rows */
 }
 
 .char-card {
     background: var(--bg-window);
     border-top: none;
-    border-left: none;   /* Avoid doubled borders on adjacent cells */
-    border-bottom: 1px solid var(--border); /* Elegant horizontal separator between rows */
-    border-right: 1px solid var(--border);  /* Vertical separator for every cell */
-    border-radius: 0; /* Crisp adjacent grid squares */
-    padding: 0; /* Crisp edge-to-edge layout */
+    border-left: none;
+    /* Avoid doubled borders on adjacent cells */
+    border-bottom: 1px solid var(--border);
+    /* Elegant horizontal separator between rows */
+    border-right: 1px solid var(--border);
+    /* Vertical separator for every cell */
+    border-radius: 0;
+    /* Crisp adjacent grid squares */
+    padding: 0;
+    /* Crisp edge-to-edge layout */
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-end; /* Align all text overlay and tags to the bottom */
+    justify-content: flex-end;
+    /* Align all text overlay and tags to the bottom */
     text-align: center;
     cursor: pointer;
     position: relative;
     transition: all 0.2s ease-in-out;
     min-height: 165px;
     box-sizing: border-box;
-    overflow: hidden; /* Crop background cover image cleanly */
+    overflow: hidden;
+    /* Crop background cover image cleanly */
 }
 
 .char-card:not(.placeholder-card):hover {
@@ -40,10 +52,12 @@
 }
 
 .char-card.placeholder-card {
-    pointer-events: none; /* Non-clickable and inert */
+    pointer-events: none;
+    /* Non-clickable and inert */
     background: transparent;
     cursor: default;
-    border: none !important; /* Remove separating lines completely when there is no character */
+    border: none !important;
+    /* Remove separating lines completely when there is no character */
 }
 
 /* Character Card Full Background Image Cover */
@@ -60,7 +74,8 @@
 }
 
 .char-card:hover .char-card-bg-img {
-    transform: scale(1.08); /* Sophisticated hover zoom */
+    transform: scale(1.08);
+    /* Sophisticated hover zoom */
 }
 
 .char-card-fallback-bg {
@@ -76,10 +91,11 @@
     color: var(--text-sec);
     z-index: 1;
     box-sizing: border-box;
-    padding-bottom: 40px; /* Offset the bottom name overlay to center icon in the remaining top area */
+    padding-bottom: 40px;
+    /* Offset the bottom name overlay to center icon in the remaining top area */
 }
 
-/* Glassmorphic Overlay Panel at the bottom (transparent + blur + no borders) */
+/* Glassmorphic Overlay Panel at the bottom (transparent + blur + glowing border) */
 .char-card-overlay-container {
     position: relative;
     width: 100%;
@@ -87,17 +103,34 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    /* Transparent dark purple overlay with high-fidelity glassmorphic backdrop-filter blur */
-    background: rgba(15, 12, 28, 0.6);
-    backdrop-filter: blur(12px) saturate(120%);
-    -webkit-backdrop-filter: blur(12px) saturate(120%);
+    /* Deep translucent background with frosted glass secret sauce */
+    background: rgba(18, 18, 18, 0.5);
+    backdrop-filter: blur(10px) saturate(120%);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
     padding: 12px 8px;
     box-sizing: border-box;
     transition: background 0.2s ease;
 }
 
 .char-card:hover .char-card-overlay-container {
-    background: rgba(15, 12, 28, 0.7); /* Subtle deepening of glass overlay on hover */
+    background: rgba(18, 18, 18, 0.65);
+    /* Subtle deepening of glass overlay on hover */
+}
+
+/* Light Theme Glassmorphism Override */
+[class*="-light"] .char-card-overlay-container {
+    background: rgba(255, 255, 255, 0.7);
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[class*="-light"] .char-card:hover .char-card-overlay-container {
+    background: rgba(255, 255, 255, 0.8);
+}
+
+[class*="-light"] .char-card-name {
+    color: var(--text) !important;
+    text-shadow: none !important;
 }
 
 .char-card-name {
@@ -109,7 +142,8 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: #ffffff !important; /* Force high contrast white text for maximum readability */
+    color: #ffffff !important;
+    /* Force high contrast white text for maximum readability */
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.6);
 }
 
@@ -150,40 +184,48 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 3px; /* Added slight breathing room */
+    gap: 3px;
+    /* Added slight breathing room */
     overflow: hidden;
 }
 
 .char-info h4 {
     font-family: var(--font-head);
-    font-size: 0.9rem; /* Increased name size slightly */
+    font-size: 0.9rem;
+    /* Increased name size slightly */
     font-weight: 800;
     margin: 0;
     width: 100%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: var(--text) !important; /* Force high-contrast theme color */
+    color: var(--text) !important;
+    /* Force high-contrast theme color */
 }
 
 /* Personality pill tag badges */
 .char-badge-row {
     display: flex;
-    gap: 4px; /* Increased space between badges */
+    gap: 4px;
+    /* Increased space between badges */
     justify-content: center;
     flex-wrap: wrap;
     width: 100%;
-    margin-top: 4px; /* Added space above badges */
+    margin-top: 4px;
+    /* Added space above badges */
 }
 
 .char-badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.58rem; /* Slightly larger text for readability */
+    font-size: 0.58rem;
+    /* Slightly larger text for readability */
     font-weight: bold;
-    padding: 0 6px; /* Added internal padding space */
-    height: 15px; /* Increased badge height */
+    padding: 0 6px;
+    /* Added internal padding space */
+    height: 15px;
+    /* Increased badge height */
     line-height: 1;
     border-radius: var(--r-full);
     border: 1px solid var(--border);
@@ -197,9 +239,17 @@
     text-overflow: ellipsis;
 }
 
-.char-badge.pink { background: var(--pink); }
-.char-badge.blue { background: var(--blue); }
-.char-badge.purple { background: var(--purple); }
+.char-badge.pink {
+    background: var(--pink);
+}
+
+.char-badge.blue {
+    background: var(--blue);
+}
+
+.char-badge.purple {
+    background: var(--purple);
+}
 
 .char-badge.count-badge {
     background: var(--bg-input);
@@ -364,12 +414,14 @@
     width: 36px;
     height: 36px;
 }
+
 .room-avatar-stack.count-2 .room-avatar-stacked-circle:nth-child(1) {
     top: 2px;
     left: 2px;
     z-index: 2;
     background: var(--pink);
 }
+
 .room-avatar-stack.count-2 .room-avatar-stacked-circle:nth-child(2) {
     bottom: 2px;
     right: 2px;
@@ -382,18 +434,21 @@
     width: 34px;
     height: 34px;
 }
+
 .room-avatar-stack.count-3 .room-avatar-stacked-circle:nth-child(1) {
     top: 2px;
     left: 11px;
     z-index: 3;
     background: var(--pink);
 }
+
 .room-avatar-stack.count-3 .room-avatar-stacked-circle:nth-child(2) {
     bottom: 2px;
     left: 2px;
     z-index: 2;
     background: var(--blue);
 }
+
 .room-avatar-stack.count-3 .room-avatar-stacked-circle:nth-child(3) {
     bottom: 2px;
     right: 2px;
@@ -406,24 +461,28 @@
     width: 30px;
     height: 30px;
 }
+
 .room-avatar-stack.count-4 .room-avatar-stacked-circle:nth-child(1) {
     top: 2px;
     left: 2px;
     z-index: 4;
     background: var(--pink);
 }
+
 .room-avatar-stack.count-4 .room-avatar-stacked-circle:nth-child(2) {
     top: 2px;
     right: 2px;
     z-index: 3;
     background: var(--blue);
 }
+
 .room-avatar-stack.count-4 .room-avatar-stacked-circle:nth-child(3) {
     bottom: 2px;
     left: 2px;
     z-index: 2;
     background: var(--purple);
 }
+
 .room-avatar-stack.count-4 .room-avatar-stacked-circle:nth-child(4) {
     bottom: 2px;
     right: 2px;
@@ -812,12 +871,14 @@
     display: flex;
     gap: 8px;
     align-items: center;
-    margin-bottom: 16px; /* Symmetrical bottom margin matching sidebar defaults */
+    margin-bottom: 16px;
+    /* Symmetrical bottom margin matching sidebar defaults */
     width: 100%;
 }
 
 .search-bar-row .search-bar {
-    margin-bottom: 0 !important; /* Force override of sidebar.css margin to align perfectly straight */
+    margin-bottom: 0 !important;
+    /* Force override of sidebar.css margin to align perfectly straight */
     flex: 1;
 }
 
@@ -832,20 +893,25 @@
     align-items: center;
     justify-content: center;
     color: var(--text-sec);
-    box-shadow: 3px 3px 0px var(--border); /* Strong tactile default shadow */
+    box-shadow: 3px 3px 0px var(--border);
+    /* Strong tactile default shadow */
     transition: all 0.12s ease;
     padding: 0;
     flex-shrink: 0;
 }
 
 .char-view-toggle-btn:hover {
-    transform: translate(1px, 1px); /* Press inward slightly on hover */
-    box-shadow: 2px 2px 0px var(--border); /* Squeeze the shadow in standard border color */
+    transform: translate(1px, 1px);
+    /* Press inward slightly on hover */
+    box-shadow: 2px 2px 0px var(--border);
+    /* Squeeze the shadow in standard border color */
 }
 
 .char-view-toggle-btn:active {
-    transform: translate(3px, 3px); /* Fully depress inward matching the shadow's thickness */
-    box-shadow: none; /* Completely flat shadowless appearance when clicked */
+    transform: translate(3px, 3px);
+    /* Fully depress inward matching the shadow's thickness */
+    box-shadow: none;
+    /* Completely flat shadowless appearance when clicked */
 }
 
 .character-list-mode {
@@ -857,8 +923,10 @@
 .char-list-item {
     display: flex;
     align-items: center;
-    gap: 14px; /* Increased spacing between avatar and text */
-    padding: 10px 14px; /* Increased padding for a more spacious, premium feel */
+    gap: 14px;
+    /* Increased spacing between avatar and text */
+    padding: 10px 14px;
+    /* Increased padding for a more spacious, premium feel */
     cursor: pointer;
     transition: all 0.15s ease-in-out;
     background: transparent;
@@ -870,8 +938,10 @@
 }
 
 .char-list-avatar {
-    width: 52px; /* Increased from 44px to 52px for high-end graphic detail */
-    height: 52px; /* Increased from 44px to 52px */
+    width: 52px;
+    /* Increased from 44px to 52px for high-end graphic detail */
+    height: 52px;
+    /* Increased from 44px to 52px */
     border-radius: var(--r-md);
     background: var(--purple);
     border: var(--border-width) solid var(--border);
@@ -880,7 +950,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: none !important; /* Force flat look in all themes */
+    box-shadow: none !important;
+    /* Force flat look in all themes */
 }
 
 .char-list-avatar img {
@@ -895,13 +966,16 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 5px; /* Added internal vertical spacing */
+    gap: 5px;
+    /* Added internal vertical spacing */
 }
 
 .char-list-info h4 {
     font-family: var(--font-head);
-    font-size: 1.05rem; /* Increased name font-size for high prominence */
-    font-weight: 800; /* Extra bold */
+    font-size: 1.05rem;
+    /* Increased name font-size for high prominence */
+    font-weight: 800;
+    /* Extra bold */
     margin: 0;
     color: var(--text) !important;
     white-space: nowrap;
@@ -1007,7 +1081,8 @@
     right: 20px;
     width: 52px;
     height: 52px;
-    border-radius: 16px; /* Squircle shape */
+    border-radius: 16px;
+    /* Squircle shape */
     background: var(--pink) !important;
     border: var(--border-width) solid var(--border) !important;
     color: var(--text) !important;
@@ -1044,7 +1119,8 @@
 }
 
 .empty-state-icon {
-    stroke-width: 1.25px; /* Clean, elegant thin vector drawing */
+    stroke-width: 1.25px;
+    /* Clean, elegant thin vector drawing */
 }
 
 .empty-state-text {

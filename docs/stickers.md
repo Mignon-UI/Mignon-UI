@@ -1,6 +1,6 @@
 # 🖼️ Snapping Decals Canvas Overlay
 
-Darf UI features a customizable, gamified user interface layer: the **Interactive Decals Canvas**. This allows players to upload custom transparent PNG assets, place them as stickers anywhere over the application interface, scale them, rotate them, adjust their transparency, and snap them to specific sidebars or dialogue panels.
+Mignon UI features a customizable, gamified user interface layer: the **Interactive Decals Canvas**. This allows players to upload custom transparent PNG assets, place them as stickers anywhere over the application interface, scale them, rotate them, adjust their transparency, and snap them to specific sidebars or dialogue panels.
 
 ---
 
@@ -14,8 +14,9 @@ graph LR
     User[User Drag / Touch Gesture] -->|Pointer Coordinates| Canvas[React Sticker Canvas]
     Canvas -->|Compute Matrices| Transform[2D CSS Transform Matrix]
     Transform -->|30px Proximity Snapping| Target[DOM Anchor Targets]
-    Transform -->|REST HTTP POST| API[FastAPI /api/stickers]
-    API -->|ORM Commit| SQLite[(SQLite: ui_stickers)]
+    Transform -->|Local JS Calls| API[services/api.js]
+    API -->|CRUD Functions| CRUD[services/crud.js]
+    CRUD -->|Native SQL Bridge| SQLite[(SQLite: ui_stickers)]
 ```
 
 ---
@@ -58,7 +59,7 @@ $$\text{transform} = \text{translate}(x, y) \times \text{scale}(s) \times \text{
 
 ## 🧲 Snapping Anchor Engine
 
-To integrate stickers cleanly with dynamic application layouts rather than floating loosely, Darf UI implements a client-side **Target Element Snapping Engine**:
+To integrate stickers cleanly with dynamic application layouts rather than floating loosely, Mignon UI implements a client-side **Target Element Snapping Engine**:
 
 1. **Selector Array Assignment**: Each decal can store a comma-separated list of CSS selector anchors (e.g. `.chat-sidebar, .message-bubble-bot, .avatar-frame`).
 2. **Proximity Calculation**: During a drag, the engine queries matching elements in the DOM and fetches their layout boundaries via `getBoundingClientRect()`.
@@ -67,32 +68,19 @@ To integrate stickers cleanly with dynamic application layouts rather than float
 
 ---
 
-## 📁 Synchronization API Endpoints
+## 💾 Database State Persistence
 
-All sticker coordinates are persisted instantly to the database:
+All sticker coordinates are persisted instantly to the local SQLite database using JS CRUD brokers communicating through Tauri:
 
-### 1. `GET /api/stickers`
-* **Purpose**: Fetches all active stickers on platform boot.
-* **Response Schema**:
-  ```json
-  [
-    {
-      "id": "decal_uuid_string",
-      "image_data": "data:image/png;base64,...",
-      "x": 250.5,
-      "y": 120.0,
-      "scale": 1.2,
-      "rotation": 45,
-      "opacity": 0.85,
-      "target_selectors": ".chat-sidebar"
-    }
-  ]
-  ```
+### 1. `api.fetchStickers()` (delegated to `crud.getStickers()`)
+* **Purpose**: Fetches all active stickers on application startup from the `ui_stickers` SQLite table.
+* **Returns**: An array of sticker configuration objects containing the sticker ID, Base64 image data, scale, rotation, opacity, coordinates, and CSS targets.
 
-### 2. `POST /api/stickers`
-* **Purpose**: Creates a new sticker, or updates the coordinates, transformations, and anchors of an existing sticker.
-* **Request Schema**: Matches the model schema fields above.
-* **Database Action**: Executes an upsert (inserts or updates based on the sticker's ID).
+### 2. `api.createSticker(stickerData)` (delegated to `crud.createSticker(...)`)
+* **Purpose**: Spawns and saves a new decal with a random UUID, default size, placement coordinates, and selector details.
 
-### 3. `DELETE /api/stickers/{id}`
-* **Purpose**: Instantly wipes the decal off the canvas and deletes its record from the database.
+### 3. `api.updateSticker(id, stickerData)` (delegated to `crud.updateSticker(...)`)
+* **Purpose**: Updates the coordinates (`x`, `y`), scale, rotation, opacity, or element selector mappings of an existing sticker in the `ui_stickers` SQLite table.
+
+### 4. `api.deleteSticker(id)` (delegated to `crud.deleteSticker(...)`)
+* **Purpose**: Wipes the decal off the screen canvas and deletes its record from the SQLite database.

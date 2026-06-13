@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import DarfLogo from './DarfLogo';
 import { HeartHandshake, Users, ShieldCheck } from 'lucide-react';
+import { APP_NAME } from '../../config';
 
 export default function LandingView({ show }) {
   const gridRef = useRef(null);
@@ -48,12 +49,12 @@ export default function LandingView({ show }) {
 
       <div className="landing-hero">
         <DarfLogo size={72} style={{ marginBottom: '8px' }} />
-        <p className="hero-eyebrow">Your Private Sanctuary</p>
+        <p className="hero-eyebrow">Just you & the bots</p>
         <h1 className="hero-title">
           Welcome to<br />
-          <em>Darf UI</em>
+          <em>{APP_NAME}</em>
         </h1>
-        <p className="subtitle">A fully customizable, private AI roleplay experience.</p>
+        <p className="subtitle">A fully customizable AI roleplay experience.</p>
       </div>
 
       <div className="landing-deco" aria-hidden="true">
@@ -81,8 +82,8 @@ export default function LandingView({ show }) {
           <div className="card-icon-wrap pink">
             <ShieldCheck size={20} />
           </div>
-          <h3>Absolute Privacy</h3>
-          <p>100% offline. Every chat conversation, prompt template, and data index is stored strictly on your local disk — secure and yours alone.</p>
+          <h3>Local-First Privacy</h3>
+          <p>Every chat conversation, prompt template, and data index is stored strictly on your local disk. 100% offline-capable when using local engines (Ollama/LM Studio).</p>
         </div>
       </div>
 

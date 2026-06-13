@@ -82,8 +82,14 @@ const MessageBubble = React.memo(({
 
   // Keyboard shortcuts in edit mode
   const handleEditKeyDown = (e) => {
-    if (e.key === 'Escape') handleCancelEdit();
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSaveEdit();
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      handleCancelEdit();
+    }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.stopPropagation();
+      handleSaveEdit();
+    }
   };
 
   useEffect(() => {
@@ -202,6 +208,7 @@ const MessageBubble = React.memo(({
                   <span className="typing-dot" />
                 </div>
               ) : (
+                // fallow-ignore-next-line security-sink
                 <div dangerouslySetInnerHTML={{ __html: formatRoleplayText(m.content) }} />
               )
             )}

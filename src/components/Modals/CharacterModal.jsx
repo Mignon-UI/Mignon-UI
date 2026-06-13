@@ -6,8 +6,38 @@ import { useLoreWorldContext } from '../../context/LoreWorldContext';
 import { useToast }            from '../../context/ToastContext';
 import { 
   Plus, Edit3, X, Image as ImageIcon, Download,
-  Star, Globe, Copy, Skull
+  Star, Globe, Copy, Skull, ChevronDown, ChevronUp,
+  User, MessageSquare, Sparkles, Map, MessageCircle, FolderOpen
 } from 'lucide-react';
+
+function RemoveFieldButton({ fieldKey, onRemove, setActiveOptionalFields }) {
+  return (
+    <span
+      role="button"
+      className="remove-optional-field-btn"
+      title="Remove Field"
+      onClick={(e) => {
+        e.stopPropagation();
+        setActiveOptionalFields(prev => ({ ...prev, [fieldKey]: false }));
+        onRemove();
+      }}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        color: 'var(--text-muted)',
+        transition: 'color var(--tf)',
+        padding: '4px',
+        marginRight: '-4px'
+      }}
+      onMouseOver={(e) => e.currentTarget.style.color = 'var(--pink)'}
+      onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+    >
+      <X size={14} />
+    </span>
+  );
+}
 
 export default function CharacterModal({ isOpen }) {
   const ui    = useUIContext();
@@ -17,8 +47,39 @@ export default function CharacterModal({ isOpen }) {
 
   const [isFavorited, setIsFavorited] = React.useState(false);
   const [tags, setTags] = React.useState([]);
+  const [personalityTraits, setPersonalityTraits] = React.useState('');
   const [tagInputValue, setTagInputValue] = React.useState('');
   const [showWorldDropdown, setShowWorldDropdown] = React.useState(false);
+  const [expandedSections, setExpandedSections] = React.useState({
+    description: true,
+    greeting: false,
+    traits: false,
+    scenario: false,
+    dialogue: false,
+    system_prompt: false,
+    post_history_instructions: false,
+    creator_notes: false,
+    creator_details: false,
+    alternate_greetings: false
+  });
+  const [activeOptionalFields, setActiveOptionalFields] = React.useState({
+    traits: false,
+    scenario: false,
+    dialogue: false,
+    system_prompt: false,
+    post_history_instructions: false,
+    creator_notes: false,
+    creator_details: false,
+    alternate_greetings: false
+  });
+
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
   const dropdownRef = React.useRef(null);
 
   React.useEffect(() => {
@@ -33,32 +94,77 @@ export default function CharacterModal({ isOpen }) {
     };
   }, []);
 
-  // Helper to extract tags from personality text
-  const parseTagsFromPersonality = (personalityText) => {
-    if (!personalityText) return { tags: [], cleanPersonality: "" };
-    const match = personalityText.match(/\[Tags:\s*([^\]]*)\]/);
-    if (match) {
-      const tagsStr = match[1];
-      const tagsList = tagsStr.split(',').map(t => t.trim()).filter(t => t);
-      const cleanPersonality = personalityText.replace(/\[Tags:\s*[^\]]*\]\n?/, '').trim();
-      return { tags: tagsList, cleanPersonality };
+  // Helper to extract tags and personality traits from personality text
+  const parseMetadataFromPersonality = (personalityText) => {
+    if (!personalityText) return { tags: [], traits: "", cleanPersonality: "" };
+    
+    let currentText = personalityText;
+    let tagsList = [];
+    let traitsStr = "";
+
+    // 1. Extract Tags
+    const tagsMatch = currentText.match(/\[Tags:\s*([^\]]*)\]/);
+    if (tagsMatch) {
+      const tagsStr = tagsMatch[1];
+      tagsList = tagsStr.split(',').map(t => t.trim()).filter(t => t);
+      currentText = currentText.replace(/\[Tags:\s*[^\]]*\]\n?/, '').trim();
     }
-    return { tags: [], cleanPersonality: personalityText };
+
+    // 2. Extract Personality Traits
+    const traitsMatch = currentText.match(/\[Personality:\s*([^\]]*)\]/);
+    if (traitsMatch) {
+      traitsStr = traitsMatch[1].trim();
+      currentText = currentText.replace(/\[Personality:\s*[^\]]*\]\n?/, '').trim();
+    } else {
+      const alternateMatch = currentText.match(/\[Traits:\s*([^\]]*)\]/);
+      if (alternateMatch) {
+        traitsStr = alternateMatch[1].trim();
+        currentText = currentText.replace(/\[Traits:\s*[^\]]*\]\n?/, '').trim();
+      }
+    }
+
+    return { tags: tagsList, traits: traitsStr, cleanPersonality: currentText };
   };
 
-  // Helper to serialize tags back into personality text
-  const serializeTagsIntoPersonality = (personalityText, tagsArray) => {
-    const cleanText = personalityText ? personalityText.replace(/\[Tags:\s*[^\]]*\]\n?/, '').trim() : '';
-    if (tagsArray.length === 0) return cleanText;
-    const tagsStr = `[Tags: ${tagsArray.join(', ')}]`;
-    return `${tagsStr}\n\n${cleanText}`.trim();
+  // Helper to serialize tags and personality traits back into personality text
+  const serializeMetadataIntoPersonality = (personalityText, tagsArray, traitsStr) => {
+    const cleanText = personalityText ? personalityText
+      .replace(/\[Tags:\s*[^\]]*\]\n?/, '')
+      .replace(/\[Personality:\s*[^\]]*\]\n?/, '')
+      .replace(/\[Traits:\s*[^\]]*\]\n?/, '')
+      .trim() : '';
+
+    const prefixBlocks = [];
+    if (tagsArray.length > 0) {
+      prefixBlocks.push(`[Tags: ${tagsArray.join(', ')}]`);
+    }
+    if (traitsStr && traitsStr.trim()) {
+      prefixBlocks.push(`[Personality: ${traitsStr.trim()}]`);
+    }
+
+    if (prefixBlocks.length === 0) return cleanText;
+    return `${prefixBlocks.join('\n')}\n\n${cleanText}`.trim();
   };
 
-  // Sync tags and strip them from the displayed personality input when card data loads
+  // Sync tags/traits and strip them from the displayed personality input when card data loads
   React.useEffect(() => {
     if (isOpen) {
-      const { tags: parsedTags, cleanPersonality } = parseTagsFromPersonality(chars.characterForm.personality);
+      const { tags: parsedTags, traits: parsedTraits, cleanPersonality } = parseMetadataFromPersonality(chars.characterForm.personality);
       setTags(parsedTags);
+      setPersonalityTraits(parsedTraits);
+      
+      // Initialize active state based on whether fields have existing data
+      setActiveOptionalFields({
+        traits: !!parsedTraits.trim(),
+        scenario: !!chars.characterForm.scenario?.trim(),
+        dialogue: !!chars.characterForm.example_dialogue?.trim(),
+        system_prompt: !!chars.characterForm.system_prompt?.trim(),
+        post_history_instructions: !!chars.characterForm.post_history_instructions?.trim(),
+        creator_notes: !!chars.characterForm.creator_notes?.trim(),
+        creator_details: !!(chars.characterForm.creator?.trim() || chars.characterForm.character_version?.trim()),
+        alternate_greetings: !!(chars.characterForm.alternate_greetings && chars.characterForm.alternate_greetings.length > 0)
+      });
+
       if (chars.characterForm.personality !== cleanPersonality) {
         chars.setCharacterForm(prev => ({
           ...prev,
@@ -67,7 +173,18 @@ export default function CharacterModal({ isOpen }) {
       }
     } else {
       setTags([]);
+      setPersonalityTraits('');
       setTagInputValue('');
+      setActiveOptionalFields({
+        traits: false,
+        scenario: false,
+        dialogue: false,
+        system_prompt: false,
+        post_history_instructions: false,
+        creator_notes: false,
+        creator_details: false,
+        alternate_greetings: false
+      });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, chars.characterForm.id]);
@@ -82,10 +199,17 @@ export default function CharacterModal({ isOpen }) {
 
   const nameTokens = estimateTokens(chars.characterForm.name);
   const greetingTokens = estimateTokens(chars.characterForm.greeting);
-  const personaTokens = estimateTokens(chars.characterForm.personality);
+  const finalPersonalityForEstimate = serializeMetadataIntoPersonality(chars.characterForm.personality, tags, personalityTraits);
+  const personaTokens = estimateTokens(finalPersonalityForEstimate);
   const scenarioTokens = estimateTokens(chars.characterForm.scenario);
   const dialogueTokens = estimateTokens(chars.characterForm.example_dialogue);
-  const totalTokens = nameTokens + greetingTokens + personaTokens + scenarioTokens + dialogueTokens;
+  const systemPromptTokens = estimateTokens(chars.characterForm.system_prompt);
+  const postHistoryTokens = estimateTokens(chars.characterForm.post_history_instructions);
+  const creatorNotesTokens = estimateTokens(chars.characterForm.creator_notes);
+  const alternateGreetingsTokens = (chars.characterForm.alternate_greetings || [])
+    .reduce((sum, g) => sum + estimateTokens(g), 0);
+
+  const totalTokens = nameTokens + greetingTokens + personaTokens + scenarioTokens + dialogueTokens + systemPromptTokens + postHistoryTokens + alternateGreetingsTokens;
 
   // Handles client-side Tavern JSON card export
   const handleExportCardJson = (e) => {
@@ -94,8 +218,8 @@ export default function CharacterModal({ isOpen }) {
       toast.error("Please enter a character name before exporting.");
       return;
     }
-    // Embed tags inside personality for export
-    const finalPersonality = serializeTagsIntoPersonality(chars.characterForm.personality, tags);
+    // Embed tags & personality traits inside personality for export
+    const finalPersonality = serializeMetadataIntoPersonality(chars.characterForm.personality, tags, personalityTraits);
     const exportForm = {
       ...chars.characterForm,
       personality: finalPersonality
@@ -114,7 +238,7 @@ export default function CharacterModal({ isOpen }) {
   const handleCloneCharacter = async (e) => {
     e.preventDefault();
     try {
-      const finalPersonality = serializeTagsIntoPersonality(chars.characterForm.personality, tags);
+      const finalPersonality = serializeMetadataIntoPersonality(chars.characterForm.personality, tags, personalityTraits);
       const clonedForm = {
         ...chars.characterForm,
         id: null, // clear ID to create new
@@ -125,7 +249,7 @@ export default function CharacterModal({ isOpen }) {
       toast.success(`Cloned ${chars.characterForm.name} successfully!`);
       ui.setActiveModal(null);
     } catch (err) {
-      toast.error(`Clone failed: ${err.message}`);
+      toast.error(`Clone failed: ${err.message || String(err)}`);
     }
   };
 
@@ -139,7 +263,7 @@ export default function CharacterModal({ isOpen }) {
       toast.success(`${chars.characterForm.name} deleted.`);
       ui.setActiveModal(null);
     } catch (err) {
-      toast.error(`Delete failed: ${err.message}`);
+      toast.error(`Delete failed: ${err.message || String(err)}`);
     }
   };
 
@@ -198,7 +322,7 @@ export default function CharacterModal({ isOpen }) {
                 });
               }
 
-              const finalPersonality = serializeTagsIntoPersonality(chars.characterForm.personality, finalTags);
+              const finalPersonality = serializeMetadataIntoPersonality(chars.characterForm.personality, finalTags, personalityTraits);
               const submissionForm = {
                 ...chars.characterForm,
                 personality: finalPersonality
@@ -206,17 +330,22 @@ export default function CharacterModal({ isOpen }) {
               await chars.handleCharacterSubmit(submissionForm); 
               ui.setActiveModal(null); 
             } catch (err) { 
-              toast.error(`Save failed: ${err.message}`); 
+              toast.error(`Save failed: ${err.message || String(err)}`); 
             } 
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+              e.preventDefault();
+            }
           }}
           style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
         >
           <div className="modal-body scrollbar-custom" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', padding: 0 }}>
             <div className="form-split-layout" style={{ display: 'flex', flex: 1, minHeight: 0, height: '100%' }}>
               {/* Left Column: Identity, Tags & Actions */}
-              <div className="form-column form-column-left">
+              <div className="form-column form-column-left" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', gap: '16px' }}>
                 
-                <div className="identity-card">
+                <div className="identity-card" style={{ flexShrink: 0 }}>
                   {/* Left Side: Avatar Upload Container */}
                   <div className="avatar-upload-wrapper">
                     <div 
@@ -424,11 +553,82 @@ export default function CharacterModal({ isOpen }) {
                   </div>
                 </div>
 
-                {/* Character Tags Management (SillyTavern Style) */}
-                <div className="form-group" style={{ marginTop: '16px' }}>
+                {/* Scrollable Content Wrapper */}
+                <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px', minHeight: 0 }}>
+
+                  {/* Character Tags Management (SillyTavern Style) */}
+                  <div className="form-group" style={{ margin: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label style={{ margin: 0 }}>Character Tags</label>
+                    <button
+                      type="button"
+                      className="text-btn"
+                      style={{
+                        fontSize: '0.76rem',
+                        color: 'var(--pink)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '2px 6px',
+                        borderRadius: 'var(--r-xs)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontFamily: 'var(--font-code)',
+                        fontWeight: 'bold',
+                        transition: 'opacity 0.2s',
+                      }}
+                      onClick={async () => {
+                        const name = chars.characterForm.name;
+                        const personality = chars.characterForm.personality;
+                        const scenario = chars.characterForm.scenario;
+                        if (!name && !personality) {
+                          toast.error("Please provide at least a name or personality description before generating tags.");
+                          return;
+                        }
+                        toast.info("Analyzing character and generating tags...");
+                        try {
+                          const generated = await chars.handleGenerateTags(name, personality, scenario);
+                          const newTags = [...tags];
+                          let addedAny = false;
+                          generated.forEach(t => {
+                            const clean = t.trim().toLowerCase();
+                            if (clean && !newTags.includes(clean)) {
+                              newTags.push(clean);
+                              addedAny = true;
+                            }
+                          });
+                          if (addedAny) {
+                            setTags(newTags);
+                            toast.success("Successfully generated tags!");
+                          } else {
+                            toast.info("Generated tags are already present.");
+                          }
+                        } catch (err) {
+                          toast.error(`Failed to generate tags: ${err.message}`);
+                        }
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.opacity = '0.8'}
+                      onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                    >
+                      ✦ Auto-Generate
+                    </button>
+                  </div>
                   {/* Render active tag badges first (above the input box) */}
                   {tags.length > 0 && (
-                    <div className="tag-badges-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                    <div 
+                      className="tag-badges-container no-scrollbar" 
+                      style={{ 
+                        display: 'flex', 
+                        flexWrap: 'wrap', 
+                        gap: '6px', 
+                        marginBottom: '8px', 
+                        maxHeight: '120px', 
+                        overflowY: 'auto', 
+                        paddingRight: '4px',
+                        alignContent: 'flex-start'
+                      }}
+                    >
                       {tags.map((t, idx) => (
                         <span key={idx} className="silly-tag-badge">
                           {t}
@@ -517,11 +717,10 @@ export default function CharacterModal({ isOpen }) {
                   </div>
                 )}
 
-                {/* Spacer to push buttons to the bottom, aligning them with the right column */}
-                <div style={{ flex: 1 }} />
+                </div>
 
                 {/* Form Actions (Save & Cancel) */}
-                <div className="form-actions-left" style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                <div className="form-actions-left" style={{ display: 'flex', gap: '12px', marginTop: '16px', flexShrink: 0 }}>
                   <button 
                     type="submit" 
                     className="primary-btn"
@@ -541,53 +740,588 @@ export default function CharacterModal({ isOpen }) {
               </div>
 
               {/* Right Column: Persona & Behavior */}
-              {/* Available textarea height = 90vh - 56px header - 48px col padding - 48px gaps - 144px labels = calc(90vh - 296px) */}
-              <div className="form-column form-column-right scrollbar-custom">
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label htmlFor="char-personality">Persona / Description</label>
-                  <textarea 
-                    id="char-personality" 
-                    placeholder="Describe their history, body, desires, quirks, voice, and hidden depths..."
-                    value={chars.characterForm.personality}
-                    onChange={(e) => chars.setCharacterForm(prev => ({ ...prev, personality: e.target.value }))}
-                    style={{ height: 'calc((90vh - 296px) * 5 / 13)', minHeight: '80px', resize: 'vertical' }}
-                  />
-                </div>
-                
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label htmlFor="char-scenario">Scenario / Situation</label>
-                  <textarea 
-                    id="char-scenario" 
-                    placeholder="Set the scene — where are you both, what just happened?"
-                    value={chars.characterForm.scenario}
-                    onChange={(e) => chars.setCharacterForm(prev => ({ ...prev, scenario: e.target.value }))}
-                    style={{ height: 'calc((90vh - 296px) * 2 / 13)', minHeight: '50px', resize: 'vertical' }}
-                  />
-                </div>
-                
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label htmlFor="char-greeting">Opening Line / First Message</label>
-                  <textarea 
-                    id="char-greeting" 
-                    placeholder="The first thing they say when the scene begins..."
-                    value={chars.characterForm.greeting}
-                    onChange={(e) => chars.setCharacterForm(prev => ({ ...prev, greeting: e.target.value }))}
-                    style={{ height: 'calc((90vh - 296px) * 3 / 13)', minHeight: '60px', resize: 'vertical' }}
-                  />
+              <div className="form-column form-column-right scrollbar-custom" style={{ padding: 0, gap: 0 }}>
+                <div className="right-column-section-header" style={{ position: 'sticky', top: 0, zIndex: 10, flexShrink: 0, margin: 0, borderRadius: 0, borderLeft: 'none', borderRight: 'none', borderTop: 'none', padding: '16px 24px', background: 'var(--bg-window)' }}>
+                  <FolderOpen size={18} />
+                  <h3>Card Definition</h3>
                 </div>
 
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label htmlFor="char-dialogue">Example Dialogue (Optional)</label>
-                  <textarea 
-                    id="char-dialogue" 
-                    placeholder="&lt;START&gt;&#10;&lt;User&gt;: Hello&#10;Seraphina: *looks up with lidded eyes* You came..."
-                    value={chars.characterForm.example_dialogue}
-                    onChange={(e) => chars.setCharacterForm(prev => ({ ...prev, example_dialogue: e.target.value }))}
-                    style={{ height: 'calc((90vh - 296px) * 3 / 13)', minHeight: '60px', resize: 'vertical' }}
-                  />
+                <div className="card-definition-container" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '12px 24px 24px 24px' }}>
+                  {/* Collapsible Section: Character Description */}
+                  <div className={`collapsible-card ${expandedSections.description ? 'expanded' : ''}`}>
+                    <button
+                      type="button"
+                      className="collapsible-header"
+                      onClick={() => toggleSection('description')}
+                    >
+                      <div className="header-left">
+                        <User size={16} className="header-icon" />
+                        <span className="header-title">Character Description</span>
+                      </div>
+                      <div className="header-right">
+                        <span className="token-badge">{estimateTokens(chars.characterForm.personality)} tokens</span>
+                        {expandedSections.description ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </div>
+                    </button>
+                    
+                    <div className="collapsible-content-wrapper">
+                      <div className="collapsible-content">
+                        <p className="field-desc">
+                          The core definition of who this character is. This includes personality traits, background, appearance, and behavior patterns. The AI uses this as the primary reference to understand and roleplay the character consistently.
+                        </p>
+                        <textarea 
+                          id="char-personality" 
+                          placeholder="Describe their history, body, desires, quirks, voice, and hidden depths..."
+                          value={chars.characterForm.personality}
+                          onChange={(e) => chars.setCharacterForm(prev => ({ ...prev, personality: e.target.value }))}
+                          className="collapsible-textarea textarea-desc"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Collapsible Section: First Message */}
+                  <div className={`collapsible-card ${expandedSections.greeting ? 'expanded' : ''}`}>
+                    <button
+                      type="button"
+                      className="collapsible-header"
+                      onClick={() => toggleSection('greeting')}
+                    >
+                      <div className="header-left">
+                        <MessageSquare size={16} className="header-icon" />
+                        <span className="header-title">First Message</span>
+                      </div>
+                      <div className="header-right">
+                        <span className="token-badge">{greetingTokens} tokens</span>
+                        {expandedSections.greeting ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </div>
+                    </button>
+                    
+                    <div className="collapsible-content-wrapper">
+                      <div className="collapsible-content">
+                        <p className="field-desc">
+                          The first message or greeting this character sends when beginning a new chat session. Sets the tone, formatting, and initial scenario.
+                        </p>
+                        <textarea 
+                          id="char-greeting" 
+                          placeholder="The first thing they say when the scene begins..."
+                          value={chars.characterForm.greeting}
+                          onChange={(e) => chars.setCharacterForm(prev => ({ ...prev, greeting: e.target.value }))}
+                          className="collapsible-textarea textarea-greeting"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+
+                  {/* Collapsible Section: Personality */}
+                  {activeOptionalFields.traits && (
+                    <div className={`collapsible-card ${expandedSections.traits ? 'expanded' : ''}`}>
+                      <button
+                        type="button"
+                        className="collapsible-header"
+                        onClick={() => toggleSection('traits')}
+                      >
+                        <div className="header-left">
+                          <Sparkles size={16} className="header-icon" />
+                          <span className="header-title">Personality</span>
+                        </div>
+                        <div className="header-right">
+                          <span className="token-badge">{estimateTokens(personalityTraits)} tokens</span>
+                          <RemoveFieldButton
+                            fieldKey="traits"
+                            onRemove={() => setPersonalityTraits('')}
+                            setActiveOptionalFields={setActiveOptionalFields}
+                          />
+                          {expandedSections.traits ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </div>
+                      </button>
+                      
+                      <div className="collapsible-content-wrapper">
+                        <div className="collapsible-content">
+                          <p className="field-desc">
+                            Short, comma-separated traits or tags defining their personality (e.g. quiet, intelligent, tsundere, kind). These are serialized and stored efficiently.
+                          </p>
+                          <input 
+                            type="text"
+                            id="char-personality-traits" 
+                            placeholder="e.g., quiet, intelligent, tsundere, kind..."
+                            value={personalityTraits}
+                            onChange={(e) => setPersonalityTraits(e.target.value)}
+                            className="collapsible-input"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Collapsible Section: Scenario */}
+                  {activeOptionalFields.scenario && (
+                    <div className={`collapsible-card ${expandedSections.scenario ? 'expanded' : ''}`}>
+                      <button
+                        type="button"
+                        className="collapsible-header"
+                        onClick={() => toggleSection('scenario')}
+                      >
+                        <div className="header-left">
+                          <Map size={16} className="header-icon" />
+                          <span className="header-title">Scenario</span>
+                        </div>
+                        <div className="header-right">
+                          <span className="token-badge">{scenarioTokens} tokens</span>
+                          <RemoveFieldButton
+                            fieldKey="scenario"
+                            onRemove={() => chars.setCharacterForm(prev => ({ ...prev, scenario: '' }))}
+                            setActiveOptionalFields={setActiveOptionalFields}
+                          />
+                          {expandedSections.scenario ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </div>
+                      </button>
+                      
+                      <div className="collapsible-content-wrapper">
+                        <div className="collapsible-content">
+                          <p className="field-desc">
+                            The current situation or environment at the start of the chat. Helps steer the context of the opening scenes.
+                          </p>
+                          <textarea 
+                            id="char-scenario" 
+                            placeholder="Set the scene — where are you both, what just happened?"
+                            value={chars.characterForm.scenario}
+                            onChange={(e) => chars.setCharacterForm(prev => ({ ...prev, scenario: e.target.value }))}
+                            className="collapsible-textarea textarea-scenario"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Collapsible Section: Example Dialogue */}
+                  {activeOptionalFields.dialogue && (
+                    <div className={`collapsible-card ${expandedSections.dialogue ? 'expanded' : ''}`}>
+                      <button
+                        type="button"
+                        className="collapsible-header"
+                        onClick={() => toggleSection('dialogue')}
+                      >
+                        <div className="header-left">
+                          <MessageCircle size={16} className="header-icon" />
+                          <span className="header-title">Example Dialogue</span>
+                        </div>
+                        <div className="header-right">
+                          <span className="token-badge">{dialogueTokens} tokens</span>
+                          <RemoveFieldButton
+                            fieldKey="dialogue"
+                            onRemove={() => chars.setCharacterForm(prev => ({ ...prev, example_dialogue: '' }))}
+                            setActiveOptionalFields={setActiveOptionalFields}
+                          />
+                          {expandedSections.dialogue ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </div>
+                      </button>
+                      
+                      <div className="collapsible-content-wrapper">
+                        <div className="collapsible-content">
+                          <p className="field-desc">
+                            Optional example dialogue to teach the model how the character talks. Format using chat patterns like &lt;START&gt;.
+                          </p>
+                          <textarea 
+                            id="char-dialogue" 
+                            placeholder="&lt;START&gt;&#10;&lt;User&gt;: Hello&#10;Seraphina: *looks up with lidded eyes* You came..."
+                            value={chars.characterForm.example_dialogue}
+                            onChange={(e) => chars.setCharacterForm(prev => ({ ...prev, example_dialogue: e.target.value }))}
+                            className="collapsible-textarea textarea-dialogue"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Collapsible Section: Alternate Greetings */}
+                  {activeOptionalFields.alternate_greetings && (
+                    <div className={`collapsible-card ${expandedSections.alternate_greetings ? 'expanded' : ''}`}>
+                      <button
+                        type="button"
+                        className="collapsible-header"
+                        onClick={() => toggleSection('alternate_greetings')}
+                      >
+                        <div className="header-left">
+                          <MessageSquare size={16} className="header-icon" />
+                          <span className="header-title">Alternate Greetings</span>
+                        </div>
+                        <div className="header-right">
+                          <span className="token-badge">{alternateGreetingsTokens} tokens</span>
+                          <RemoveFieldButton
+                            fieldKey="alternate_greetings"
+                            onRemove={() => chars.setCharacterForm(prev => ({ ...prev, alternate_greetings: [] }))}
+                            setActiveOptionalFields={setActiveOptionalFields}
+                          />
+                          {expandedSections.alternate_greetings ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </div>
+                      </button>
+                      
+                      <div className="collapsible-content-wrapper">
+                        <div className="collapsible-content" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          <p className="field-desc">
+                            Additional opening messages for starting chats. The user can cycle/swipe through these options in the chat session.
+                          </p>
+                          {(chars.characterForm.alternate_greetings || []).map((alt, idx) => (
+                            <div key={idx} style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '4px', borderTop: idx > 0 ? '1px dashed var(--border)' : 'none', paddingTop: idx > 0 ? '12px' : '0' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <label style={{ fontSize: '0.78rem', color: 'var(--text-sec)', fontFamily: 'var(--font-code)', fontWeight: 'bold' }}>
+                                  Greeting #{idx + 1}
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    chars.setCharacterForm(prev => {
+                                      const updated = prev.alternate_greetings.filter((_, i) => i !== idx);
+                                      return { ...prev, alternate_greetings: updated };
+                                    });
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--pink)',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    padding: '4px'
+                                  }}
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                              <textarea
+                                value={alt}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  chars.setCharacterForm(prev => {
+                                    const updated = [...prev.alternate_greetings];
+                                    updated[idx] = val;
+                                    return { ...prev, alternate_greetings: updated };
+                                  });
+                                }}
+                                placeholder="Write greeting option..."
+                                className="collapsible-textarea textarea-greeting"
+                              />
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            className="add-field-pill-btn"
+                            onClick={() => {
+                              chars.setCharacterForm(prev => ({
+                                ...prev,
+                                alternate_greetings: [...(prev.alternate_greetings || []), '']
+                              }));
+                            }}
+                            style={{ alignSelf: 'flex-start', marginTop: '4px' }}
+                          >
+                            <Plus size={12} />
+                            <span>Add Alternate Greeting</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Collapsible Section: System Prompt Override */}
+                  {activeOptionalFields.system_prompt && (
+                    <div className={`collapsible-card ${expandedSections.system_prompt ? 'expanded' : ''}`}>
+                      <button
+                        type="button"
+                        className="collapsible-header"
+                        onClick={() => toggleSection('system_prompt')}
+                      >
+                        <div className="header-left">
+                          <Globe size={16} className="header-icon" />
+                          <span className="header-title">System Prompt Override</span>
+                        </div>
+                        <div className="header-right">
+                          <span className="token-badge">{systemPromptTokens} tokens</span>
+                          <RemoveFieldButton
+                            fieldKey="system_prompt"
+                            onRemove={() => chars.setCharacterForm(prev => ({ ...prev, system_prompt: '' }))}
+                            setActiveOptionalFields={setActiveOptionalFields}
+                          />
+                          {expandedSections.system_prompt ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </div>
+                      </button>
+                      
+                      <div className="collapsible-content-wrapper">
+                        <div className="collapsible-content">
+                          <p className="field-desc">
+                            Overrides the global system prompt template when compiling prompts for this character.
+                          </p>
+                          <textarea 
+                            id="char-system-prompt" 
+                            placeholder="Describe how the AI should structure its system instructions for this character..."
+                            value={chars.characterForm.system_prompt}
+                            onChange={(e) => chars.setCharacterForm(prev => ({ ...prev, system_prompt: e.target.value }))}
+                            className="collapsible-textarea"
+                            style={{ minHeight: '120px' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Collapsible Section: Post-History Instructions */}
+                  {activeOptionalFields.post_history_instructions && (
+                    <div className={`collapsible-card ${expandedSections.post_history_instructions ? 'expanded' : ''}`}>
+                      <button
+                        type="button"
+                        className="collapsible-header"
+                        onClick={() => toggleSection('post_history_instructions')}
+                      >
+                        <div className="header-left">
+                          <Sparkles size={16} className="header-icon" />
+                          <span className="header-title">Post-History Instructions</span>
+                        </div>
+                        <div className="header-right">
+                          <span className="token-badge">{postHistoryTokens} tokens</span>
+                          <RemoveFieldButton
+                            fieldKey="post_history_instructions"
+                            onRemove={() => chars.setCharacterForm(prev => ({ ...prev, post_history_instructions: '' }))}
+                            setActiveOptionalFields={setActiveOptionalFields}
+                          />
+                          {expandedSections.post_history_instructions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </div>
+                      </button>
+                      
+                      <div className="collapsible-content-wrapper">
+                        <div className="collapsible-content">
+                          <p className="field-desc">
+                            Directives or formatting rules injected at the absolute end of the prompt (after history) to enforce style or character guidelines.
+                          </p>
+                          <textarea 
+                            id="char-post-history" 
+                            placeholder="Rules to inject at the bottom of chat history (e.g. Write in third-person past tense only)..."
+                            value={chars.characterForm.post_history_instructions}
+                            onChange={(e) => chars.setCharacterForm(prev => ({ ...prev, post_history_instructions: e.target.value }))}
+                            className="collapsible-textarea"
+                            style={{ minHeight: '100px' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Collapsible Section: Creator Notes */}
+                  {activeOptionalFields.creator_notes && (
+                    <div className={`collapsible-card ${expandedSections.creator_notes ? 'expanded' : ''}`}>
+                      <button
+                        type="button"
+                        className="collapsible-header"
+                        onClick={() => toggleSection('creator_notes')}
+                      >
+                        <div className="header-left">
+                          <FolderOpen size={16} className="header-icon" />
+                          <span className="header-title">Creator Notes</span>
+                        </div>
+                        <div className="header-right">
+                          <span className="token-badge">{creatorNotesTokens} tokens</span>
+                          <RemoveFieldButton
+                            fieldKey="creator_notes"
+                            onRemove={() => chars.setCharacterForm(prev => ({ ...prev, creator_notes: '' }))}
+                            setActiveOptionalFields={setActiveOptionalFields}
+                          />
+                          {expandedSections.creator_notes ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </div>
+                      </button>
+                      
+                      <div className="collapsible-content-wrapper">
+                        <div className="collapsible-content">
+                          <p className="field-desc">
+                            Additional metadata notes or comments written by the author of this character card.
+                          </p>
+                          <textarea 
+                            id="char-creator-notes" 
+                            placeholder="Creator comments, instructions, or recommendations for running this card..."
+                            value={chars.characterForm.creator_notes}
+                            onChange={(e) => chars.setCharacterForm(prev => ({ ...prev, creator_notes: e.target.value }))}
+                            className="collapsible-textarea"
+                            style={{ minHeight: '100px' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Collapsible Section: Creator Details */}
+                  {activeOptionalFields.creator_details && (
+                    <div className={`collapsible-card ${expandedSections.creator_details ? 'expanded' : ''}`}>
+                      <button
+                        type="button"
+                        className="collapsible-header"
+                        onClick={() => toggleSection('creator_details')}
+                      >
+                        <div className="header-left">
+                          <User size={16} className="header-icon" />
+                          <span className="header-title">Creator Details</span>
+                        </div>
+                        <div className="header-right">
+                          <RemoveFieldButton
+                            fieldKey="creator_details"
+                            onRemove={() => chars.setCharacterForm(prev => ({ ...prev, creator: '', character_version: '' }))}
+                            setActiveOptionalFields={setActiveOptionalFields}
+                          />
+                          {expandedSections.creator_details ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </div>
+                      </button>
+                      
+                      <div className="collapsible-content-wrapper">
+                        <div className="collapsible-content" style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ fontSize: '0.78rem', color: 'var(--text-sec)', marginBottom: '4px', display: 'block', fontFamily: 'var(--font-code)', fontWeight: 'bold' }}>Creator Name</label>
+                            <input 
+                              type="text"
+                              placeholder="e.g., Skeleton, Kaji..."
+                              value={chars.characterForm.creator}
+                              onChange={(e) => chars.setCharacterForm(prev => ({ ...prev, creator: e.target.value }))}
+                              className="collapsible-input"
+                            />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ fontSize: '0.78rem', color: 'var(--text-sec)', marginBottom: '4px', display: 'block', fontFamily: 'var(--font-code)', fontWeight: 'bold' }}>Version</label>
+                            <input 
+                              type="text"
+                              placeholder="e.g., 1.0.0, v2..."
+                              value={chars.characterForm.character_version}
+                              onChange={(e) => chars.setCharacterForm(prev => ({ ...prev, character_version: e.target.value }))}
+                              className="collapsible-input"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Optional Fields Adder Box */}
+                  {(!activeOptionalFields.traits || 
+                    !activeOptionalFields.scenario || 
+                    !activeOptionalFields.dialogue || 
+                    !activeOptionalFields.alternate_greetings || 
+                    !activeOptionalFields.system_prompt || 
+                    !activeOptionalFields.post_history_instructions || 
+                    !activeOptionalFields.creator_notes || 
+                    !activeOptionalFields.creator_details) && (
+                    <div className="optional-fields-adder" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                        {!activeOptionalFields.traits && (
+                          <button
+                            type="button"
+                            className="add-field-pill-btn"
+                            onClick={() => {
+                              setActiveOptionalFields(prev => ({ ...prev, traits: true }));
+                              setExpandedSections(prev => ({ ...prev, traits: true }));
+                            }}
+                          >
+                            <Plus size={12} />
+                            <span>Personality</span>
+                          </button>
+                        )}
+                        {!activeOptionalFields.scenario && (
+                          <button
+                            type="button"
+                            className="add-field-pill-btn"
+                            onClick={() => {
+                              setActiveOptionalFields(prev => ({ ...prev, scenario: true }));
+                              setExpandedSections(prev => ({ ...prev, scenario: true }));
+                            }}
+                          >
+                            <Plus size={12} />
+                            <span>Scenario</span>
+                          </button>
+                        )}
+                        {!activeOptionalFields.dialogue && (
+                          <button
+                            type="button"
+                            className="add-field-pill-btn"
+                            onClick={() => {
+                              setActiveOptionalFields(prev => ({ ...prev, dialogue: true }));
+                              setExpandedSections(prev => ({ ...prev, dialogue: true }));
+                            }}
+                          >
+                            <Plus size={12} />
+                            <span>Example Dialogue</span>
+                          </button>
+                        )}
+                        {!activeOptionalFields.alternate_greetings && (
+                          <button
+                            type="button"
+                            className="add-field-pill-btn"
+                            onClick={() => {
+                              setActiveOptionalFields(prev => ({ ...prev, alternate_greetings: true }));
+                              setExpandedSections(prev => ({ ...prev, alternate_greetings: true }));
+                              chars.setCharacterForm(prev => ({
+                                ...prev,
+                                alternate_greetings: prev.alternate_greetings?.length > 0 ? prev.alternate_greetings : ['']
+                              }));
+                            }}
+                          >
+                            <Plus size={12} />
+                            <span>Alternate Greetings</span>
+                          </button>
+                        )}
+                        {!activeOptionalFields.system_prompt && (
+                          <button
+                            type="button"
+                            className="add-field-pill-btn"
+                            onClick={() => {
+                              setActiveOptionalFields(prev => ({ ...prev, system_prompt: true }));
+                              setExpandedSections(prev => ({ ...prev, system_prompt: true }));
+                            }}
+                          >
+                            <Plus size={12} />
+                            <span>System Prompt Override</span>
+                          </button>
+                        )}
+                        {!activeOptionalFields.post_history_instructions && (
+                          <button
+                            type="button"
+                            className="add-field-pill-btn"
+                            onClick={() => {
+                              setActiveOptionalFields(prev => ({ ...prev, post_history_instructions: true }));
+                              setExpandedSections(prev => ({ ...prev, post_history_instructions: true }));
+                            }}
+                          >
+                            <Plus size={12} />
+                            <span>Post-History</span>
+                          </button>
+                        )}
+                        {!activeOptionalFields.creator_notes && (
+                          <button
+                            type="button"
+                            className="add-field-pill-btn"
+                            onClick={() => {
+                              setActiveOptionalFields(prev => ({ ...prev, creator_notes: true }));
+                              setExpandedSections(prev => ({ ...prev, creator_notes: true }));
+                            }}
+                          >
+                            <Plus size={12} />
+                            <span>Creator Notes</span>
+                          </button>
+                        )}
+                        {!activeOptionalFields.creator_details && (
+                          <button
+                            type="button"
+                            className="add-field-pill-btn"
+                            onClick={() => {
+                              setActiveOptionalFields(prev => ({ ...prev, creator_details: true }));
+                              setExpandedSections(prev => ({ ...prev, creator_details: true }));
+                            }}
+                          >
+                            <Plus size={12} />
+                            <span>Creator Details</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-          </div>
+            </div>
         </div>
       </form>
     </div>

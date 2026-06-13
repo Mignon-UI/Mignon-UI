@@ -26,13 +26,14 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-start;
-    min-height: 100%;
+    justify-content: center;
+    flex: 1;
+    height: 100%;
     padding: 48px 40px;
     text-align: center;
     background: var(--bg-window);
     position: relative;
-    overflow-y: auto;
+    overflow: hidden;
 }
 
 .landing-bg-grid {

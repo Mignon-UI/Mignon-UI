@@ -27,7 +27,18 @@
 }
 
 .glassmorphism {
-    backdrop-filter: none;
+  /* 1. Translucent Deep Background (Dark Obsidian) */
+  background: rgba(18, 18, 18, 0.75);
+  
+  /* 2. The Frosted Glass Secret Sauce (Blur + Saturation Boost) */
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%); /* iOS/Safari support */
+  
+  /* 3. Razor-Thin Glowing Border (Gives it that sharp "crystal" edge) */
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  
+  /* 4. Smooth, Elevated Shadow (Creates realistic depth and lift) */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
 .modal-header {

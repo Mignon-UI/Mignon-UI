@@ -1,11 +1,13 @@
 import React from 'react';
 import DarfLogo from './DarfLogo';
 import { useUIContext } from '../../context/UIContext';
+import { APP_NAME } from '../../config';
 import { useSettingsContext } from '../../context/SettingsContext';
 import { useCharacterContext } from '../../context/CharacterContext';
 import { useChatContext } from '../../context/ChatContext';
 import { useLoreWorldContext } from '../../context/LoreWorldContext';
 import { useToast } from '../../context/ToastContext';
+import SettingsModal from '../Modals/SettingsModal';
 import {
   Settings as SettingsIcon, Heart, MessageCircle, BookHeart,
   Plus, Upload, Search, Globe, ChevronRight,
@@ -33,6 +35,55 @@ function fitTraitsByLength(allTraits, maxCharLength) {
   };
 }
 
+function cleanPreviewText(text) {
+  if (!text) return '';
+  // Strip content inside double asterisks
+  let cleaned = text.replace(/\*\*([\s\S]*?)\*\*/g, '');
+  // Strip content inside single asterisks
+  cleaned = cleaned.replace(/\*([\s\S]*?)\*/g, '');
+  cleaned = cleaned.replace(/\s+/g, ' ').trim();
+  
+  if (!cleaned) {
+    // Fallback: just remove the asterisks themselves so it's readable
+    return text.replace(/\*\*|\*/g, '').replace(/\s+/g, ' ').trim();
+  }
+  return cleaned;
+}
+
+function CharacterActions({ character, className, chars, ui, showConfirm, toast }) {
+  return (
+    <div className={className}>
+      <button
+        className="icon-btn text-muted btn-edit-char"
+        title="Edit Character"
+        onClick={(e) => {
+          e.stopPropagation();
+          chars.handleEditCharacterClick(character, ui.setActiveModal);
+        }}
+      >
+        <Edit3 style={{ width: '12px', height: '12px' }} />
+      </button>
+      <button
+        className="icon-btn danger btn-del-char"
+        title="Delete Character"
+        onClick={async (e) => {
+          e.stopPropagation();
+          const ok = await showConfirm(`Are you sure you want to delete ${character.name}?`);
+          if (!ok) return;
+          try {
+            await chars.handleDeleteCharacter(character.id);
+            toast.success(`${character.name} deleted.`);
+          } catch {
+            toast.error('Failed to delete character');
+          }
+        }}
+      >
+        <Trash style={{ width: '12px', height: '12px' }} />
+      </button>
+    </div>
+  );
+}
+
 export default function Sidebar() {
   const ui = useUIContext();
   const settings = useSettingsContext();
@@ -43,6 +94,10 @@ export default function Sidebar() {
 
   const [brokenAvatars, setBrokenAvatars] = React.useState({});
   const [charViewMode, setCharViewMode] = React.useState('grid'); // 'grid' or 'list'
+
+  const [searchCharsQuery, setSearchCharsQuery] = React.useState('');
+  const [searchRoomsQuery, setSearchRoomsQuery] = React.useState('');
+  const [searchWorldsQuery, setSearchWorldsQuery] = React.useState('');
 
   const [activeRoomFilter, setActiveRoomFilter] = React.useState('all'); // 'all', 'groups', 'favorites'
   const [favoriteRoomIds, setFavoriteRoomIds] = React.useState(() => {
@@ -64,12 +119,12 @@ export default function Sidebar() {
 
   // Filtered computed values (previously in useRoleplay)
   const filteredCharacters = chars.characters.filter(c =>
-    c.name.toLowerCase().includes(ui.searchCharsQuery.toLowerCase()) ||
-    (c.personality && c.personality.toLowerCase().includes(ui.searchCharsQuery.toLowerCase()))
+    c.name.toLowerCase().includes(searchCharsQuery.toLowerCase()) ||
+    (c.personality && c.personality.toLowerCase().includes(searchCharsQuery.toLowerCase()))
   );
 
   const filteredRooms = chat.rooms.filter(r => {
-    const q = (ui.searchRoomsQuery || '').toLowerCase();
+    const q = (searchRoomsQuery || '').toLowerCase();
     const matchesSearch = !q || (
       r.name.toLowerCase().includes(q) ||
       (r.description && r.description.toLowerCase().includes(q)) ||
@@ -83,7 +138,7 @@ export default function Sidebar() {
   });
 
   const filteredWorlds = lw.worlds.filter(w => {
-    const q = (ui.searchWorldsQuery || '').toLowerCase();
+    const q = (searchWorldsQuery || '').toLowerCase();
     if (!q) return true;
     return (
       w.name.toLowerCase().includes(q) ||
@@ -91,8 +146,133 @@ export default function Sidebar() {
     );
   });
 
+  const trackRef = React.useRef(null);
+  const touchStartXRef = React.useRef(null);
+  const touchStartYRef = React.useRef(null);
+  const touchStartTimeRef = React.useRef(0);
+  const baseOffsetRef = React.useRef(0);
+  const isSwipingRef = React.useRef(null); // null = undecided, true = swiping tabs, false = scrolling list
+  const viewportWidthRef = React.useRef(0);
+
+  const handleTouchStart = (e) => {
+    if (!ui.isMobileDevice || !trackRef.current) return;
+
+    const targetTag = e.target.tagName;
+    if (targetTag === 'INPUT' || targetTag === 'TEXTAREA' || e.target.closest('input') || e.target.closest('textarea')) {
+      touchStartXRef.current = null;
+      touchStartYRef.current = null;
+      isSwipingRef.current = false;
+      return;
+    }
+
+    touchStartXRef.current = e.touches[0].clientX;
+    touchStartYRef.current = e.touches[0].clientY;
+    touchStartTimeRef.current = Date.now();
+    isSwipingRef.current = null;
+
+    const viewport = trackRef.current.parentElement;
+    const rect = viewport.getBoundingClientRect();
+    viewportWidthRef.current = rect.width || window.innerWidth;
+
+    const tabs = ['chars', 'rooms', 'lore', 'settings'];
+    const currentIndex = tabs.indexOf(ui.activeTab);
+    baseOffsetRef.current = -currentIndex * viewportWidthRef.current;
+
+    // Temporarily disable CSS transition for immediate response to touch drag
+    trackRef.current.style.setProperty('transition', 'none', 'important');
+  };
+
+  const handleTouchMove = (e) => {
+    if (!ui.isMobileDevice || touchStartXRef.current === null || !trackRef.current) return;
+
+    const currentX = e.touches[0].clientX;
+    const currentY = e.touches[0].clientY;
+
+    const diffX = currentX - touchStartXRef.current;
+    const diffY = currentY - touchStartYRef.current;
+
+    // Lock direction if undecided
+    if (isSwipingRef.current === null) {
+      const absDiffX = Math.abs(diffX);
+      const absDiffY = Math.abs(diffY);
+      if (absDiffX > absDiffY && absDiffX > 10) {
+        isSwipingRef.current = true; // Lock into tab swipe
+      } else if (absDiffY > absDiffX && absDiffY > 10) {
+        isSwipingRef.current = false; // Lock into vertical scroll
+      }
+    }
+
+    // If locked into swipe, prevent default (vertical scrolling) and update transform
+    if (isSwipingRef.current === true) {
+      if (e.cancelable) e.preventDefault();
+
+      let targetOffset = baseOffsetRef.current + diffX;
+
+      // Do not allow swiping/dragging beyond the first and last tabs
+      const maxOffset = 0; // First tab
+      const minOffset = -viewportWidthRef.current * 3; // Last tab
+
+      if (targetOffset > maxOffset) {
+        targetOffset = maxOffset;
+      } else if (targetOffset < minOffset) {
+        targetOffset = minOffset;
+      }
+
+      trackRef.current.style.transform = `translateX(${targetOffset}px)`;
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!ui.isMobileDevice || touchStartXRef.current === null || !trackRef.current) return;
+
+    // Restore the transition animation for smooth snap-back or switch
+    trackRef.current.style.removeProperty('transition');
+
+    if (isSwipingRef.current === true) {
+      const touchEndX = e.changedTouches[0].clientX;
+      const diffX = touchEndX - touchStartXRef.current;
+      const dragPercentage = diffX / viewportWidthRef.current;
+      const duration = Date.now() - touchStartTimeRef.current;
+      const isFlick = duration < 250 && Math.abs(diffX) > 30;
+
+      const tabs = ['chars', 'rooms', 'lore', 'settings'];
+      const currentIndex = tabs.indexOf(ui.activeTab);
+
+      let targetIndex = currentIndex;
+
+      // Threshold: 20% of screen width swiped, or quick flick
+      if (dragPercentage < -0.2 || (isFlick && diffX < 0)) {
+        // Swipe left -> Next tab
+        targetIndex = Math.min(currentIndex + 1, tabs.length - 1);
+      } else if (dragPercentage > 0.2 || (isFlick && diffX > 0)) {
+        // Swipe right -> Previous tab
+        targetIndex = Math.max(currentIndex - 1, 0);
+      }
+
+      // Transition to target tab
+      if (targetIndex !== currentIndex) {
+        trackRef.current.style.transform = `translateX(${-targetIndex * 25}%)`;
+        ui.setActiveTab(tabs[targetIndex]);
+      } else {
+        // Explicitly restore original state since activeTab state no-op won't trigger React render
+        trackRef.current.style.transform = `translateX(${-currentIndex * 25}%)`;
+      }
+    }
+
+    // Reset touch variables
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+    isSwipingRef.current = null;
+  };
+
   return (
-    <aside className="sidebar" id="sidebar">
+    <aside
+      className="sidebar"
+      id="sidebar"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <div className="sidebar-header">
         <div
           className="logo cursor-pointer"
@@ -103,8 +283,7 @@ export default function Sidebar() {
           title="Return to Home"
         >
           <DarfLogo size={40} style={{ marginRight: '2px' }} />
-          <span className="logo-text">Darf UI</span>
-          {/* <span className="logo-tag">V1.0-beta</span> */}
+          <span className="logo-text">{APP_NAME}</span>
         </div>
       </div>
 
@@ -119,10 +298,49 @@ export default function Sidebar() {
         <button id="tab-lore" className={`tab-btn ${ui.activeTab === 'lore' ? 'active' : ''}`} onClick={() => ui.setActiveTab('lore')}>
           <BookHeart className="tab-icon" size={16} /><span>Lore</span>
         </button>
+        {ui.isMobileDevice && (
+          <button id="tab-settings" className={`tab-btn ${ui.activeTab === 'settings' ? 'active' : ''}`} onClick={() => ui.setActiveTab('settings')}>
+            <SettingsIcon className="tab-icon" size={16} /><span>Settings</span>
+          </button>
+        )}
       </div>
 
-      {/* CHARACTERS TAB */}
+      {/* Tab Contents Viewport & Slide Track */}
+      <div className="tab-content-viewport">
+        <div
+          ref={trackRef}
+          className="tab-content-track"
+          style={{
+            transform: `translateX(${
+              ui.isMobileDevice
+                ? (ui.activeTab === 'chars' ? '0%' : ui.activeTab === 'rooms' ? '-25%' : ui.activeTab === 'lore' ? '-50%' : '-75%')
+                : (ui.activeTab === 'chars' ? '0%' : ui.activeTab === 'rooms' ? '-33.333%' : '-66.666%')
+            })`
+          }}
+        >
+          {/* CHARACTERS TAB */}
       <div id="content-chars" className={`tab-content ${ui.activeTab === 'chars' ? 'active' : ''}`}>
+        <div className="search-bar-row">
+          <div className="search-bar" style={{ flex: 1 }}>
+            <Search className="search-icon" size={14} />
+            <input
+              type="text"
+              id="search-chars-input"
+              placeholder="Search characters..."
+              value={searchCharsQuery}
+              onChange={(e) => setSearchCharsQuery(e.target.value)}
+            />
+          </div>
+          {!ui.isMobileDevice && (
+            <button
+              className="char-view-toggle-btn"
+              title={charViewMode === 'grid' ? "Switch to List View" : "Switch to Grid View"}
+              onClick={() => setCharViewMode(m => m === 'grid' ? 'list' : 'grid')}
+            >
+              {charViewMode === 'grid' ? <LayoutGrid size={14} /> : <List size={14} />}
+            </button>
+          )}
+        </div>
         <div className="action-bar">
           <button
             id="btn-new-char"
@@ -156,25 +374,6 @@ export default function Sidebar() {
             />
           </label>
         </div>
-        <div className="search-bar-row">
-          <div className="search-bar" style={{ flex: 1 }}>
-            <Search className="search-icon" size={14} />
-            <input
-              type="text"
-              id="search-chars-input"
-              placeholder="Search characters..."
-              value={ui.searchCharsQuery}
-              onChange={(e) => ui.setSearchCharsQuery(e.target.value)}
-            />
-          </div>
-          <button
-            className="char-view-toggle-btn"
-            title={charViewMode === 'grid' ? "Switch to List View" : "Switch to Grid View"}
-            onClick={() => setCharViewMode(m => m === 'grid' ? 'list' : 'grid')}
-          >
-            {charViewMode === 'grid' ? <LayoutGrid size={14} /> : <List size={14} />}
-          </button>
-        </div>
         <div
           id="character-list"
           className="character-list-scroll-container scrollbar-custom"
@@ -183,7 +382,7 @@ export default function Sidebar() {
             <div className="text-center mt-20" style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
               No characters yet. Import a Tavern card or create one!
             </div>
-          ) : charViewMode === 'grid' ? (
+          ) : (ui.isMobileDevice || charViewMode === 'grid') ? (
             <div className="character-grid">
               {filteredCharacters.map(c => {
                 const hasAvatar = c.avatar && !brokenAvatars[c.id];
@@ -196,31 +395,14 @@ export default function Sidebar() {
                     onClick={() => chat.handleStartSingleChat(c, ui.setActiveModal, ui.setActiveTab, ui.setActiveWorldDetail)}
                   >
                     {/* Floating Action Overlays */}
-                    <div className="char-card-actions">
-                      <button
-                        className="icon-btn text-muted btn-edit-char"
-                        title="Edit Character"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          chars.handleEditCharacterClick(c, ui.setActiveModal);
-                        }}
-                      >
-                        <Edit3 style={{ width: '12px', height: '12px' }} />
-                      </button>
-                      <button
-                        className="icon-btn danger btn-del-char"
-                        title="Delete Character"
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          const ok = await showConfirm(`Are you sure you want to delete ${c.name}?`);
-                          if (!ok) return;
-                          try { await chars.handleDeleteCharacter(c.id); toast.success(`${c.name} deleted.`); }
-                          catch { toast.error('Failed to delete character'); }
-                        }}
-                      >
-                        <Trash style={{ width: '12px', height: '12px' }} />
-                      </button>
-                    </div>
+                    <CharacterActions
+                      character={c}
+                      className="char-card-actions"
+                      chars={chars}
+                      ui={ui}
+                      showConfirm={showConfirm}
+                      toast={toast}
+                    />
 
                     {/* Character Full-Card Background Image */}
                     {hasAvatar ? (
@@ -303,31 +485,14 @@ export default function Sidebar() {
                     </div>
 
                     {/* Right Actions on Hover */}
-                    <div className="char-list-actions">
-                      <button
-                        className="icon-btn text-muted btn-edit-char"
-                        title="Edit Character"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          chars.handleEditCharacterClick(c, ui.setActiveModal);
-                        }}
-                      >
-                        <Edit3 style={{ width: '12px', height: '12px' }} />
-                      </button>
-                      <button
-                        className="icon-btn danger btn-del-char"
-                        title="Delete Character"
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          const ok = await showConfirm(`Are you sure you want to delete ${c.name}?`);
-                          if (!ok) return;
-                          try { await chars.handleDeleteCharacter(c.id); toast.success(`${c.name} deleted.`); }
-                          catch { toast.error('Failed to delete character'); }
-                        }}
-                      >
-                        <Trash style={{ width: '12px', height: '12px' }} />
-                      </button>
-                    </div>
+                    <CharacterActions
+                      character={c}
+                      className="char-list-actions"
+                      chars={chars}
+                      ui={ui}
+                      showConfirm={showConfirm}
+                      toast={toast}
+                    />
                   </div>
                 );
               })}
@@ -344,8 +509,8 @@ export default function Sidebar() {
             type="text"
             id="search-rooms-input"
             placeholder="Search chats..."
-            value={ui.searchRoomsQuery}
-            onChange={(e) => ui.setSearchRoomsQuery(e.target.value)}
+            value={searchRoomsQuery}
+            onChange={(e) => setSearchRoomsQuery(e.target.value)}
           />
         </div>
 
@@ -374,7 +539,7 @@ export default function Sidebar() {
         <div id="room-list" className="room-vertical-list scrollbar-custom">
           {filteredRooms.length === 0 ? (
             <div className="room-list-empty-state animate-fade-in">
-              {ui.searchRoomsQuery ? (
+              {searchRoomsQuery ? (
                 <>
                   <div className="empty-state-icon-wrapper">
                     <Search size={36} className="empty-state-icon" />
@@ -418,8 +583,8 @@ export default function Sidebar() {
             filteredRooms.map(r => {
               const isActiveRoom = r.id === chat.currentRoomId;
               const firstBot = r.bots?.[0];
-              const lastMsgText = r.last_message 
-                ? `${r.last_message.sender_name}: ${r.last_message.content}`
+              const lastMsgText = r.last_message
+                ? `${r.last_message.sender_name}: ${cleanPreviewText(r.last_message.content)}`
                 : (r.bots?.map(b => b.name)?.join(', ') || '—');
 
               const isFav = favoriteRoomIds.includes(r.id);
@@ -516,6 +681,16 @@ export default function Sidebar() {
 
       {/* LOREBOOK TAB */}
       <div id="content-lore" className={`tab-content ${ui.activeTab === 'lore' ? 'active' : ''}`}>
+        <div className="search-bar">
+          <Search className="search-icon" size={14} />
+          <input
+            type="text"
+            id="search-worlds-input"
+            placeholder="Search worlds..."
+            value={searchWorldsQuery}
+            onChange={(e) => setSearchWorldsQuery(e.target.value)}
+          />
+        </div>
         <div className="action-bar">
           <button
             id="btn-new-world"
@@ -527,16 +702,6 @@ export default function Sidebar() {
           >
             <Globe size={16} /> New World
           </button>
-        </div>
-        <div className="search-bar">
-          <Search className="search-icon" size={14} />
-          <input
-            type="text"
-            id="search-worlds-input"
-            placeholder="Search worlds..."
-            value={ui.searchWorldsQuery}
-            onChange={(e) => ui.setSearchWorldsQuery(e.target.value)}
-          />
         </div>
         <div id="world-list" className="world-vertical-list scrollbar-custom">
           {filteredWorlds.length === 0 ? (
@@ -566,12 +731,19 @@ export default function Sidebar() {
           )}
         </div>
       </div>
+      {ui.isMobileDevice && (
+        <SettingsModal isInline={true} />
+      )}
+        </div>
+      </div>
 
       {/* Status Footer */}
       <div className="sidebar-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: 'var(--border-width) solid var(--border)', background: 'var(--purple)', padding: '0 12px' }}>
         <div className={`connection-status ${settings.engineOnline ? 'online' : 'offline'}`} id="status-indicator" style={{ borderTop: 'none', padding: '12px 4px', background: 'transparent', flex: 1 }}>
           <span className="status-dot"></span>
-          <span id="status-text">{settings.engineStatus}</span>
+          <span id="status-text">
+            {settings.engineStatus === 'Checking Engine...' ? 'Checking...' : (settings.engineOnline ? 'Online' : 'Offline')}
+          </span>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
           <button
@@ -586,7 +758,13 @@ export default function Sidebar() {
             id="btn-open-settings"
             className="sidebar-footer-btn"
             title="System Settings"
-            onClick={() => ui.setActiveModal('settings')}
+            onClick={() => {
+              if (ui.isMobileDevice) {
+                ui.setActiveTab('settings');
+              } else {
+                ui.setActiveModal('settings');
+              }
+            }}
           >
             <SettingsIcon size={15} />
           </button>

@@ -19,6 +19,10 @@ body {
 
 
 /* Scrollbar */
+.scrollbar-custom:not(.chat-history) {
+    scroll-behavior: smooth;
+}
+
 .scrollbar-custom::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -39,8 +43,18 @@ body {
     background: var(--primary);
 }
 
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
 /* Hide old ambient blobs */
 .ambient-container {
     display: none;
 }
+
 

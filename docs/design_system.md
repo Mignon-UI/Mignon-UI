@@ -1,6 +1,6 @@
 # 🎨 Design Tokens & Premium Themes
 
-Darf UI features an ultra-premium, modular CSS layout built entirely on top of vanilla CSS custom design tokens. By avoiding heavy framework dependencies (like TailwindCSS or Bootstrap), Darf UI maintains pixel-perfect control over its neobrutalist aesthetic, high-contrast layouts, hardware-accelerated animations, and real-time custom theme swapping.
+Mignon UI features an ultra-premium, modular CSS layout built entirely on top of vanilla CSS custom design tokens. By avoiding heavy framework dependencies (like TailwindCSS or Bootstrap), Mignon UI maintains pixel-perfect control over its neobrutalist aesthetic, high-contrast layouts, hardware-accelerated animations, and real-time custom theme swapping.
 
 ---
 
@@ -51,7 +51,7 @@ All layout containers inherit styling properties from centralized tokens defined
 
 ## 🎭 The Premium Theme Suite
 
-Darf UI ships with seven pre-configured design themes. Changing themes overrides root design variables in real-time to completely transform fonts, grids, shadows, and color spectrums:
+Mignon UI ships with seven pre-configured design themes. Changing themes overrides root design variables in real-time to completely transform fonts, grids, shadows, and color spectrums:
 
 ```mermaid
 graph TD

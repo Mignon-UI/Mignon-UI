@@ -69,7 +69,7 @@
     color: var(--text);
     width: 48px;
     height: 48px;
-    border-radius: var(--r-md);
+    border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;

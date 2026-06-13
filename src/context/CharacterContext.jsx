@@ -16,6 +16,12 @@ export function CharacterProvider({ children }) {
     scenario: '',
     example_dialogue: '',
     nsfw_inject: false,
+    alternate_greetings: [],
+    system_prompt: '',
+    post_history_instructions: '',
+    creator: '',
+    character_version: '',
+    creator_notes: '',
   });
 
   const fetchCharacters = useCallback(async () => {
@@ -43,6 +49,10 @@ export function CharacterProvider({ children }) {
     await fetchCharacters();
   }, [fetchCharacters]);
 
+  const handleGenerateTags = useCallback(async (name, personality, scenario) => {
+    return await api.generateCharacterTags(name, personality, scenario);
+  }, []);
+
   const handleEditCharacterClick = useCallback((c, setActiveModal) => {
     setCharacterForm({
       id: c.id,
@@ -54,6 +64,12 @@ export function CharacterProvider({ children }) {
       scenario: c.scenario || '',
       example_dialogue: c.example_dialogue || '',
       nsfw_inject: c.nsfw_inject !== undefined ? c.nsfw_inject : false,
+      alternate_greetings: c.alternate_greetings || [],
+      system_prompt: c.system_prompt || '',
+      post_history_instructions: c.post_history_instructions || '',
+      creator: c.creator || '',
+      character_version: c.character_version || '',
+      creator_notes: c.creator_notes || '',
     });
     setActiveModal('character');
   }, []);
@@ -82,6 +98,7 @@ export function CharacterProvider({ children }) {
     handleDeleteCharacter,
     handleEditCharacterClick,
     handleAvatarFileChange,
+    handleGenerateTags,
   }), [
     characters,
     characterForm,
@@ -91,6 +108,7 @@ export function CharacterProvider({ children }) {
     handleDeleteCharacter,
     handleEditCharacterClick,
     handleAvatarFileChange,
+    handleGenerateTags,
   ]);
 
   return (

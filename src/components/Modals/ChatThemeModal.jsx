@@ -3,7 +3,8 @@ import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Upload, Palette, Image as ImageIcon, Trash2, Sliders, Check, RotateCcw, Paintbrush, Droplet, Crop, ChevronDown, ChevronLeft } from 'lucide-react';
 import { useUIContext } from '../../context/UIContext';
-import { wallpapers, getWallpaperById } from '../../utils/chatWallpapers';
+import { wallpapers, getWallpaperById, parseSvgGradient } from '../../utils/chatWallpapers';
+import { LOCAL_STORAGE_PREFIX } from '../../config';
 import { cropImage } from '../../utils/cropImage';
 import '../../styles/chatthemeeditor.css';
 
@@ -46,24 +47,7 @@ const STROKE_PRESETS = [
 
 const parseGradient = (gradientStr) => {
   const defaultVal = { type: 'linear', angle: 135, colors: ['#ff1493', '#00f0ff'] };
-  if (!gradientStr) return defaultVal;
-  
-  let type = 'linear';
-  if (gradientStr.startsWith('radial-gradient')) type = 'radial';
-  else if (gradientStr.startsWith('conic-gradient')) type = 'conic';
-  else if (!gradientStr.startsWith('linear-gradient')) return defaultVal;
-  
-  try {
-    const angleMatch = gradientStr.match(/(\d+)deg/);
-    const angle = angleMatch ? parseInt(angleMatch[1]) : 135;
-    
-    const colorsMatch = gradientStr.match(/(#[a-fA-F0-9]{6}|#[a-fA-F0-9]{3})/g);
-    const colors = colorsMatch && colorsMatch.length > 0 ? colorsMatch : ['#ff1493', '#00f0ff'];
-    
-    return { type, angle, colors };
-  } catch {
-    return defaultVal;
-  }
+  return parseSvgGradient(gradientStr) || defaultVal;
 };
 
 const constructGradientString = (type, angle, colors) => {
@@ -81,12 +65,59 @@ const constructGradientString = (type, angle, colors) => {
   }
 };
 
+const resizeAndCompressImage = (base64Str, maxDimension = 1200, quality = 0.8) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      let width = img.naturalWidth;
+      let height = img.naturalHeight;
+      if (width > maxDimension || height > maxDimension) {
+        if (width > height) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => {
+      resolve(base64Str);
+    };
+  });
+};
+
 const TOOLBAR_ITEMS = [
   { id: 'doodles', icon: Paintbrush, label: 'Doodles' },
   { id: 'background', icon: ImageIcon, label: 'Background' },
   { id: 'line-color', icon: Droplet, label: 'Line Color' },
   { id: 'sliders', icon: Sliders, label: 'Sliders' }
 ];
+
+function PresetButton({ preset, isActive, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`chat-theme-bg-preset-btn ${isActive ? 'active' : ''}`}
+      style={{ background: preset.value }}
+      title={preset.name}
+    >
+      {isActive && (
+        <span className={`chat-theme-preset-check ${preset.value === '#ffffff' ? 'dark-check' : ''}`}>
+          ✓
+        </span>
+      )}
+    </button>
+  );
+}
 
 export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange }) {
   const ui = useUIContext();
@@ -98,7 +129,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
 
   const [customBgPresets, setCustomBgPresets] = useState(() => {
     try {
-      const saved = localStorage.getItem('darf_custom_bg_presets');
+      const saved = localStorage.getItem(`${LOCAL_STORAGE_PREFIX}_custom_bg_presets`);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -107,7 +138,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
 
   const [customStrokePresets, setCustomStrokePresets] = useState(() => {
     try {
-      const saved = localStorage.getItem('darf_custom_stroke_presets');
+      const saved = localStorage.getItem(`${LOCAL_STORAGE_PREFIX}_custom_stroke_presets`);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -128,7 +159,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
     if (!isBgColorPresetSaved(colorToSave)) {
       const nextPresets = [colorToSave, ...customBgPresets];
       setCustomBgPresets(nextPresets);
-      localStorage.setItem('darf_custom_bg_presets', JSON.stringify(nextPresets));
+      localStorage.setItem(`${LOCAL_STORAGE_PREFIX}_custom_bg_presets`, JSON.stringify(nextPresets));
     }
   };
 
@@ -144,7 +175,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
       };
       const nextPresets = [newPreset, ...customBgPresets];
       setCustomBgPresets(nextPresets);
-      localStorage.setItem('darf_custom_bg_presets', JSON.stringify(nextPresets));
+      localStorage.setItem(`${LOCAL_STORAGE_PREFIX}_custom_bg_presets`, JSON.stringify(nextPresets));
     }
   };
 
@@ -153,9 +184,62 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
     if (!customStrokePresets.includes(colorToSave)) {
       const nextPresets = [colorToSave, ...customStrokePresets];
       setCustomStrokePresets(nextPresets);
-      localStorage.setItem('darf_custom_stroke_presets', JSON.stringify(nextPresets));
+      localStorage.setItem(`${LOCAL_STORAGE_PREFIX}_custom_stroke_presets`, JSON.stringify(nextPresets));
     }
   };
+
+  const [uploadedBgs, setUploadedBgs] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`${LOCAL_STORAGE_PREFIX}_uploaded_bg_images`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    if (themeConfig.useCustomBgImage && themeConfig.bgImage) {
+      setUploadedBgs(prev => {
+        const index = prev.findIndex(bg => bg.bgImage === themeConfig.bgImage || bg.bgImageOriginal === themeConfig.bgImageOriginal);
+        if (index > -1) {
+          const updated = [...prev];
+          const current = updated[index];
+          if (
+            current.bgImage !== themeConfig.bgImage ||
+            current.bgImageOpacity !== themeConfig.bgImageOpacity ||
+            current.bgImageFill !== themeConfig.bgImageFill
+          ) {
+            updated[index] = {
+              ...current,
+              bgImage: themeConfig.bgImage,
+              bgImageOpacity: themeConfig.bgImageOpacity !== undefined ? themeConfig.bgImageOpacity : 100,
+              bgImageFill: themeConfig.bgImageFill || 'cover'
+            };
+            localStorage.setItem(`${LOCAL_STORAGE_PREFIX}_uploaded_bg_images`, JSON.stringify(updated));
+            return updated;
+          }
+          return prev;
+        } else {
+          const newBg = {
+            id: Date.now(),
+            bgImage: themeConfig.bgImage,
+            bgImageOriginal: themeConfig.bgImageOriginal || themeConfig.bgImage,
+            bgImageOpacity: themeConfig.bgImageOpacity !== undefined ? themeConfig.bgImageOpacity : 100,
+            bgImageFill: themeConfig.bgImageFill || 'cover'
+          };
+          const nextBgs = [newBg, ...prev].slice(0, 8);
+          localStorage.setItem(`${LOCAL_STORAGE_PREFIX}_uploaded_bg_images`, JSON.stringify(nextBgs));
+          return nextBgs;
+        }
+      });
+    }
+  }, [
+    themeConfig.useCustomBgImage,
+    themeConfig.bgImage,
+    themeConfig.bgImageOriginal,
+    themeConfig.bgImageOpacity,
+    themeConfig.bgImageFill
+  ]);
 
   useEffect(() => {
     if (isOpen && themeConfig.useCustomBgImage && themeConfig.bgImage) {
@@ -208,17 +292,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
 
 
 
-  const clearUploadedImage = () => {
-    onChange({
-      ...themeConfig,
-      bgImage: null,
-      bgImageOriginal: null,
-      useCustomBgImage: false
-    });
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
+
 
   const renderActiveOptionContent = () => {
     switch (activeOption) {
@@ -385,7 +459,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                               }
                             });
                             setCustomBgPresets(nextPresets);
-                            localStorage.setItem('darf_custom_bg_presets', JSON.stringify(nextPresets));
+                            localStorage.setItem(`${LOCAL_STORAGE_PREFIX}_custom_bg_presets`, JSON.stringify(nextPresets));
                           }}
                           title="Delete Custom Preset"
                         >
@@ -396,25 +470,14 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                   })}
 
                   {/* Standard Curated Presets */}
-                  {BG_COLOR_PRESETS.map((preset, idx) => {
-                    const isActive = themeConfig.bgColor === preset.value;
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => handleFieldChange('bgColor', preset.value)}
-                        className={`chat-theme-bg-preset-btn ${isActive ? 'active' : ''}`}
-                        style={{ background: preset.value }}
-                        title={preset.name}
-                      >
-                        {isActive && (
-                          <span className={`chat-theme-preset-check ${preset.value === '#ffffff' ? 'dark-check' : ''}`}>
-                            ✓
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                  {BG_COLOR_PRESETS.map((preset, idx) => (
+                    <PresetButton
+                      key={idx}
+                      preset={preset}
+                      isActive={themeConfig.bgColor === preset.value}
+                      onClick={() => handleFieldChange('bgColor', preset.value)}
+                    />
+                  ))}
                 </div>
 
                 {/* Custom Color Designer Panel */}
@@ -574,45 +637,19 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
               </div>
             ) : (
               /* Selection Column: Upload & Solid Color */
-              <div className="chat-theme-bg-selection-group">
-                {/* Add Background Option */}
+              <div className="chat-theme-bg-selection-group scrollbar-custom">
+                {/* Add Background Option (Always available to upload a new one) */}
                 <div 
-                  className={`character-select-card chat-theme-card-upload ${themeConfig.useCustomBgImage ? 'active' : ''}`}
+                  className="character-select-card chat-theme-card-upload add-new-card"
                   onClick={() => {
-                    if (themeConfig.bgImage) {
-                      onChange({
-                        ...themeConfig,
-                        useCustomBgImage: true,
-                        useStaticColor: false
-                      });
-                    } else if (fileInputRef.current) {
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = '';
                       fileInputRef.current.click();
                     }
                   }}
-                  style={{
-                    backgroundImage: themeConfig.bgImage ? `url(${themeConfig.bgImage})` : 'none'
-                  }}
                 >
-                  {!themeConfig.bgImage && (
-                    <>
-                      <Upload size={20} />
-                      <span>Choose Image</span>
-                    </>
-                  )}
-
-                  {themeConfig.bgImage && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        clearUploadedImage();
-                      }}
-                      className="chat-theme-remove-image-btn"
-                      title="Remove Image"
-                    >
-                      <Trash2 size={8} />
-                    </button>
-                  )}
+                  <Upload size={20} />
+                  <span>Choose Image</span>
 
                   {/* Invisible file input */}
                   <input 
@@ -623,13 +660,27 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                       const file = e.target.files[0];
                       if (file) {
                         const reader = new FileReader();
-                        reader.onloadend = () => {
+                        reader.onloadend = async () => {
+                          const compressed = await resizeAndCompressImage(reader.result);
+                          const newBg = {
+                            id: Date.now(),
+                            bgImage: compressed,
+                            bgImageOriginal: compressed,
+                            bgImageOpacity: 100,
+                            bgImageFill: 'cover'
+                          };
+                          const nextBgs = [newBg, ...uploadedBgs].slice(0, 8);
+                          setUploadedBgs(nextBgs);
+                          localStorage.setItem(`${LOCAL_STORAGE_PREFIX}_uploaded_bg_images`, JSON.stringify(nextBgs));
+                          
                           onChange({
                             ...themeConfig,
-                            bgImage: reader.result,
-                            bgImageOriginal: reader.result,
+                            bgImage: compressed,
+                            bgImageOriginal: compressed,
                             useCustomBgImage: true,
-                            useStaticColor: false
+                            useStaticColor: false,
+                            bgImageOpacity: 100,
+                            bgImageFill: 'cover'
                           });
                         };
                         reader.readAsDataURL(file);
@@ -639,12 +690,69 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                   />
 
                   <div className="chat-theme-label-overlay">
-                    Add Background
+                    Upload New
                   </div>
-                  {themeConfig.useCustomBgImage && (
-                    <div className="chat-theme-check-badge">✓</div>
-                  )}
                 </div>
+
+                {/* Previously Uploaded Background Cards */}
+                {uploadedBgs.map((bg) => {
+                  const isActive = themeConfig.useCustomBgImage && themeConfig.bgImage === bg.bgImage;
+                  return (
+                    <div 
+                      key={bg.id}
+                      className={`character-select-card chat-theme-card-upload uploaded-bg-card ${isActive ? 'active' : ''}`}
+                      onClick={() => {
+                        onChange({
+                          ...themeConfig,
+                          bgImage: bg.bgImage,
+                          bgImageOriginal: bg.bgImageOriginal,
+                          bgImageOpacity: bg.bgImageOpacity !== undefined ? bg.bgImageOpacity : 100,
+                          bgImageFill: bg.bgImageFill || 'cover',
+                          useCustomBgImage: true,
+                          useStaticColor: false
+                        });
+                      }}
+                      style={{
+                        backgroundImage: `url(${bg.bgImage})`
+                      }}
+                    >
+                      {/* Delete button for uploaded backgrounds */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          
+                          const isCurrentlyActive = themeConfig.useCustomBgImage && themeConfig.bgImage === bg.bgImage;
+                          const nextBgs = uploadedBgs.filter(item => item.id !== bg.id);
+                          setUploadedBgs(nextBgs);
+                          localStorage.setItem(`${LOCAL_STORAGE_PREFIX}_uploaded_bg_images`, JSON.stringify(nextBgs));
+                          
+                          if (isCurrentlyActive) {
+                            onChange({
+                              ...themeConfig,
+                              bgImage: null,
+                              bgImageOriginal: null,
+                              useCustomBgImage: false
+                            });
+                          }
+                        }}
+                        className="chat-theme-remove-image-btn"
+                        title="Remove Image"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+
+                      {/* Select indicator */}
+                      {isActive && (
+                        <div className="chat-theme-check-badge">✓</div>
+                      )}
+
+                      <div className="chat-theme-label-overlay">
+                        Custom Bg
+                      </div>
+                    </div>
+                  );
+                })}
 
                 {/* Solid Color Option */}
                 <div 
@@ -715,7 +823,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                           e.stopPropagation();
                           const nextPresets = customStrokePresets.filter(p => p !== presetValue);
                           setCustomStrokePresets(nextPresets);
-                          localStorage.setItem('darf_custom_stroke_presets', JSON.stringify(nextPresets));
+                          localStorage.setItem(`${LOCAL_STORAGE_PREFIX}_custom_stroke_presets`, JSON.stringify(nextPresets));
                         }}
                         title="Delete Custom Preset"
                       >
@@ -726,25 +834,14 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                 })}
 
                 {/* Standard Curated Presets */}
-                {STROKE_PRESETS.map((preset, idx) => {
-                  const isActive = themeConfig.strokeColor === preset.value;
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleFieldChange('strokeColor', preset.value)}
-                      className={`chat-theme-bg-preset-btn ${isActive ? 'active' : ''}`}
-                      style={{ background: preset.value }}
-                      title={preset.name}
-                    >
-                      {isActive && (
-                        <span className={`chat-theme-preset-check ${preset.value === '#ffffff' ? 'dark-check' : ''}`}>
-                          ✓
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+                {STROKE_PRESETS.map((preset, idx) => (
+                  <PresetButton
+                    key={idx}
+                    preset={preset}
+                    isActive={themeConfig.strokeColor === preset.value}
+                    onClick={() => handleFieldChange('strokeColor', preset.value)}
+                  />
+                ))}
               </div>
 
               {/* Custom Line Color / Gradient Designer Panel */}
@@ -1168,10 +1265,11 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
         isOpen={isCropModalOpen}
         onClose={() => setIsCropModalOpen(false)}
         imageSrc={themeConfig.bgImageOriginal || themeConfig.bgImage}
-        onApply={(croppedUrl) => {
+        onApply={async (croppedUrl) => {
+          const compressed = await resizeAndCompressImage(croppedUrl);
           onChange({
             ...themeConfig,
-            bgImage: croppedUrl
+            bgImage: compressed
           });
           setIsCropModalOpen(false);
         }}

@@ -129,18 +129,34 @@
     background: var(--bg-input);
 }
 
+/* Tab Viewport & Track Slider */
+.tab-content-viewport {
+    flex: 1;
+    overflow: hidden;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Prevents nested flex scroll items from breaking */
+}
+
+.tab-content-track {
+    display: flex;
+    width: 300%;
+    height: 100%;
+    transition: transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
 /* Tab Content */
 .tab-content {
-    display: none;
+    width: 33.333%;
+    flex-shrink: 0;
+    display: flex;
     flex-direction: column;
-    flex: 1;
+    height: 100%;
     overflow: hidden;
     padding: 16px;
     background: var(--bg-window);
-}
-
-.tab-content.active {
-    display: flex
+    box-sizing: border-box;
 }
 
 /* Action Bar */

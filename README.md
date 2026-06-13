@@ -1,18 +1,18 @@
-# ✦ Darf UI ✦
+# ✦ Mignon UI ✦
 
 ```
-✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦
-        ██████╗  █████╗ ██████╗ ███████╗   ██╗   ██╗██╗
-        ██╔══██╗██╔══██╗██╔══██╗██╔════╝   ██║   ██║██║
-        ██║  ██║███████║██████╔╝█████╗     ██║   ██║██║
-        ██║  ██║██╔══██║██╔══██║██╔══╝     ██║   ██║██║
-        ██████╔╝██║  ██║██║  ██║██║        ╚██████╔╝██║
-        ╚══════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝         ╚═════╝ ╚═╝
-✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦
+✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦
+  ███╗   ███╗██████╗  ██████╗ ███╗   ██╗ ██████╗ ███╗   ██╗     ██╗   ██╗██╗
+  ████╗ ████║╚══██╔══╝██╔════╝ ████╗  ██║██╔═══██╗████╗  ██║     ██║   ██║██║
+  ██╔████╔██║   ██║   ██║  ███╗██╔██╗ ██║██║   ██║██╔██╗ ██║     ██║   ██║██║
+  ██║╚██╔╝██║   ██║   ██║   ██║██║╚██╗██║██║   ██║██║╚██╗██║     ██║   ██║██║
+  ██║ ╚═╝ ██║███████╗╚██████╔╝██║ ╚████║╚██████╔╝██║ ╚████║     ╚██████╔╝██║
+  ╚═╝     ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═══╝      ╚═════╝ ╚═╝
+✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦ ─── ✦
 ```
 
 > **The Ultra-Premium, Offline-First Local AI Roleplay Sandbox & Cognitive Storytelling Engine.**
-> Designed for completely private, uncensored, immersive storytelling, optimized to extract maximum performance out of standard consumer gaming laptops (e.g., **6GB VRAM and 16GB RAM** hardware footprints) using serverless vector databases and advanced local offloading strategies.
+> Designed for completely private, uncensored, immersive storytelling, optimized to extract maximum performance out of standard consumer desktop and mobile environments using a serverless **Tauri v2** shell, SQLite local relational storage, and advanced local offloading strategies.
 
 ---
 
@@ -20,9 +20,9 @@
 
 | Pillar | Technical Solution | Developer Benefit |
 | :--- | :--- | :--- |
-| **Absolute Privacy** | 100% Local SQLite Relational Store + Local LanceDB vector engines on CPU | Zero cloud API dependencies, zero leaks, and completely offline execution. |
-| **Episodic Horizon Memory** | Chronicle Memory Book (Milestone chapters) + CPU-bound LanceDB semantic retrieval | Smart memory indexing that scales infinitely without bloating active GPU context. |
-| **Cognitive Turn Allocation** | Sociolinguistic Turn-Taking (TES Heuristics) & Spatial Proximity filters | Multiple AI characters interact dynamically with zero conversational monologues. |
+| **Absolute Privacy** | 100% Serverless Tauri v2 Shell + SQLite database stored in secure AppData. | Zero cloud API dependencies, zero leaks, and completely offline execution. |
+| **Episodic Horizon Memory** | Chronicle Memory Book (Milestone chapters) + local JS/SQLite vector RAG search. | Smart memory indexing that scales infinitely without bloating active GPU context. |
+| **Cognitive Turn Allocation** | Sociolinguistic Turn-Taking (coordinate turn auction) & Spatial Proximity filters | Multiple AI characters interact dynamically with zero conversational monologues. |
 | **Aesthetic UI** | Modular CSS Design Tokens system with HSL dynamic theme swappers | Ultra-premium, hardware-accelerated aesthetic layers with instant custom theme loaders. |
 | **Drag & Snap Canvas** | Absolute React Viewport canvas with 2D transformations & 30px snapping | Gamified layout decals that snap to active sidebars or chat bubble borders. |
 
@@ -30,74 +30,55 @@
 
 ## 📦 Installation & Setup
 
-We provide multiple installation targets depending on your operating system and technical workflow:
+Mignon UI is built on a serverless Tauri v2 stack, requiring no local Python runtime, no server configuration, and no local port collisions.
 
-### 📋 Prerequisites (For Options B & C)
-If you are running the scripts launcher (**Option B**) or manual setup (**Option C**), ensure you have the following installed on your system:
+### 📋 Prerequisites
+Ensure you have the following installed on your system:
 * **Node.js** (v18.0.0 or higher)
-* **Python** (v3.10 to v3.12; v3.11 recommended)
-* **Local AI Host**: **Ollama** or **Kobold.cpp** running in the background.
-
-> [!NOTE]
-> **Option A (Standalone Windows Installer)** is completely zero-dependency and does **not** require manual Node.js, Python, or Git setups!
-
----
-
-### 🔷 Option A: Standalone Windows Desktop Installer (.exe)
-
-The easiest way to run Darf UI on Windows without installing manual development dependencies:
-1. Run the native installation wizard: **`DarfUI-Setup.exe`**
-2. Follow the standard wizard prompts to install Darf UI into your native programs directory.
-3. Launch directly via the **Desktop Shortcut** or **Start Menu** mascott link.
-4. **App Shell Experience**: The app boots natively inside a lightweight, borderless frame utilizing **Microsoft Edge WebView2** (via PyWebView), completely eliminating browser tab clutter, and runs all local API and database tasks silently in the background.
+* **Rust / Cargo** (v1.75 or higher)
+* **OS Build Tools**:
+  * **Windows**: Visual Studio Community Build Tools (with the **Desktop development with C++** workload enabled).
+  * **macOS**: Xcode Command Line Tools (`xcode-select --install`).
+  * **Linux**: `webkit2gtk-4.1` and build packages (e.g. `build-essential`, `libssl-dev`, `libgtk-3-dev`).
 
 ---
 
-### 🔷 Option B: One-Click Scripts Launcher (Multi-Platform / Developer)
-Use preconfigured scripts to automatically verify prerequisites, build local Python virtual environments (`venv`), compile schemas, and launch the concurrent development servers:
+### 🔷 Quick Start (Development Mode)
 
-1. Extract the workspace files into a clean project directory.
-2. Double-click or execute the setup file corresponding to your operating system, then run the startup shortcut:
-
-| OS | Initial Automated Setup | Local Startup Action | CLI Startup Command |
-| :--- | :--- | :--- | :--- |
-| 🛡️ **Windows** | Double-click **`install.bat`** | Double-click **`start.bat`** | `npm run start` |
-| 🍎 **macOS** | Double-click **`install.command`** | Double-click **`start.command`** | `npm run start` |
-| 🐧 **Linux** | Run standard terminal script | Run standard shell shortcut | `./start.sh` or `npm run start` |
-
-> [!TIP]
-> The scripts launcher automatically spawns a **standalone web browser session** opening directly to `http://localhost:5173`. Keep the terminal window active during play; press `Ctrl+C` to cleanly exit all server instances.
+1. Clone or extract the repository files.
+2. Open a terminal in the project directory and install frontend dependencies:
+   ```bash
+   npm install
+   ```
+3. Boot the development sandbox:
+   ```bash
+   npm run tauri:dev
+   ```
+   *This starts the Vite React application on `http://127.0.0.1:5173` and binds the native Tauri window frame directly to it.*
 
 ---
 
-### 🔷 Option C: Manual Terminal Configuration
-If you prefer to configure your sandbox manually inside a custom terminal session:
+### 🔷 Production Compiling
 
-#### Step 1: Initialize the Python Virtual Environment
+To bundle the application into fully standalone desktop/mobile packages:
+
 ```bash
-python -m venv venv
-```
-> [!NOTE]
-> Do NOT activate the virtual environment manually. The Darf UI launcher (`scripts/start-api.cjs`) automatically resolves the native executable venv path on all platforms.
+# Compile native installers (.msi / .exe for Win, .dmg / .app for Mac, .deb / .AppImage for Linux)
+npm run tauri:build
 
-#### Step 2: Install Python Packages
-```bash
-# On Windows:
-venv\Scripts\pip install -r requirements.txt
+# Initialize mobile templates
+npx tauri android init
+npx tauri ios init
 
-# On macOS/Linux:
-venv/bin/pip install -r requirements.txt
+# Launch development mode on Android / iOS
+npm run tauri android dev
+npm run tauri ios dev
 ```
 
-#### Step 3: Install Frontend Node Packages
-```bash
-npm install
-```
+The compiled database `darf.db` and secure tokens are isolated inside standard, platform-native application storage folders (e.g., `%APPDATA%/com.tauri.dev` on Windows), keeping user configurations safe and persistent.
 
 ---
 
 ## 📄 License
 
 This project is licensed under the **GNU Affero General Public License v3 (AGPL-3.0)**. See the [LICENSE](LICENSE) file for complete details.
-
-
