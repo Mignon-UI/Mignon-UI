@@ -26,6 +26,9 @@ jobs:
             args: ''
 
     runs-on: ${{ matrix.platform }}
+    env:
+      CARGO_INCREMENTAL: 0
+      CARGO_TERM_COLOR: always
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -50,7 +53,7 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             libgtk-3-dev \
             libwebkit2gtk-4.1-dev \
             libssl-dev \
@@ -70,7 +73,7 @@ jobs:
           releaseName: 'Mignon UI v__VERSION__'
           releaseBody: 'Installers for Mignon UI. Download the package for your platform below.'
           releaseDraft: true
-          prerelease: false
+          prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') || contains(github.ref_name, 'rc') }}
           args: ${{ matrix.args }}
 
       - name: Create Windows Portable ZIP

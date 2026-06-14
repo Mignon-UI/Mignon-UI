@@ -37,6 +37,9 @@ jobs:
   backend:
     name: Backend (Rust)
     runs-on: ubuntu-latest
+    env:
+      CARGO_INCREMENTAL: 0
+      CARGO_TERM_COLOR: always
 
     steps:
       - name: Checkout repository
@@ -45,7 +48,7 @@ jobs:
       - name: Install Linux system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             libgtk-3-dev \
             libwebkit2gtk-4.1-dev \
             libssl-dev \
@@ -65,8 +68,5 @@ jobs:
       - name: Cargo Format Check
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 
-      - name: Cargo Check
-        run: cargo check --manifest-path src-tauri/Cargo.toml
-
-      - name: Cargo Clippy
+      - name: Cargo Clippy (lints & check)
         run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
