@@ -55,7 +55,7 @@ const constructGradientString = (type, angle, colors) => {
     const pct = Math.round((i / (colors.length - 1)) * 100);
     return `${c} ${pct}%`;
   }).join(', ');
-  
+
   if (type === 'radial') {
     return `radial-gradient(circle, ${stops})`;
   } else if (type === 'conic') {
@@ -290,17 +290,13 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
     return `url("data:image/svg+xml,${encodeURIComponent(svgContent)}")`;
   };
 
-
-
-
-
   const renderActiveOptionContent = () => {
     switch (activeOption) {
       case 'doodles':
         return (
           <div className="chat-theme-doodles-row scrollbar-custom">
             {/* None / Solid option */}
-            <div 
+            <div
               className={`character-select-card chat-theme-card-doodle none-option ${(!themeConfig.useCustomBgImage && !themeConfig.useStaticColor && themeConfig.themeId === 'none') ? 'active' : ''}`}
               onClick={() => {
                 onChange({
@@ -321,7 +317,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
             </div>
 
             {/* Default option */}
-            <div 
+            <div
               className={`character-select-card chat-theme-card-doodle ${(!themeConfig.useCustomBgImage && !themeConfig.useStaticColor && themeConfig.themeId === 'theme-default') ? 'active' : ''}`}
               onClick={() => {
                 onChange({
@@ -347,7 +343,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
             {wallpapers.map(w => {
               const isActive = !themeConfig.useCustomBgImage && !themeConfig.useStaticColor && themeConfig.themeId === w.id;
               return (
-                <div 
+                <div
                   key={w.id}
                   className={`character-select-card chat-theme-card-doodle ${isActive ? 'active' : ''}`}
                   onClick={() => {
@@ -400,16 +396,16 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                   {/* Custom Saved Background Presets (if any) */}
                   {customBgPresets.map((presetValue, idx) => {
                     const isObject = typeof presetValue === 'object' && presetValue !== null;
-                    const isActive = isObject 
+                    const isActive = isObject
                       ? (themeConfig.useCustomBgImage && themeConfig.bgImage === presetValue.bgImage)
                       : (themeConfig.useStaticColor && themeConfig.bgColor === presetValue);
                     const btnStyle = isObject
                       ? {
-                          backgroundImage: `url("${presetValue.bgImage}")`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center',
-                          backgroundRepeat: 'no-repeat'
-                        }
+                        backgroundImage: `url("${presetValue.bgImage}")`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        backgroundRepeat: 'no-repeat'
+                      }
                       : { background: presetValue };
 
                     return (
@@ -489,14 +485,14 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                   );
                   const parsed = parseGradient(themeConfig.bgColor);
                   const colors = isGradient ? parsed.colors : [themeConfig.bgColor || '#ff1493'];
-                  
+
                   return (
                     <div className="chat-theme-custom-color-builder">
                       <div className="builder-controls-row">
                         {colors.map((color, idx) => {
                           return (
                             <React.Fragment key={idx}>
-                              <div 
+                              <div
                                 className={`builder-color-bubble-wrapper ${draggedIndex === idx ? 'dragging' : ''}`}
                                 title={isGradient ? `Drag to reorder - Color Stop ${idx + 1}` : `Color Stop ${idx + 1}`}
                                 draggable={isGradient}
@@ -510,20 +506,20 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                                     const nextColors = [...colors];
                                     const [removed] = nextColors.splice(draggedIndex, 1);
                                     nextColors.splice(idx, 0, removed);
-                                    
+
                                     handleFieldChange('bgColor', constructGradientString(parsed.type, parsed.angle, nextColors));
                                     setDraggedIndex(idx);
                                   }
                                 }}
                                 onDragEnd={() => setDraggedIndex(null)}
                               >
-                                <input 
-                                  type="color" 
+                                <input
+                                  type="color"
                                   value={color}
                                   onChange={(e) => {
                                     const nextColors = [...colors];
                                     nextColors[idx] = e.target.value;
-                                    
+
                                     if (isGradient) {
                                       handleFieldChange('bgColor', constructGradientString(parsed.type, parsed.angle, nextColors));
                                     } else {
@@ -531,9 +527,9 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                                     }
                                   }}
                                 />
-                                <div 
-                                  className="builder-color-bubble" 
-                                  style={{ background: color }} 
+                                <div
+                                  className="builder-color-bubble"
+                                  style={{ background: color }}
                                 />
 
                                 {/* Delete overlay inside color bubble (as long as N > 1 stops) */}
@@ -570,7 +566,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                               const defaultStopColors = ['#fbbf24', '#00ffcc', '#8a2387', '#fbbf24'];
                               const newColor = defaultStopColors[colors.length - 1] || '#ffffff';
                               const nextColors = [...colors, newColor];
-                              
+
                               handleFieldChange('bgColor', constructGradientString(parsed.type, parsed.angle, nextColors));
                             }}
                             title="Add Color Stop (Extend Gradient)"
@@ -608,13 +604,13 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                         {/* Render Angle range slider ONLY if N > 1 and type is NOT radial */}
                         {isGradient && parsed.type !== 'radial' && (
                           <div className="chat-theme-gradient-angle-slider pop-in-animation">
-                            <input 
-                              type="range" 
-                              min="0" 
-                              max="360" 
+                            <input
+                              type="range"
+                              min="0"
+                              max="360"
                               value={parsed.angle}
                               onChange={(e) => {
-                                  handleFieldChange('bgColor', constructGradientString(parsed.type, parseInt(e.target.value), colors));
+                                handleFieldChange('bgColor', constructGradientString(parsed.type, parseInt(e.target.value), colors));
                               }}
                             />
                             <span className="chat-theme-monospace-label">{parsed.angle}°</span>
@@ -639,7 +635,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
               /* Selection Column: Upload & Solid Color */
               <div className="chat-theme-bg-selection-group scrollbar-custom">
                 {/* Add Background Option (Always available to upload a new one) */}
-                <div 
+                <div
                   className="character-select-card chat-theme-card-upload add-new-card"
                   onClick={() => {
                     if (fileInputRef.current) {
@@ -652,10 +648,10 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                   <span>Choose Image</span>
 
                   {/* Invisible file input */}
-                  <input 
-                    type="file" 
+                  <input
+                    type="file"
                     ref={fileInputRef}
-                    accept="image/*" 
+                    accept="image/*"
                     onChange={(e) => {
                       const file = e.target.files[0];
                       if (file) {
@@ -672,7 +668,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                           const nextBgs = [newBg, ...uploadedBgs].slice(0, 8);
                           setUploadedBgs(nextBgs);
                           localStorage.setItem(`${LOCAL_STORAGE_PREFIX}_uploaded_bg_images`, JSON.stringify(nextBgs));
-                          
+
                           onChange({
                             ...themeConfig,
                             bgImage: compressed,
@@ -698,7 +694,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                 {uploadedBgs.map((bg) => {
                   const isActive = themeConfig.useCustomBgImage && themeConfig.bgImage === bg.bgImage;
                   return (
-                    <div 
+                    <div
                       key={bg.id}
                       className={`character-select-card chat-theme-card-upload uploaded-bg-card ${isActive ? 'active' : ''}`}
                       onClick={() => {
@@ -721,12 +717,12 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          
+
                           const isCurrentlyActive = themeConfig.useCustomBgImage && themeConfig.bgImage === bg.bgImage;
                           const nextBgs = uploadedBgs.filter(item => item.id !== bg.id);
                           setUploadedBgs(nextBgs);
                           localStorage.setItem(`${LOCAL_STORAGE_PREFIX}_uploaded_bg_images`, JSON.stringify(nextBgs));
-                          
+
                           if (isCurrentlyActive) {
                             onChange({
                               ...themeConfig,
@@ -755,7 +751,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                 })}
 
                 {/* Solid Color Option */}
-                <div 
+                <div
                   className={`character-select-card chat-theme-card-solid ${themeConfig.useStaticColor ? 'active' : ''}`}
                   onClick={() => {
                     onChange({
@@ -850,7 +846,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                   {colors.map((color, idx) => {
                     return (
                       <React.Fragment key={idx}>
-                        <div 
+                        <div
                           className={`builder-color-bubble-wrapper ${draggedIndex === idx ? 'dragging' : ''}`}
                           title={isGradient ? `Drag to reorder - Color Stop ${idx + 1}` : `Color Stop ${idx + 1}`}
                           draggable={isGradient}
@@ -864,20 +860,20 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                               const nextColors = [...colors];
                               const [removed] = nextColors.splice(draggedIndex, 1);
                               nextColors.splice(idx, 0, removed);
-                              
+
                               handleFieldChange('strokeColor', constructGradientString(parsed.type, parsed.angle, nextColors));
                               setDraggedIndex(idx);
                             }
                           }}
                           onDragEnd={() => setDraggedIndex(null)}
                         >
-                          <input 
-                            type="color" 
+                          <input
+                            type="color"
                             value={color}
                             onChange={(e) => {
                               const nextColors = [...colors];
                               nextColors[idx] = e.target.value;
-                              
+
                               if (isGradient) {
                                 handleFieldChange('strokeColor', constructGradientString(parsed.type, parsed.angle, nextColors));
                               } else {
@@ -885,9 +881,9 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                               }
                             }}
                           />
-                          <div 
-                            className="builder-color-bubble" 
-                            style={{ background: color }} 
+                          <div
+                            className="builder-color-bubble"
+                            style={{ background: color }}
                           />
 
                           {/* Delete overlay inside color bubble (as long as N > 1 stops) */}
@@ -924,7 +920,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                         const defaultStopColors = ['#fbbf24', '#00ffcc', '#8a2387', '#fbbf24'];
                         const newColor = defaultStopColors[colors.length - 1] || '#ffffff';
                         const nextColors = [...colors, newColor];
-                        
+
                         handleFieldChange('strokeColor', constructGradientString(parsed.type, parsed.angle, nextColors));
                       }}
                       title="Add Color Stop (Extend Gradient)"
@@ -962,10 +958,10 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                   {/* Render Angle range slider ONLY if N > 1 and type is NOT radial */}
                   {isGradient && parsed.type !== 'radial' && (
                     <div className="chat-theme-gradient-angle-slider pop-in-animation">
-                      <input 
-                        type="range" 
-                        min="0" 
-                        max="360" 
+                      <input
+                        type="range"
+                        min="0"
+                        max="360"
                         value={parsed.angle}
                         onChange={(e) => {
                           handleFieldChange('strokeColor', constructGradientString(parsed.type, parseInt(e.target.value), colors));
@@ -997,11 +993,11 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
               {themeConfig.themeId !== 'none' && !themeConfig.useCustomBgImage && (
                 <div className="chat-theme-slider-container opacity">
                   <span>Line Opacity</span>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="100" 
-                    value={themeConfig.opacity !== undefined ? themeConfig.opacity : 10} 
+                  <input
+                    type="range"
+                    min="1"
+                    max="100"
+                    value={themeConfig.opacity !== undefined ? themeConfig.opacity : 10}
                     onChange={(e) => handleFieldChange('opacity', parseInt(e.target.value))}
                   />
                   <span className="chat-theme-monospace-label">{themeConfig.opacity !== undefined ? themeConfig.opacity : 10}%</span>
@@ -1010,11 +1006,11 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
 
               <div className="chat-theme-slider-container vignette">
                 <span>Vignette Depth</span>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="200" 
-                  value={themeConfig.vignette !== undefined ? themeConfig.vignette : 40} 
+                <input
+                  type="range"
+                  min="0"
+                  max="200"
+                  value={themeConfig.vignette !== undefined ? themeConfig.vignette : 40}
                   onChange={(e) => handleFieldChange('vignette', parseInt(e.target.value))}
                 />
                 <span className="chat-theme-monospace-label">{themeConfig.vignette !== undefined ? themeConfig.vignette : 40}px</span>
@@ -1023,7 +1019,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
 
             {themeConfig.useCustomBgImage && themeConfig.bgImage && (
               <div className="chat-theme-sliders-dropdown-section">
-                <button 
+                <button
                   type="button"
                   className="chat-theme-sliders-dropdown-toggle"
                   onClick={() => setIsBgSettingsOpen(!isBgSettingsOpen)}
@@ -1031,17 +1027,17 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
                   <span>Custom Background Settings</span>
                   <ChevronDown className={`chevron-icon ${isBgSettingsOpen ? 'open' : ''}`} size={16} />
                 </button>
-                
+
                 {isBgSettingsOpen && (
                   <div className="chat-theme-sliders-dropdown-content horizontal">
                     {/* Opacity Control */}
                     <div className="chat-theme-slider-container opacity bg-opacity-adjust">
                       <span>Image Opacity</span>
-                      <input 
-                        type="range" 
-                        min="0" 
-                        max="100" 
-                        value={themeConfig.bgImageOpacity !== undefined ? themeConfig.bgImageOpacity : 100} 
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={themeConfig.bgImageOpacity !== undefined ? themeConfig.bgImageOpacity : 100}
                         onChange={(e) => handleFieldChange('bgImageOpacity', parseInt(e.target.value))}
                       />
                       <span className="chat-theme-monospace-label">
@@ -1097,11 +1093,11 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
   // Generate dynamic isolated preview background image styling matching active choices
   const getPreviewBackgroundOverlayStyle = () => {
     const styles = {};
-    
+
     // 1. Background Image
     if (themeConfig.useCustomBgImage && themeConfig.bgImage) {
       styles.backgroundImage = `url("${themeConfig.bgImage}")`;
-      
+
       const opacityVal = themeConfig.bgImageOpacity !== undefined ? themeConfig.bgImageOpacity / 100 : 1;
       styles.opacity = opacityVal;
 
@@ -1153,31 +1149,31 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
         styles.opacity = 1;
       }
     }
-    
+
     // 2. Vignette Box Shadow
     const vignetteStrength = themeConfig.vignette !== undefined ? themeConfig.vignette : 40;
     styles.boxShadow = `inset 0 0 ${vignetteStrength}px rgba(0, 0, 0, 0.45)`;
-    
+
     return styles;
   };
 
   return createPortal(
     <div className="modal-backdrop active chat-theme-fullscreen-editor">
-      
+
       {/* ── IMMERSIVE FULL-SCREEN 1:1 LIVE CHAT SCREEN SIMULATOR ── */}
-      <div 
+      <div
         className="chat-preview-fullscreen scrollbar-custom"
         style={{
           background: themeConfig.useStaticColor && themeConfig.bgColor ? themeConfig.bgColor : 'var(--bg-window)'
         }}
       >
-        
+
         {/* Isolated Background Image & Effect Layer */}
         <div className="chat-preview-background-overlay" style={getPreviewBackgroundOverlayStyle()} />
 
         {/* Simulator Message Bubbles Thread */}
         <div className="chat-preview-message-thread">
-          
+
           {/* Bot Bubble Mockup */}
           <div className="chat-preview-bot-bubble-wrapper">
             <div className="chat-preview-avatar ai">AI</div>
@@ -1206,7 +1202,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
 
         {/* Immersive Editing Bottom Toolbar & Popover Tray */}
         <div className="chat-theme-bottom-toolbar">
-          
+
           {/* Active Option Popover Tray */}
           {activeOption && (
             <div className="chat-theme-popover-tray">
@@ -1292,7 +1288,7 @@ export default function ChatThemeModal({ isOpen, onClose, themeConfig, onChange 
 function ImageCropperWorkspace({ isOpen, onClose, imageSrc, onApply, onReset }) {
   const [cropState, setCropState] = useState({ x: 10, y: 10, w: 80, h: 80 });
   const [cropAspectRatio, setCropAspectRatio] = useState('free'); // 'free', '1:1', '16:9', '9:16'
-  
+
   const cropContainerRef = useRef(null);
   const dragStartRef = useRef(null);
 
@@ -1309,7 +1305,7 @@ function ImageCropperWorkspace({ isOpen, onClose, imageSrc, onApply, onReset }) 
     e.preventDefault();
     const clientX = e.clientX || (e.touches && e.touches[0].clientX);
     const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-    
+
     dragStartRef.current = {
       mode,
       startX: clientX,
@@ -1319,14 +1315,14 @@ function ImageCropperWorkspace({ isOpen, onClose, imageSrc, onApply, onReset }) 
 
     const handleCropMouseMove = (moveEvent) => {
       if (!dragStartRef.current || !cropContainerRef.current) return;
-      
+
       const currentX = moveEvent.clientX || (moveEvent.touches && moveEvent.touches[0].clientX);
       const currentY = moveEvent.clientY || (moveEvent.touches && moveEvent.touches[0].clientY);
-      
+
       const container = cropContainerRef.current.getBoundingClientRect();
       const deltaX = ((currentX - dragStartRef.current.startX) / container.width) * 100;
       const deltaY = ((currentY - dragStartRef.current.startY) / container.height) * 100;
-      
+
       const { mode: currentMode, rect } = dragStartRef.current;
       const nextRect = { ...rect };
 
@@ -1355,7 +1351,7 @@ function ImageCropperWorkspace({ isOpen, onClose, imageSrc, onApply, onReset }) 
           const ratioVal = cropAspectRatio === '1:1' ? 1 : cropAspectRatio === '16:9' ? 16 / 9 : 9 / 16;
           const containerAspect = container.width / container.height;
           const targetPercentHeight = (nextRect.w * containerAspect) / ratioVal;
-          
+
           if (currentMode.includes('n')) {
             nextRect.y = nextRect.y + nextRect.h - targetPercentHeight;
           }
@@ -1406,7 +1402,7 @@ function ImageCropperWorkspace({ isOpen, onClose, imageSrc, onApply, onReset }) 
 
     const containerAspect = container.width / container.height;
     const ratioVal = ratio === '1:1' ? 1 : ratio === '16:9' ? 16 / 9 : 9 / 16;
-    
+
     let targetW = 60;
     let targetH = (targetW * containerAspect) / ratioVal;
 
@@ -1446,8 +1442,8 @@ function ImageCropperWorkspace({ isOpen, onClose, imageSrc, onApply, onReset }) 
           <Crop size={20} />
           <h3>Crop Background Image</h3>
         </div>
-        <button 
-          type="button" 
+        <button
+          type="button"
           onClick={onClose}
           className="crop-workspace-close-btn"
         >
@@ -1462,7 +1458,7 @@ function ImageCropperWorkspace({ isOpen, onClose, imageSrc, onApply, onReset }) 
           <div className="crop-workspace-mask" />
 
           {/* Viewport Box */}
-          <div 
+          <div
             className="crop-workspace-hole"
             style={{
               left: `${cropState.x}%`,
