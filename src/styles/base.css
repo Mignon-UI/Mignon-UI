@@ -14,6 +14,29 @@ body {
     overflow: hidden;
     height: 100vh;
     width: 100vw;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Allow text selection in chat bubbles, text areas, and AI provider endpoint references */
+input,
+textarea,
+[contenteditable],
+[contenteditable] *,
+.msg-bubble,
+.msg-bubble *,
+.chat-preview-bubble,
+.chat-preview-bubble *,
+code,
+code *,
+.help-text,
+.help-text * {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
 }
 
 
