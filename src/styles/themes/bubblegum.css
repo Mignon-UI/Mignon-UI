@@ -78,51 +78,50 @@
     --font-head: 'Courier New', Courier, monospace;
 }
 
-/* /* Bubblegum Pop Dot Mesh Body Override */
+/* Bubblegum Pop Dot Mesh Body Override */
 .theme-bubblegum-light body,
 .theme-bubblegum-dark body {
-    background-image: none;
+    background-image: none !important;
 }
 
 /* ── BUBBLEGUM DARK: Ensure borders remain visible on deep obsidian bg ──────── */
 /* --border: #000000 in bubblegum dark renders invisible on very dark bg areas */
 .theme-bubblegum-dark .tab-container,
 .theme-bubblegum-dark .tab-btn {
-    border-color: #3d2a52; /* Visible deep purple border */
+    border-color: #3d2a52 !important; /* Visible deep purple border */
 }
 .theme-bubblegum-dark .tab-btn {
-    box-shadow: 2px -2px 0px #3d2a52;
+    box-shadow: 2px -2px 0px #3d2a52 !important;
 }
 .theme-bubblegum-dark .char-avatar,
 .theme-bubblegum-dark .char-list-avatar {
-    border-color: #5a3a78;
-    box-shadow: none;
+    border-color: #5a3a78 !important;
+    box-shadow: none !important;
 }
 
 /* Override primary-btn in bubblegum dark theme to use rich pink instead of blue */
 .theme-bubblegum-dark .primary-btn {
-    background: var(--pink);
-    color: var(--primary-text);
+    background: var(--pink) !important;
+    color: var(--primary-text) !important;
 }
 
 .theme-bubblegum-dark .primary-btn:hover {
-    background: #f05c8d; /* Slightly brighter highlight */
+    background: #f05c8d !important; /* Slightly brighter highlight */
 }
 
 
 
 /* ── BUBBLEGUM POP CUSTOM VECTOR DOODLE CHAT WALLPAPERS ── */
-.theme-bubblegum-light .chat-history-bg-overlay {
-    background-color: var(--bg-chat);
-    background-image: url("/wallpapers/bubblegum-light.svg");
-    background-repeat: repeat;
-    background-size: 160px 160px;
+.theme-bubblegum-light .chat-history {
+    background-color: var(--bg-chat) !important;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g stroke='rgba(255,20,147,0.04)' stroke-width='1.25' fill='none' stroke-linecap='round' stroke-linejoin='round'><g transform='rotate(-5, 80, 80)'><rect x='55' y='65' width='50' height='30' rx='8' /><path d='M62,80 H72 M67,75 V85' /><circle cx='88' cy='76' r='3.5' /><circle cx='95' cy='84' r='3.5' /><path d='M76,82 H79 M81,82 H84' /></g><g transform='rotate(12, 130, 35)'><path d='M118,35 C118,27 128,21 135,27 C141,22 150,27 149,35 C154,35 154,43 148,43 L119,43 C113,43 113,35 118,35 Z' /></g><g transform='rotate(-15, 25, 125)'><path d='M25,113 L29,122 L38,123 L31,130 L33,139 L25,134 L17,139 L19,130 L12,123 L21,122 Z' /></g><g transform='rotate(8, 120, 115)'><path d='M108,108 Q120,100 132,108 T132,124 Q125,129 121,131 L121,136 L116,131 Q108,127 108,108 Z' /></g><g transform='rotate(25, 20, 35)'><path d='M20,30 Q20,35 25,35 Q20,35 20,40 Q20,35 15,35 Q20,35 20,30 Z' /></g><g transform='rotate(-15, 145, 80)'><path d='M145,75 Q145,80 150,80 Q145,80 145,85 Q145,80 140,80 Q145,80 145,75 Z' /></g><g transform='rotate(-20, 75, 25)'><path d='M75,23 C73,20 68,20 68,24 C68,28 75,32 75,32 C75,32 82,28 82,24 C82,20 77,20 75,23 Z' /></g><g transform='rotate(10, 20, 80)'><path d='M20,78 C18,75 13,75 13,79 C13,83 20,87 20,87 C20,87 27,83 27,79 C27,75 22,75 20,78 Z' /></g><circle cx='95' cy='35' r='1.5' /><circle cx='50' cy='120' r='1.2' /><circle cx='85' cy='140' r='1' /><circle cx='140' cy='140' r='1.5' /></g></svg>") !important;
+    background-repeat: repeat !important;
+    background-size: 160px 160px !important;
 }
 
-.theme-bubblegum-dark .chat-history-bg-overlay {
-    background-color: var(--bg-chat);
-    background-image: url("/wallpapers/bubblegum-dark.svg");
-    background-repeat: repeat;
-    background-size: 160px 160px;
+.theme-bubblegum-dark .chat-history {
+    background-color: var(--bg-chat) !important;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g stroke='rgba(255,20,147,0.025)' stroke-width='1.25' fill='none' stroke-linecap='round' stroke-linejoin='round'><g transform='rotate(-5, 80, 80)'><rect x='55' y='65' width='50' height='30' rx='8' /><path d='M62,80 H72 M67,75 V85' /><circle cx='88' cy='76' r='3.5' /><circle cx='95' cy='84' r='3.5' /><path d='M76,82 H79 M81,82 H84' /></g><g transform='rotate(12, 130, 35)'><path d='M118,35 C118,27 128,21 135,27 C141,22 150,27 149,35 C154,35 154,43 148,43 L119,43 C113,43 113,35 118,35 Z' /></g><g transform='rotate(-15, 25, 125)'><path d='M25,113 L29,122 L38,123 L31,130 L33,139 L25,134 L17,139 L19,130 L12,123 L21,122 Z' /></g><g transform='rotate(8, 120, 115)'><path d='M108,108 Q120,100 132,108 T132,124 Q125,129 121,131 L121,136 L116,131 Q108,127 108,108 Z' /></g><g transform='rotate(25, 20, 35)'><path d='M20,30 Q20,35 25,35 Q20,35 20,40 Q20,35 15,35 Q20,35 20,30 Z' /></g><g transform='rotate(-15, 145, 80)'><path d='M145,75 Q145,80 150,80 Q145,80 145,85 Q145,80 140,80 Q145,80 145,75 Z' /></g><g transform='rotate(-20, 75, 25)'><path d='M75,23 C73,20 68,20 68,24 C68,28 75,32 75,32 C75,32 82,28 82,24 C82,20 77,20 75,23 Z' /></g><g transform='rotate(10, 20, 80)'><path d='M20,78 C18,75 13,75 13,79 C13,83 20,87 20,87 C20,87 27,83 27,79 C27,75 22,75 20,78 Z' /></g><circle cx='95' cy='35' r='1.5' /><circle cx='50' cy='120' r='1.2' /><circle cx='85' cy='140' r='1' /><circle cx='140' cy='140' r='1.5' /></g></svg>") !important;
+    background-repeat: repeat !important;
+    background-size: 160px 160px !important;
 }
-
