@@ -1,9 +1,9 @@
-<table>
-  <tr>
-    <td align="center" valign="middle" width="140">
+<table border="0" style="border: none; border-collapse: collapse;">
+  <tr style="border: none;">
+    <td align="center" valign="middle" width="140" style="border: none;">
       <img src="resources/mascot/mascot_dark_classic.svg" width="120" alt="Mignon UI Mascot" />
     </td>
-    <td valign="middle">
+    <td valign="middle" style="border: none;">
       <h1>✦ Mignon UI ✦</h1>
       <p><strong>The Local AI Roleplay Sandbox & Cognitive Storytelling Engine.</strong></p>
       <p>Immerse yourself in stories and scenarios with multiple AI characters in a single room. Customize your space with interactive snapping stickers, and choose from stunning aesthetic themes.</p>
