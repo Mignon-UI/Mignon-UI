@@ -110,133 +110,128 @@
     --status-online: #34d399;    /* Glowing SaaS Emerald Green */
     --status-offline: #f87171;   /* Glowing SaaS Crimson Red */
 
-    --font-head: 'Inter', sans-serif;
-}
-
-
-
-.theme-classic-light body,
+    --font-head: 'Inter', sans-serif;.theme-classic-light body,
 .theme-classic-dark body {
-    background-image: none !important;
+    background-image: none;
 }
 
 /* Premium SaaS button & interface overrides for Darf Classic */
 .theme-classic-light .primary-btn,
 .theme-classic-dark .primary-btn {
-    color: #ffffff !important; /* Premium white text for corporate call-to-actions */
+    color: #ffffff; /* Premium white text for corporate call-to-actions */
 }
 
 .theme-classic-light .secondary-btn,
 .theme-classic-dark .secondary-btn {
-    color: #ffffff !important; /* Premium white text on charcoal background */
+    color: #ffffff; /* Premium white text on charcoal background */
 }
 
 .theme-classic-light .icon-btn.danger,
 .theme-classic-dark .icon-btn.danger {
-    background: #ef4444 !important; /* Rich corporate crimson for destructive items */
-    color: #ffffff !important;
-    border-color: #dc2626 !important;
-    box-shadow: var(--shadow-sm) !important;
+    background: #ef4444; /* Rich corporate crimson for destructive items */
+    color: #ffffff;
+    border-color: #dc2626;
+    box-shadow: var(--shadow-sm);
 }
 
 .theme-classic-light .icon-btn.danger:hover,
 .theme-classic-dark .icon-btn.danger:hover {
-    background: #dc2626 !important;
+    background: #dc2626;
 }
 
 .theme-classic-light .format-btn.primary,
 .theme-classic-dark .format-btn.primary {
-    background: var(--blue) !important;
-    color: #ffffff !important;
-    border-width: 1px !important;
-    box-shadow: var(--shadow-sm) !important;
-    border-radius: var(--r-md) !important;
+    background: var(--blue);
+    color: #ffffff;
+    border-width: 1px;
+    box-shadow: var(--shadow-sm);
+    border-radius: var(--r-md);
 }
 
 .theme-classic-light .format-btn.primary:hover,
 .theme-classic-dark .format-btn.primary:hover {
-    background: #1d4ed8 !important; /* Slightly darker tech blue on hover */
+    background: #1d4ed8; /* Slightly darker tech blue on hover */
 }
 
 /* Pristine matte background overrides for Classic panels */
 .theme-classic-light .world-info-panel,
 .theme-classic-dark .world-info-panel {
-    background-image: none !important;
+    background-image: none;
 }
 
 /* ── CLASSIC THEME: Premium Chat Window Texture ─────────────────────────── */
 /* Light mode: Subtle micro-grid + soft noise dot pattern — like premium
    graph paper. Very faint, professional, adds depth without distracting. */
-.theme-classic-light .chat-history {
-    background-color: #f8fafc !important;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g stroke='rgba(37,99,235,0.04)' stroke-width='1.25' fill='none' stroke-linecap='round' stroke-linejoin='round'><g transform='rotate(-5, 80, 85)'><circle cx='80' cy='85' r='22' /><circle cx='80' cy='85' r='12' /><circle cx='100' cy='85' r='16' /></g><g transform='rotate(12, 125, 125)'><path d='M110,120 Q120,110 130,120 T150,120 M110,128 Q120,118 130,128 T150,128' /></g><g transform='rotate(-15, 30, 30)'><path d='M16,16 L44,22 L28,44 Z' /></g><g transform='rotate(20, 125, 30)'><path d='M112,25 C112,16 138,16 138,25 C138,34 112,34 112,25 Z' /></g><g transform='rotate(45, 25, 80)'><path d='M17,80 H33 M25,72 V88' /></g><g transform='rotate(-30, 145, 80)'><path d='M137,80 H153 M145,72 V88' /></g><circle cx='95' cy='45' r='1.5' /><circle cx='85' cy='140' r='1.2' /><circle cx='45' cy='125' r='1' /><circle cx='105' cy='25' r='1.5' /></g></svg>") !important;
-    background-repeat: repeat !important;
-    background-size: 160px 160px !important;
+.theme-classic-light .chat-history-bg-overlay {
+    background-color: #f8fafc;
+    background-image: url("/wallpapers/classic-light.svg");
+    background-repeat: repeat;
+    background-size: 160px 160px;
     /* Soft inner vignette for depth */
-    box-shadow: inset 0 0 80px rgba(15, 23, 42, 0.04) !important;
+    box-shadow: inset 0 0 80px rgba(15, 23, 42, 0.04);
 }
 
 /* Dark mode: Refined diagonal hatching — like a premium dark notebook.
    Very subtle, gives the dark space a tactile, high-end feel. */
-.theme-classic-dark .chat-history {
-    background-color: #0f172a !important;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g stroke='rgba(56,189,248,0.025)' stroke-width='1.25' fill='none' stroke-linecap='round' stroke-linejoin='round'><g transform='rotate(-5, 80, 85)'><circle cx='80' cy='85' r='22' /><circle cx='80' cy='85' r='12' /><circle cx='100' cy='85' r='16' /></g><g transform='rotate(12, 125, 125)'><path d='M110,120 Q120,110 130,120 T150,120 M110,128 Q120,118 130,128 T150,128' /></g><g transform='rotate(-15, 30, 30)'><path d='M16,16 L44,22 L28,44 Z' /></g><g transform='rotate(20, 125, 30)'><path d='M112,25 C112,16 138,16 138,25 C138,34 112,34 112,25 Z' /></g><g transform='rotate(45, 25, 80)'><path d='M17,80 H33 M25,72 V88' /></g><g transform='rotate(-30, 145, 80)'><path d='M137,80 H153 M145,72 V88' /></g><circle cx='95' cy='45' r='1.5' /><circle cx='85' cy='140' r='1.2' /><circle cx='45' cy='125' r='1' /><circle cx='105' cy='25' r='1.5' /></g></svg>") !important;
-    background-repeat: repeat !important;
-    background-size: 160px 160px !important;
+.theme-classic-dark .chat-history-bg-overlay {
+    background-color: #0f172a;
+    background-image: url("/wallpapers/classic-dark.svg");
+    background-repeat: repeat;
+    background-size: 160px 160px;
     /* Soft inner glow at edges */
-    box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.3);
 }
 
 /* Crisp corporate dark header overrides for Darf Classic Light Mode */
 .theme-classic-light .chat-header,
 .theme-classic-light .world-detail-header {
-    background: #0f172a !important; /* Dark Navy Slate 900 */
-    border-bottom: 1px solid #1e293b !important;
+    background: #0f172a; /* Dark Navy Slate 900 */
+    border-bottom: 1px solid #1e293b;
 }
 
 .theme-classic-light .chat-header .chat-titles h2,
 .theme-classic-light .world-detail-header .world-detail-title-group h2 {
-    color: #ffffff !important; /* Crisp white titles */
+    color: #ffffff; /* Crisp white titles */
 }
 
 .theme-classic-light .chat-header #chat-room-subtitle {
-    color: #94a3b8 !important; /* Muted light slate subtitle */
+    color: #94a3b8; /* Muted light slate subtitle */
 }
 
 .theme-classic-light .world-detail-header .world-entry-count {
-    color: #ffffff !important;
-    background: #1e293b !important;
-    border-color: #334155 !important;
+    color: #ffffff;
+    background: #1e293b;
+    border-color: #334155;
 }
 
 /* Header buttons styling in dark headers */
 .theme-classic-light .chat-header .icon-btn,
 .theme-classic-light .world-detail-header .icon-btn:not(.danger) {
-    background: #1e293b !important; /* Dark slate button bg */
-    border-color: #334155 !important;
-    color: #cbd5e1 !important; /* Muted slate icon */
+    background: #1e293b; /* Dark slate button bg */
+    border-color: #334155;
+    color: #cbd5e1; /* Muted slate icon */
 }
 
 .theme-classic-light .chat-header .icon-btn:hover,
 .theme-classic-light .world-detail-header .icon-btn:not(.danger):hover {
-    background: #334155 !important;
-    color: #ffffff !important;
+    background: #334155;
+    color: #ffffff;
 }
 
 /* Classic Smooth iMessage/Slack-style Typing Animation */
 .theme-classic-light .typing-dot,
 .theme-classic-dark .typing-dot {
-    width: 6px !important;
-    height: 6px !important;
-    border-radius: 50% !important;
-    border: none !important;
-    background: var(--text-sec) !important;
-    animation: classicBounce 1.2s infinite ease-in-out !important;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    border: none;
+    background: var(--text-sec);
+    animation: classicBounce 1.2s infinite ease-in-out;
 }
 .theme-classic-light .typing-dot:nth-child(2),
-.theme-classic-dark .typing-dot:nth-child(2) { animation-delay: 0.2s !important; }
+.theme-classic-dark .typing-dot:nth-child(2) { animation-delay: 0.2s; }
 .theme-classic-light .typing-dot:nth-child(3),
-.theme-classic-dark .typing-dot:nth-child(3) { animation-delay: 0.4s !important; }
+.theme-classic-dark .typing-dot:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes classicBounce {
     0%, 100% {
@@ -258,25 +253,23 @@
     z-index: 12;
 }
 
-
-
 /* ── DARF CLASSIC: Strengthen borders for visibility ─────────────────────── */
 /* Classic light's --border (#cbd5e1) is intentionally soft for SaaS feel,
    but some elements (tabs, badges, search bars) need crisper delineation. */
 .theme-classic-light .tab-btn,
 .theme-classic-light .tab-container {
-    border-color: #94a3b8 !important; /* Slate 400 — more visible than Slate 300 */
+    border-color: #94a3b8; /* Slate 400 — more visible than Slate 300 */
 }
 .theme-classic-light .tab-btn {
-    box-shadow: 2px -2px 0px #cbd5e1 !important; /* Visible lift shadow on tabs */
+    box-shadow: 2px -2px 0px #cbd5e1; /* Visible lift shadow on tabs */
 }
 .theme-classic-light .char-badge,
 .theme-classic-light .room-item-type,
 .theme-classic-light .lore-key-tag {
-    border-color: #94a3b8 !important; /* Stronger badge borders */
+    border-color: #94a3b8; /* Stronger badge borders */
 }
 .theme-classic-light .sidebar {
-    border-color: #94a3b8 !important; /* Crisper sidebar edge */
+    border-color: #94a3b8; /* Crisper sidebar edge */
 }
 
 /* Classic dark --border (#1e293b) is almost invisible against dark panels.
@@ -289,13 +282,14 @@
 .theme-classic-dark .char-badge,
 .theme-classic-dark .room-item-type,
 .theme-classic-dark .lore-key-tag {
-    border-color: #334155 !important; /* Slate 700 — visible but still muted */
+    border-color: #334155; /* Slate 700 — visible but still muted */
 }
 .theme-classic-dark .tab-btn {
-    box-shadow: 2px -2px 0px #334155 !important;
+    box-shadow: 2px -2px 0px #334155;
 }
 .theme-classic-dark .char-avatar,
 .theme-classic-dark .char-list-avatar {
-    box-shadow: none !important;
-    border-color: #334155 !important;
+    box-shadow: none;
+    border-color: #334155;
 }
+

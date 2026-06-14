@@ -1,5 +1,4 @@
 @import './styles/tokens.css';
-@import './styles/themes/index.css';
 @import './styles/base.css';
 @import './styles/layout.css';
 @import './styles/sidebar.css';
@@ -14,6 +13,7 @@
 @import './styles/responsive.css';
 @import './styles/mobile.css';
 @import './styles/updatebanner.css';
+@import './styles/themes/index.css';
 
 /* force postcss reload v2 */
 
