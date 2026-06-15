@@ -23,12 +23,21 @@
 
 ### 📦 Installation
 
-To install Mignon UI on your device:
+To install Mignon UI, visit the **[Releases](https://github.com/Deep-Hex/Mignon-UI/releases)** page of this repository and download the package for your platform:
 
-1. Go to the **Releases** page of this repository and download the installer package:
-   * **Windows**: Download the `.msi` or `.exe` installer, run it, and follow the setup wizard.
-   *(Note: Precompiled installers for macOS, Linux, and mobile are currently in development. If you are on these platforms, you can compile and run Mignon UI from source by following the Developer Setup below).*
-2. Launch the application to begin.
+#### 🪟 Windows
+* **Installer**: Download the `.exe` installer, run it, and follow the setup wizard.
+* **Portable**: Download the `Mignon_UI_windows_portable.zip` archive, extract it, and run `Mignon UI.exe`.
+* ⚠️ **Note**: Since the app is newly compiled and unsigned, Windows SmartScreen will show a warning (*"Windows protected your PC"*). Click **"More info"** and then **"Run anyway"** to proceed.
+
+#### 🍏 macOS (Universal: Intel & Apple Silicon)
+* **Installer**: Download the `.dmg` file, open it, and drag **Mignon UI** to your `Applications` folder.
+* ⚠️ **Note (First Launch)**: Since the app is unsigned, macOS Gatekeeper will block it (*"Developer cannot be verified"*). 
+  To open it, **right-click** (or hold `Control` and click) the **Mignon UI** icon in your `Applications` folder, select **Open** from the menu, and click **Open** again in the confirmation dialog. You only need to do this once.
+
+#### 🐧 Linux
+* **Debian / Ubuntu**: Download the `.deb` package and install it via your package manager (`sudo dpkg -i mignon-ui*.deb`).
+* **Universal AppImage**: Download the `.AppImage` file, make it executable (`chmod +x Mignon-UI*.AppImage`), and double-click to run.
 
 ### 🔷 Onboarding Setup
 
