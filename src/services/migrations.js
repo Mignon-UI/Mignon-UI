@@ -275,7 +275,15 @@ async function _initDatabaseInternal() {
     console.log("[DB] Seeded default settings.");
   }
 
-
+  // Clean up legacy explicit system template if it's set to the old safe default
+  const currentSettings = await db.select("SELECT system_template FROM settings WHERE id = 1");
+  if (currentSettings.length > 0 && currentSettings[0].system_template && currentSettings[0].system_template.includes("adapt your responses to the unfolding narrative")) {
+    await db.execute(
+      "UPDATE settings SET system_template = ? WHERE id = 1",
+      [DEFAULT_SETTINGS.system_template]
+    );
+    console.log("[DB] Restored default system template.");
+  }
 
   // Seed default characters individually if they do not exist
   for (const char of DEFAULT_CHARACTERS) {
