@@ -38,8 +38,9 @@ fn is_safe_update_url(url_str: &str) -> bool {
         return false;
     }
     let path = parsed.path();
-    if !path.starts_with("/Deep-Hex/Mignon-UI/releases/") &&
-       !path.starts_with("/repos/Deep-Hex/Mignon-UI/releases/") {
+    if !path.starts_with("/Deep-Hex/Mignon-UI/releases/")
+        && !path.starts_with("/repos/Deep-Hex/Mignon-UI/releases/")
+    {
         return false;
     }
     true
@@ -48,7 +49,8 @@ fn is_safe_update_url(url_str: &str) -> bool {
 // Helper to sanitize filename and prevent path traversal
 fn sanitize_filename(filename: &str) -> Result<String, String> {
     let path = Path::new(filename);
-    let file_name = path.file_name()
+    let file_name = path
+        .file_name()
         .ok_or_else(|| "Invalid filename: no filename component".to_string())?
         .to_str()
         .ok_or_else(|| "Invalid filename: invalid UTF-8".to_string())?;
@@ -206,7 +208,9 @@ fn set_system_bars_color(window: tauri::Window, color_hex: String, dark_icons: b
 #[tauri::command]
 fn open_url(url: String) -> Result<(), String> {
     if !is_safe_url(&url) {
-        return Err("Blocked opening unsafe URL: Only http and https schemes are allowed".to_string());
+        return Err(
+            "Blocked opening unsafe URL: Only http and https schemes are allowed".to_string(),
+        );
     }
     open_file_natively(&url)
 }
