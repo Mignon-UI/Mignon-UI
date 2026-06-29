@@ -276,7 +276,22 @@ fn download_and_open(app: &tauri::AppHandle, url: &str, filename: &str) -> Resul
     let target_path_str = target_path.to_string_lossy().to_string();
     let _ = app.emit("download-complete", target_path_str.clone());
 
-    open_file_natively(&target_path_str)?;
+    #[cfg(target_os = "windows")]
+    {
+        // Run the installer in passive mode (/P) so it upgrades without wizard prompts
+        std::process::Command::new(&target_path_str)
+            .arg("/P")
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        open_file_natively(&target_path_str)?;
+    }
+
+    // Give the OS 1 second to start the installer process, then close the app to allow overwriting
+    std::thread::sleep(std::time::Duration::from_millis(1000));
+    app.exit(0);
 
     Ok(())
 }
