@@ -27,11 +27,15 @@ jobs:
           # Link to your CLA document in the repository
           path-to-document: 'https://github.com/${{ github.repository }}/blob/main/Contributor%20License%20Agreement'
           
-          # Path to store the signatures JSON file
-          path-to-signatures: 'signatures/cla.json'
+          # Path to store the signatures JSON file inside the remote repo
+          path-to-signatures: 'cla.json'
           
-          # The branch in your Gist repository where signatures will be stored (usually main)
+          # The branch in your signatures repository (usually main)
           branch: 'main'
+          
+          # The private signatures repository details
+          remote-organization-name: 'Mignon-UI'
+          remote-repository-name: 'Mignon-UI-signatures'
           
           # Skip bot accounts
           allowlist: 'Mignon-UI-dev,dependabot[bot],greenkeeper[bot],github-actions[bot]'
