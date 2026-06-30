@@ -1,8 +1,8 @@
 import { safeFetch } from '../utils/safeFetch';
 import { APP_VERSION } from '../config';
 
-const GITHUB_API_URL = 'https://api.github.com/repos/Deep-Hex/Mignon-UI/releases';
-const GITHUB_TRACKING_URL = 'https://github.com/Deep-Hex/Mignon-UI/releases/latest';
+const GITHUB_API_URL = 'https://api.github.com/repos/Mignon-UI/Mignon-UI/releases';
+const GITHUB_TRACKING_URL = 'https://github.com/Mignon-UI/Mignon-UI/releases/latest';
 
 /**
  * Checks GitHub for the latest release version.
@@ -58,7 +58,7 @@ export async function checkForUpdates(force = false) {
 
     const latestVersion = data.tag_name; // e.g., "v0.2.0"
     const releaseNotes = data.body || '';
-    const htmlUrl = data.html_url || 'https://github.com/Deep-Hex/Mignon-UI/releases';
+    const htmlUrl = data.html_url || 'https://github.com/Mignon-UI/Mignon-UI/releases';
     const releaseName = data.name || data.tag_name;
     const assets = data.assets || [];
 
@@ -92,8 +92,8 @@ export async function checkForUpdates(force = false) {
       latestVersion: null,
       currentVersion: APP_VERSION,
       releaseNotes: '',
-      url: 'https://github.com/Deep-Hex/Mignon-UI/releases',
-      downloadUrl: 'https://github.com/Deep-Hex/Mignon-UI/releases',
+      url: 'https://github.com/Mignon-UI/Mignon-UI/releases',
+      downloadUrl: 'https://github.com/Mignon-UI/Mignon-UI/releases',
       filename: '',
       name: '',
       bannerSuppressed: false,
