@@ -24,7 +24,7 @@
 
 ### 📦 Installation
 
-To install Mignon UI, visit the **[Releases](https://github.com/Deep-Hex/Mignon-UI/releases)** page of this repository and download the package for your platform:
+To install Mignon UI, visit the **[Releases](https://github.com/Mignon-UI/Mignon-UI/releases)** page of this repository and download the package for your platform:
 
 #### 🪟 Windows
 * **Installer**: Download the `.exe` installer, run it, and follow the setup wizard.
