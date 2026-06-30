@@ -64,3 +64,15 @@ We maintain an AST-based knowledge graph of the codebase in `graphify-out/`.
 ## 💬 Community
 
 By contributing to this project, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md). Please report any unacceptable behavior to the project maintainers.
+
+---
+
+## ⚖️ Legal & Contributor Agreement
+
+To maintain the project's long-term sustainability and enable distribution on official App Stores while keeping the code open-source on GitHub, all contributors must agree to our Contributor License Agreement.
+
+Before submitting a Pull Request, please review our full [Contributor License Agreement & Open-Source Promise](Contributor%20License%20Agreement).
+
+### How to Sign
+Our automated workflow will guide you. You can sign the agreement by replying to the check comment on your Pull Request with:
+> **I agree to the CLA**

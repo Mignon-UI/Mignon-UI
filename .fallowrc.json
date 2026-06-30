@@ -3,7 +3,9 @@
   "ignorePatterns": [
     "static/**",
     "public/sql-wasm.js",
-    "public/sql-wasm.wasm"
+    "public/sql-wasm.wasm",
+    "resources/**",
+    "src-tauri/**"
   ],
   "ignoreExports": [
     {
