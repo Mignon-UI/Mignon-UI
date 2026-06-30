@@ -38,8 +38,8 @@ fn is_safe_update_url(url_str: &str) -> bool {
         return false;
     }
     let path = parsed.path();
-    if !path.starts_with("/Deep-Hex/Mignon-UI/releases/")
-        && !path.starts_with("/repos/Deep-Hex/Mignon-UI/releases/")
+    if !path.starts_with("/Mignon-UI/Mignon-UI/releases/")
+        && !path.starts_with("/repos/Mignon-UI/Mignon-UI/releases/")
     {
         return false;
     }
