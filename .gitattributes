@@ -1,2 +1,5 @@
 # Mark third-party Rust patches as vendored code to exclude them from repository language stats
 src-tauri/patches/** linguist-vendored
+
+# Exclude CSS files from repository language statistics
+*.css linguist-vendored
