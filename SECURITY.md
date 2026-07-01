@@ -2,15 +2,6 @@
 
 We take the security of Mignon UI seriously. This document outlines how to report security vulnerabilities and our process for handling them.
 
-## Supported Versions
-
-Only the latest active release channel of Mignon UI is supported for security updates:
-
-| Version | Supported          |
-| ------- | ------------------ |
-| >= 1.0  | :white_check_mark: |
-| < 1.0   | :x:                |
-
 ## Reporting a Vulnerability
 
 If you discover a security vulnerability in Mignon UI, please **do not open a public issue**. Instead, report it privately to the maintainers:
