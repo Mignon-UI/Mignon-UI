@@ -44,9 +44,9 @@ export default function UpdateBanner() {
       }
     };
 
-    window.addEventListener('darf-show-update-banner', handleManualTrigger);
+    window.addEventListener('mignon-show-update-banner', handleManualTrigger);
     return () => {
-      window.removeEventListener('darf-show-update-banner', handleManualTrigger);
+      window.removeEventListener('mignon-show-update-banner', handleManualTrigger);
     };
   }, []);
 
@@ -97,7 +97,7 @@ export default function UpdateBanner() {
   const handleDismiss = () => {
     if (updateInfo?.latestVersion) {
       // Remember dismissal for this version
-      localStorage.setItem('darf_dismissed_version', updateInfo.latestVersion);
+      localStorage.setItem('mignon_dismissed_version', updateInfo.latestVersion);
     }
     
     setIsExiting(true);

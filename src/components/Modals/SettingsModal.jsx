@@ -64,7 +64,7 @@ export default function SettingsModal({ isOpen, isInline }) {
   const [updateResult, setUpdateResult] = useState(null);
   const [manualCheckError, setManualCheckError] = useState(null);
   const [updateChannel, setUpdateChannel] = useState(() => {
-    return localStorage.getItem('darf_update_channel') || 'stable';
+    return localStorage.getItem('mignon_update_channel') || 'stable';
   });
 
   const handleManualCheck = async () => {
@@ -743,7 +743,7 @@ export default function SettingsModal({ isOpen, isInline }) {
         {/* ── SOFTWARE UPDATES ── */}
         <div className="form-group" style={{ marginTop: '24px', borderTop: 'var(--border-width) solid var(--border)', paddingTop: '20px' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-head)', fontWeight: 'bold', fontSize: '1rem', textTransform: 'uppercase' }}>
-            <RefreshCw size={16} className={updateChecking ? 'darf-animate-spin' : ''} /> Software Updates
+            <RefreshCw size={16} className={updateChecking ? 'mignon-animate-spin' : ''} /> Software Updates
           </label>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-sec)', marginTop: '6px', marginBottom: '14px', lineHeight: '1.4' }}>
             Check for updates and view system version info.
@@ -766,7 +766,7 @@ export default function SettingsModal({ isOpen, isInline }) {
                   onChange={(e) => {
                     const val = e.target.checked ? 'beta' : 'stable';
                     setUpdateChannel(val);
-                    localStorage.setItem('darf_update_channel', val);
+                    localStorage.setItem('mignon_update_channel', val);
                   }}
                 />
                 <span className="slider"></span>
@@ -792,7 +792,7 @@ export default function SettingsModal({ isOpen, isInline }) {
                       className="primary-btn"
                       style={{ marginTop: '6px', fontSize: '0.8rem', padding: '6px 12px', width: 'fit-content' }}
                       onClick={() => {
-                        window.dispatchEvent(new CustomEvent('darf-show-update-banner', { detail: updateResult }));
+                        window.dispatchEvent(new CustomEvent('mignon-show-update-banner', { detail: updateResult }));
                         if (!isInline) {
                           ui.setActiveModal(null); // Close settings to show banner
                         }
@@ -819,7 +819,7 @@ export default function SettingsModal({ isOpen, isInline }) {
               style={{ padding: '8px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: 'fit-content', marginTop: '4px' }}
               onClick={handleManualCheck}
             >
-              <RefreshCw size={14} className={updateChecking ? 'darf-animate-spin' : ''} />
+              <RefreshCw size={14} className={updateChecking ? 'mignon-animate-spin' : ''} />
               {updateChecking ? 'Checking...' : 'Check for Updates'}
             </button>
           </div>

@@ -36,7 +36,7 @@ graph TB
 49:  
 50:      %% Storage Grid
 51:      subgraph Storage Grid [Offline Storage]
-52:          SQLPlugin -->|Read/Write WAL| SQLite[(SQLite: darf.db)]
+52:          SQLPlugin -->|Read/Write WAL| SQLite[(SQLite: data.db)]
 53:          RAG -->|Store Float Vectors| SQLite
 54:          RustCrypto -->|Key Storage| SecretFile[(AppData: secret.key)]
 55:      end
@@ -49,9 +49,9 @@ graph TB
 
 ---
 
-## 💾 Relational Database Schema (SQLite: darf.db)
+## 💾 Relational Database Schema (SQLite: data.db)
 
-All relational models, settings, and histories are saved in a local SQLite database file (`darf.db`) located in the application's secure AppData directory. The database WAL mode is managed by the `@tauri-apps/plugin-sql` driver. The schema contains the following tables:
+All relational models, settings, and histories are saved in a local SQLite database file (`data.db`) located in the application's secure AppData directory. The database WAL mode is managed by the `@tauri-apps/plugin-sql` driver. The schema contains the following tables:
 
 ### 1. `settings`
 Global configurations tracking LLM connectivity parameters and the default user persona.

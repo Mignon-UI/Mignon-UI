@@ -239,7 +239,7 @@
 }
 
 /* Spinner helper */
-@keyframes darf-spin {
+@keyframes mignon-spin {
   from {
     transform: rotate(0deg);
   }
@@ -249,6 +249,6 @@
   }
 }
 
-.darf-animate-spin {
-  animation: darf-spin 1.2s linear infinite;
+.mignon-animate-spin {
+  animation: mignon-spin 1.2s linear infinite;
 }
