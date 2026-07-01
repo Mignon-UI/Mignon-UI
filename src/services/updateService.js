@@ -12,7 +12,7 @@ const GITHUB_TRACKING_URL = 'https://github.com/Mignon-UI/Mignon-UI/releases/lat
  * @returns {Promise<object>} Update status metadata.
  */
 export async function checkForUpdates(force = false) {
-  const lastCheckStr = localStorage.getItem('darf_last_update_check');
+  const lastCheckStr = localStorage.getItem('mignon_last_update_check');
   const lastCheck = lastCheckStr ? parseInt(lastCheckStr, 10) : 0;
   const now = Date.now();
 
@@ -26,7 +26,7 @@ export async function checkForUpdates(force = false) {
       // Use no-cors since we don't need to read the body of the tracking page
       // On Tauri, it bypasses CORS; on Web browser, it handles CORS errors silently.
       safeFetch(GITHUB_TRACKING_URL, { method: 'GET', mode: 'no-cors' }).catch(() => {});
-      localStorage.setItem('darf_last_update_check', now.toString());
+      localStorage.setItem('mignon_last_update_check', now.toString());
     } catch (e) {
       console.warn('[Telemetry] Telemetry ping failed:', e);
     }
@@ -43,7 +43,7 @@ export async function checkForUpdates(force = false) {
       throw new Error('No releases found in the repository.');
     }
 
-    const updateChannel = localStorage.getItem('darf_update_channel') || 'stable';
+    const updateChannel = localStorage.getItem('mignon_update_channel') || 'stable';
     let data = null;
 
     if (updateChannel === 'beta') {
@@ -67,10 +67,10 @@ export async function checkForUpdates(force = false) {
     // Find the correct installer asset for the user's OS
     const matchedAsset = findPlatformAsset(assets);
     const downloadUrl = matchedAsset ? matchedAsset.browser_download_url : htmlUrl;
-    const filename = matchedAsset ? matchedAsset.name : 'darf-ui-installer';
+    const filename = matchedAsset ? matchedAsset.name : 'mignon-ui-installer';
 
     // Check if the user dismissed this specific version before
-    const dismissedVersion = localStorage.getItem('darf_dismissed_version');
+    const dismissedVersion = localStorage.getItem('mignon_dismissed_version');
     const bannerSuppressed = dismissedVersion === latestVersion;
 
     return {

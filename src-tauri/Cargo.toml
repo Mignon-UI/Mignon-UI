@@ -40,3 +40,6 @@ opt-level = 3
 codegen-units = 16
 lto = "thin"
 panic = "abort"
+
+[patch.crates-io]
+glib = { path = "patches/glib" }

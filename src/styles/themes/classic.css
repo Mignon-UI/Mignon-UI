@@ -1,5 +1,5 @@
 /* ==========================================================================
-   5. DARF CLASSIC (Crisp Clean SaaS / Professional Flat Zinc & Slate)
+   5. MIGNON CLASSIC (Crisp Clean SaaS / Professional Flat Zinc & Slate)
    ========================================================================== */
 
 /* Light Mode — Crisp White Panel, Tech Blue brand accent, sleek grey grids */
@@ -124,7 +124,7 @@
     background-image: none;
 }
 
-/* Premium SaaS button & interface overrides for Darf Classic */
+/* Premium SaaS button & interface overrides for Mignon Classic */
 .theme-classic-light .primary-btn,
 .theme-classic-dark .primary-btn {
     color: #ffffff; /* Premium white text for corporate call-to-actions */
@@ -191,7 +191,7 @@
     box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.3);
 }
 
-/* Crisp corporate dark header overrides for Darf Classic Light Mode */
+/* Crisp corporate dark header overrides for Mignon Classic Light Mode */
 .theme-classic-light .chat-header,
 .theme-classic-light .world-detail-header {
     background: #0f172a; /* Dark Navy Slate 900 */
@@ -264,7 +264,7 @@
 
 
 
-/* ── DARF CLASSIC: Strengthen borders for visibility ─────────────────────── */
+/* ── MIGNON CLASSIC: Strengthen borders for visibility ─────────────────────── */
 /* Classic light's --border (#cbd5e1) is intentionally soft for SaaS feel,
    but some elements (tabs, badges, search bars) need crisper delineation. */
 .theme-classic-light .tab-btn,

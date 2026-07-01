@@ -131,8 +131,8 @@ Tauri v2 supports compiling for mobile screens out of the box.
 
 ### 3. SQLite Database Locks or Access Errors
 * **Root Cause**: Multiple window threads attempting to write concurrently, or permissions issues.
-* **Resolution**: The database file `darf.db` is stored inside the secure OS AppData directory. You can locate it at:
-  * **Windows**: `%APPDATA%\com.tauri.dev\darf.db`
-  * **macOS**: `~/Library/Application Support/com.tauri.dev/darf.db`
-  * **Linux**: `~/.config/com.tauri.dev/darf.db`
+* **Resolution**: The database file `data.db` is stored inside the secure OS AppData directory. You can locate it at:
+  * **Windows**: `%APPDATA%\com.mignonui.chat\data.db`
+  * **macOS**: `~/Library/Application Support/com.mignonui.chat/data.db`
+  * **Linux**: `~/.config/com.mignonui.chat/data.db`
   If the schema becomes corrupt, you can safely delete this file; the app will recreate and seed it on the next launch.
