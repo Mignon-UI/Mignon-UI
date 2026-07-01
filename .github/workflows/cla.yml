@@ -35,7 +35,7 @@ jobs:
           
           # The private signatures repository details
           remote-organization-name: 'Mignon-UI'
-          remote-repository-name: 'Mignon-UI-signatures'
+          remote-repository-name: 'Mignon-CLA'
           
           # Skip bot accounts
           allowlist: 'Mignon-UI-dev,dependabot[bot],greenkeeper[bot],github-actions[bot]'
