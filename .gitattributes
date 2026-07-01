@@ -3,3 +3,8 @@ src-tauri/patches/** linguist-vendored
 
 # Exclude CSS files from repository language statistics
 *.css linguist-vendored
+
+# Exclude Kotlin and Java files (from Android builds) from repository language statistics
+*.kt linguist-vendored
+*.kts linguist-vendored
+*.java linguist-vendored
