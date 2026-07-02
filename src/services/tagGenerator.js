@@ -92,11 +92,9 @@ async function getTagEmbeddings() {
 
     // Normalize tag vectors for cosine similarity
     cachedTagVectors = vecs.map(v => {
-      let sumSq = 0;
-      for (let i = 0; i < v.length; i++) sumSq += v[i] * v[i];
+      const sumSq = v.reduce((sum, val) => sum + val * val, 0);
       const norm = Math.sqrt(sumSq);
-      if (norm === 0) return v;
-      return v.map(val => val / norm);
+      return norm === 0 ? v : v.map(val => val / norm);
     });
     console.log(`[Tags] Cached ${cachedTagVectors.length} semantic tag embeddings successfully.`);
   }
@@ -106,12 +104,13 @@ async function getTagEmbeddings() {
 function keywordFallbackTags(combinedText) {
   const matched = [];
   for (const [tag, keywords] of Object.entries(TAG_RULES)) {
-    for (const kw of keywords) {
+    const hasMatch = keywords.some(kw => {
       const reg = new RegExp(`\\b${escapeRegexForTags(kw)}\\b`, 'i');
-      if (reg.test(combinedText)) {
-        matched.push(tag);
-        break;
-      }
+      return reg.test(combinedText);
+    });
+    
+    if (hasMatch) {
+      matched.push(tag);
     }
   }
   return matched.slice(0, 5);
@@ -132,52 +131,36 @@ export async function generateCharacterTags(name, personality, scenario) {
   try {
     const { names: tagNames, vectors: tagVecs } = await getTagEmbeddings();
 
-    // Embed character description
+    // Embed character description and normalize it
     const embeds = await rag.embedTexts([charDesc]);
     const rawCharVec = embeds[0];
-    let sumSq = 0;
-    for (let i = 0; i < rawCharVec.length; i++) sumSq += rawCharVec[i] * rawCharVec[i];
+    
+    const sumSq = rawCharVec.reduce((sum, val) => sum + val * val, 0);
     const charNorm = Math.sqrt(sumSq);
     const charVec = charNorm === 0 ? rawCharVec : rawCharVec.map(v => v / charNorm);
 
-    // Compute cosine similarity (dot product between normalized vectors)
+    // Compute cosine similarity and apply scoring rules
     const results = [];
     for (let i = 0; i < tagNames.length; i++) {
       const tag = tagNames[i];
       const tagVec = tagVecs[i];
 
-      let score = 0;
-      for (let j = 0; j < charVec.length; j++) {
-        score += tagVec[j] * charVec[j];
-      }
+      const score = tagVec.reduce((sum, val, idx) => sum + val * charVec[idx], 0);
 
       // Check keyword presence
-      let hasKw = false;
       const keywords = TAG_RULES[tag] || [];
-      for (const kw of keywords) {
+      const hasKw = keywords.some(kw => {
         const reg = new RegExp(`\\b${escapeRegexForTags(kw)}\\b`, 'i');
-        if (reg.test(combinedText)) {
-          hasKw = true;
-          break;
-        }
-      }
-
-      let finalScore = score;
-      if (hasKw) {
-        finalScore += 0.08;
-      }
+        return reg.test(combinedText);
+      });
 
       // Strict tags require keyword presence
-      if (STRICT_TAGS.has(tag) && !hasKw) {
-        continue;
-      }
+      if (STRICT_TAGS.has(tag) && !hasKw) continue;
 
-      // For any tag, if it has no keyword match, require baseline score >= 0.80
-      if (!hasKw && score < 0.80) {
-        continue;
-      }
+      // Unmatched tags require a high similarity score
+      if (!hasKw && score < 0.80) continue;
 
-      results.push({ tag, score: finalScore });
+      results.push({ tag, score: score + (hasKw ? 0.08 : 0) });
     }
 
     // Sort tags by similarity score in descending order

@@ -6,10 +6,11 @@ import { parseSseStream } from '../utils/sseParser';
 import { safeFetch } from '../utils/safeFetch';
 import { APP_NAME } from '../config';
 
+const isTauri = () => typeof window !== 'undefined' && (!!window.__TAURI_IPC__ || !!window.__TAURI_INTERNALS__);
+
 // Secure key helpers calling Tauri Rust commands
 export async function encryptKey(plaintext) {
-  const isTauri = typeof window !== 'undefined' && (!!window.__TAURI_IPC__ || !!window.__TAURI_INTERNALS__);
-  if (!isTauri) return plaintext;
+  if (!isTauri()) return plaintext;
   try {
     return await invoke('encrypt_key', { plaintext });
   } catch (e) {
@@ -20,11 +21,9 @@ export async function encryptKey(plaintext) {
 
 export async function decryptKey(encryptedStr) {
   if (!encryptedStr) return "";
-  // If the value is not encrypted (legacy plaintext or test values), return as-is
   if (!encryptedStr.startsWith("enc::")) return encryptedStr;
 
-  const isTauri = typeof window !== 'undefined' && (!!window.__TAURI_IPC__ || !!window.__TAURI_INTERNALS__);
-  if (!isTauri) {
+  if (!isTauri()) {
     console.warn("[LLM Client] Cannot decrypt key starting with 'enc::' in browser mode. Please re-enter your API key in Settings.");
     return "";
   }
@@ -45,35 +44,41 @@ async function resolveLlmEndpoint(settings) {
 
   if (settings?.provider === "openrouter") {
     url = "https://openrouter.ai/api/v1/chat/completions";
-    const apiKey = await decryptKey(settings.openrouter_key);
-    headers["Authorization"] = `Bearer ${apiKey}`;
+    headers["Authorization"] = `Bearer ${await decryptKey(settings.openrouter_key)}`;
     headers["HTTP-Referer"] = `https://github.com/Deep-Hex/Mignon-UI`;
     headers["X-Title"] = APP_NAME;
   } else if (settings?.provider === "custom" && settings?.custom_key) {
     const apiKey = await decryptKey(settings.custom_key);
     modelName = settings.selected_model || "custom-model";
     if (url.includes("api.anthropic.com")) {
-      if (url.endsWith("/v1") || url.endsWith("/v1/")) {
-        url = `${url.replace(/\/$/, "")}/messages`;
-      } else if (!url.endsWith("/v1/messages") && !url.endsWith("/messages")) {
-        url = `${url.replace(/\/$/, "")}/v1/messages`;
+      if (!url.endsWith("/v1/messages") && !url.endsWith("/messages")) {
+        url = `${url.replace(/\/v1$/, "").replace(/\/$/, "")}/v1/messages`;
       }
       headers["x-api-key"] = apiKey;
       headers["anthropic-version"] = "2023-06-01";
     } else {
-      if (url.endsWith("/v1") || url.endsWith("/v1/")) {
-        url = `${url.replace(/\/$/, "")}/chat/completions`;
-      }
       headers["Authorization"] = `Bearer ${apiKey}`;
-    }
-  } else {
-    // Local Ollama / Kobold
-    if (url.endsWith("/v1") || url.endsWith("/v1/")) {
-      url = `${url.replace(/\/$/, "")}/chat/completions`;
     }
   }
 
+  // Suffix standard OpenAI endpoints
+  if (!url.includes("api.anthropic.com") && (url.endsWith("/v1") || url.endsWith("/v1/"))) {
+    url = `${url.replace(/\/$/, "")}/chat/completions`;
+  }
+
   return { url, modelName, headers };
+}
+
+function buildPayload(model, system, user, temp, maxTokens, stream, isAnthropic) {
+  return {
+    model,
+    temperature: temp,
+    max_tokens: maxTokens,
+    stream,
+    ...(isAnthropic 
+      ? { system, messages: [{ role: "user", content: user }] }
+      : { messages: [{ role: "system", content: system }, { role: "user", content: user }] })
+  };
 }
 
 // Stream LLM chat completions via Server-Sent Events (SSE)
@@ -81,30 +86,15 @@ export async function streamLlmResponse(settings, systemPrompt, userPrompt, onTo
   const { url, modelName, headers } = await resolveLlmEndpoint(settings);
   const isAnthropic = url.includes("api.anthropic.com");
 
-  let payload;
-  if (isAnthropic) {
-    payload = {
-      model: modelName,
-      system: systemPrompt,
-      messages: [
-        { role: "user", content: userPrompt }
-      ],
-      temperature: settings?.temperature || 0.9,
-      max_tokens: settings?.max_tokens || 2048,
-      stream: true
-    };
-  } else {
-    payload = {
-      model: modelName,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ],
-      temperature: settings?.temperature || 0.9,
-      max_tokens: settings?.max_tokens || 2048,
-      stream: true
-    };
-  }
+  const payload = buildPayload(
+    modelName, 
+    systemPrompt, 
+    userPrompt, 
+    settings?.temperature || 0.9, 
+    settings?.max_tokens || 2048, 
+    true, 
+    isAnthropic
+  );
 
   headers["Content-Type"] = "application/json";
 
@@ -164,33 +154,15 @@ export async function queryLlmNonStream(settings, systemPrompt, userPrompt, temp
   const { url, modelName, headers } = await resolveLlmEndpoint(settings);
   const isAnthropic = url.includes("api.anthropic.com");
 
-  const resolvedTemp = temperature !== null ? temperature : (settings?.temperature || 0.9);
-  const resolvedTokens = maxTokens !== null ? maxTokens : (settings?.max_tokens || 2048);
-
-  let payload;
-  if (isAnthropic) {
-    payload = {
-      model: modelName,
-      system: systemPrompt,
-      messages: [
-        { role: "user", content: userPrompt }
-      ],
-      temperature: resolvedTemp,
-      max_tokens: resolvedTokens,
-      stream: false
-    };
-  } else {
-    payload = {
-      model: modelName,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ],
-      temperature: resolvedTemp,
-      max_tokens: resolvedTokens,
-      stream: false
-    };
-  }
+  const payload = buildPayload(
+    modelName, 
+    systemPrompt, 
+    userPrompt, 
+    temperature !== null ? temperature : (settings?.temperature || 0.9), 
+    maxTokens !== null ? maxTokens : (settings?.max_tokens || 2048), 
+    false, 
+    isAnthropic
+  );
 
   headers["Content-Type"] = "application/json";
 

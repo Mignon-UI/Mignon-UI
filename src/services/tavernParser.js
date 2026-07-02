@@ -5,9 +5,12 @@
 function parseTextChunk(chunkData) {
   const nullIdx = chunkData.indexOf(0);
   if (nullIdx === -1) return null;
-  const keyword = new TextDecoder().decode(chunkData.subarray(0, nullIdx)).toLowerCase();
+
+  const decoder = new TextDecoder();
+  const keyword = decoder.decode(chunkData.subarray(0, nullIdx)).toLowerCase();
+  
   if (keyword === "ccv3" || keyword === "chara") {
-    return new TextDecoder().decode(chunkData.subarray(nullIdx + 1));
+    return decoder.decode(chunkData.subarray(nullIdx + 1));
   }
   return null;
 }
@@ -15,31 +18,26 @@ function parseTextChunk(chunkData) {
 function parseITextChunk(chunkData) {
   const nullIdx1 = chunkData.indexOf(0);
   if (nullIdx1 === -1) return null;
-  const keyword = new TextDecoder().decode(chunkData.subarray(0, nullIdx1)).toLowerCase();
+
+  const decoder = new TextDecoder();
+  const keyword = decoder.decode(chunkData.subarray(0, nullIdx1)).toLowerCase();
   if (keyword !== "ccv3" && keyword !== "chara") return null;
 
   const compressionFlag = chunkData[nullIdx1 + 1];
-  // Find the third null byte (end of translated keyword)
-  let nullCount = 1;
-  let textStart = -1;
-  for (let i = nullIdx1 + 3; i < chunkData.length; i++) {
-    if (chunkData[i] === 0) {
-      nullCount++;
-      if (nullCount === 3) {
-        textStart = i + 1;
-        break;
-      }
-    }
-  }
-  if (textStart === -1) return null;
 
-  const rawText = chunkData.subarray(textStart);
-  if (compressionFlag === 0) {
-    return new TextDecoder().decode(rawText);
-  } else {
+  // Find second and third null bytes: compression flag is at +1, method is at +2
+  const nullIdx2 = chunkData.indexOf(0, nullIdx1 + 3);
+  if (nullIdx2 === -1) return null;
+
+  const nullIdx3 = chunkData.indexOf(0, nullIdx2 + 1);
+  if (nullIdx3 === -1) return null;
+
+  if (compressionFlag !== 0) {
     console.warn("[TavernParser] Compressed iTXt chunks are not supported locally.");
     return null;
   }
+
+  return decoder.decode(chunkData.subarray(nullIdx3 + 1));
 }
 
 function extractCharaData(arrayBuffer) {
@@ -47,8 +45,8 @@ function extractCharaData(arrayBuffer) {
   const bytes = new Uint8Array(arrayBuffer);
 
   // Verify PNG Signature
-  if (bytes[0] !== 137 || bytes[1] !== 80 || bytes[2] !== 78 || bytes[3] !== 71 ||
-      bytes[4] !== 13 || bytes[5] !== 10 || bytes[6] !== 26 || bytes[7] !== 10) {
+  const pngSig = [137, 80, 78, 71, 13, 10, 26, 10];
+  if (!pngSig.every((b, i) => bytes[i] === b)) {
     console.error("[TavernParser] Invalid PNG signature.");
     return null;
   }
@@ -57,22 +55,17 @@ function extractCharaData(arrayBuffer) {
 
   while (offset < view.byteLength) {
     if (offset + 8 > view.byteLength) break;
-    
+
     const length = view.getUint32(offset);
-    const type = String.fromCharCode(bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7]);
+    const typeBytes = bytes.subarray(offset + 4, offset + 8);
+    const type = String.fromCharCode(...typeBytes);
 
     if (type === "IEND") break;
 
-    if (type === "tEXt" || type === "iTXt" || type === "zTXt") {
+    if (type === "tEXt" || type === "iTXt") {
       const chunkData = bytes.subarray(offset + 8, offset + 8 + length);
-      
-      if (type === "tEXt") {
-        const textVal = parseTextChunk(chunkData);
-        if (textVal) return textVal;
-      } else if (type === "iTXt") {
-        const textVal = parseITextChunk(chunkData);
-        if (textVal) return textVal;
-      }
+      const textVal = type === "tEXt" ? parseTextChunk(chunkData) : parseITextChunk(chunkData);
+      if (textVal) return textVal;
     }
 
     offset += 12 + length; // 4 bytes length + 4 bytes type + length + 4 bytes CRC
@@ -91,7 +84,7 @@ function decodeCharaJson(charaData) {
       const decodedBytes = atob(charaData);
       return JSON.parse(decodedBytes);
     } catch (err) {
-      console.error("[TavernParser] Failed to parse metadata as JSON or Base64 JSON:", err);
+      console.error("[TavernParser] Failed to parse JSON:", err);
       return null;
     }
   }
@@ -103,13 +96,8 @@ function mapCharaJsonToSchema(decodedJson) {
 
   // Extract tags
   const rawTags = data.tags || [];
-  let tagsStr = "";
-  if (Array.isArray(rawTags) && rawTags.length > 0) {
-    const cleanTags = rawTags.map(t => String(t).trim()).filter(Boolean);
-    if (cleanTags.length > 0) {
-      tagsStr = `[Tags: ${cleanTags.join(", ")}]\n`;
-    }
-  }
+  const cleanTags = rawTags.map(t => String(t).trim()).filter(Boolean);
+  const tagsStr = cleanTags.length ? `[Tags: ${cleanTags.join(", ")}]\n` : "";
 
   // Extract description and personality traits
   let description = (data.description || "").trim();
@@ -120,39 +108,27 @@ function mapCharaJsonToSchema(decodedJson) {
     traits = "";
   }
 
-  let traitsStr = "";
-  if (traits) {
-    traitsStr = `[Personality: ${traits}]\n`;
-  }
-
-  const prefixBlocks = (tagsStr || traitsStr) ? `${tagsStr}${traitsStr}\n` : "";
-  const personalityWithMetadata = `${prefixBlocks}${description}`.trim();
+  const traitsStr = traits ? `[Personality: ${traits}]\n` : "";
+  const prefix = (tagsStr || traitsStr) ? `${tagsStr}${traitsStr}\n` : "";
+  const personality = `${prefix}${description}`.trim();
 
   // Extract character book entries
   const charBook = data.character_book || decodedJson.character_book;
-  const bookEntries = [];
-  if (charBook && Array.isArray(charBook.entries)) {
-    charBook.entries.forEach(entry => {
-      if (entry.enabled !== false) {
-        let keysStr;
-        if (Array.isArray(entry.keys)) {
-          keysStr = entry.keys.map(k => String(k).trim()).filter(Boolean).join(", ");
-        } else {
-          keysStr = String(entry.keys || "").trim();
-        }
+  const bookEntries = (charBook?.entries || [])
+    .filter(entry => entry.enabled !== false)
+    .map(entry => {
+      const rawKeys = Array.isArray(entry.keys) ? entry.keys : [entry.keys];
+      const keysStr = rawKeys.map(k => String(k || "").trim()).filter(Boolean).join(", ");
+      const content = String(entry.content || "").trim();
 
-        const contentVal = String(entry.content || "").trim();
-        if (keysStr && contentVal) {
-          bookEntries.push({
-            title: entry.comment || entry.name || "Lore Entry",
-            keys: keysStr,
-            content: contentVal,
-            weight: entry.insertion_order !== undefined ? entry.insertion_order : 100
-          });
-        }
-      }
-    });
-  }
+      return {
+        title: entry.comment || entry.name || "Lore Entry",
+        keys: keysStr,
+        content,
+        weight: entry.insertion_order ?? 100
+      };
+    })
+    .filter(entry => entry.keys && entry.content);
 
   // Extract alternate greetings
   const altGreetings = (data.alternate_greetings || data.alternate_first_mes || [])
@@ -162,7 +138,7 @@ function mapCharaJsonToSchema(decodedJson) {
   return {
     name: data.name || "Unnamed Bot",
     greeting: data.first_mes || data.greeting || "",
-    personality: personalityWithMetadata,
+    personality,
     scenario: data.scenario || "",
     example_dialogue: data.mes_example || data.example_dialogue || "",
     lore_entries: bookEntries,
@@ -193,10 +169,10 @@ export function extractAvatarUrlFromPngBytes(arrayBuffer) {
     let binary = "";
     const chunkSize = 8192;
     for (let i = 0; i < bytes.length; i += chunkSize) {
-      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+      const chunk = bytes.subarray(i, i + chunkSize);
+      binary += String.fromCharCode(...chunk);
     }
-    const base64 = btoa(binary);
-    return `data:image/png;base64,${base64}`;
+    return `data:image/png;base64,${btoa(binary)}`;
   } catch (err) {
     console.error("[TavernParser] Error extracting avatar image:", err);
     return null;
@@ -213,4 +189,3 @@ export function parseTavernJson(rawJson) {
     return null;
   }
 }
-

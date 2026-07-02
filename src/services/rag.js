@@ -21,6 +21,34 @@ import { getSettings } from './crud';
 import { decryptKey } from './llmClient';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function normalizeVector(v) {
+  const norm = Math.sqrt(v.reduce((sum, val) => sum + val * val, 0));
+  return norm === 0 ? v : v.map(val => val / norm);
+}
+
+function bytesToFloatArray(rawBytes) {
+  if (!rawBytes) return null;
+  const bytes = new Uint8Array(rawBytes);
+  let buffer = bytes.buffer;
+  let byteOffset = bytes.byteOffset;
+  if (byteOffset % 4 !== 0) {
+    const aligned = new Uint8Array(bytes.byteLength);
+    aligned.set(bytes);
+    buffer = aligned.buffer;
+    byteOffset = 0;
+  }
+  return new Float32Array(buffer, byteOffset, bytes.byteLength / 4);
+}
+
+function floatArrayToBytes(floatArray) {
+  const f32 = new Float32Array(floatArray);
+  return new Uint8Array(f32.buffer, f32.byteOffset, f32.byteLength);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 1. Local WASM extractor singleton
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -39,11 +67,8 @@ async function getLocalExtractor() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Statically resolve the expected embedding dimension for the current provider
- * and model without loading any ML model.
+ * Statically resolve expected embedding dimension for the current provider and model.
  * Mirrors rag_store.py::get_embedding_dimension().
- *
- * @returns {Promise<number>} - e.g. 1536, 512, or 384
  */
 export async function getEmbeddingDimension() {
   const settings = await getSettings();
@@ -67,9 +92,6 @@ export async function getEmbeddingDimension() {
 /**
  * Generate embeddings for a list of strings.
  * Falls back through: Cloud → Local API → WASM.
- *
- * @param {string[]} texts
- * @returns {Promise<number[][]>} float32 arrays, one per input text
  */
 export async function embedTexts(texts) {
   if (!texts || texts.length === 0) return [];
@@ -131,13 +153,11 @@ export async function embedTexts(texts) {
 
   // ── 3. WASM fallback (jinaai/jina-embeddings-v2-small-en) ────────────────
   try {
-    const extractor  = await getLocalExtractor();
-    const embeddings = [];
-    for (const text of cleanTexts) {
+    const extractor = await getLocalExtractor();
+    return Promise.all(cleanTexts.map(async text => {
       const output = await extractor(text, { pooling: 'mean', normalize: true });
-      embeddings.push(Array.from(output.data));
-    }
-    return embeddings;
+      return Array.from(output.data);
+    }));
   } catch (e) {
     console.error('[RAG] Critical: Local Jina WASM extraction failed:', e);
     const dim = await getEmbeddingDimension();
@@ -151,16 +171,13 @@ export async function embedTexts(texts) {
 
 /**
  * SHA-256 of text → stable 32-char hex ID.
- * Identical documents always produce the same ID, so unchanged entries
- * are never re-embedded (incremental indexing pattern).
- *
- * @param {string} text
- * @returns {Promise<string>}
  */
 async function contentHash(text) {
-  const buf    = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  const hex    = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-  return hex.slice(0, 32); // match Python [:32]
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, 32);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -169,11 +186,6 @@ async function contentHash(text) {
 
 /**
  * Split a lore entry's content by double-newline paragraphs.
- * Each child chunk is prefixed with the entry's title and trigger keywords
- * so the embedding captures topic context regardless of paragraph density.
- *
- * @param {{ id: number, title: string, keys: string, content: string }} entry
- * @returns {string[]}
  */
 function splitIntoChildren(entry) {
   const content    = entry.content || '';
@@ -190,11 +202,7 @@ function splitIntoChildren(entry) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Build a compact character summary that answers questions like
- * "Who is Lyra?", "What does Kaelen look like?", "How does Lyra behave?"
- *
- * @param {{ id: number, name: string, personality?: string, scenario?: string, example_dialogue?: string }} char
- * @returns {string}
+ * Build a compact character summary.
  */
 function buildCharacterText(char) {
   const parts = [`[CHARACTER: ${char.name}]`];
@@ -209,11 +217,7 @@ function buildCharacterText(char) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Check whether stored vectors are dimensionally compatible with the current
- * embedding model. If a mismatch is found, the entire embeddings table is
- * cleared so it can be rebuilt on the next sync.
- *
- * @returns {Promise<boolean>} true if a rebuild was triggered
+ * Check whether stored vectors are dimensionally compatible with the current model.
  */
 export async function checkAndRebuildEmbeddingsIfNeeded() {
   const db            = await getDb();
@@ -223,7 +227,7 @@ export async function checkAndRebuildEmbeddingsIfNeeded() {
     "SELECT vector FROM embeddings LIMIT 1"
   );
 
-  if (sampleRows.length === 0) return false; // empty table, no mismatch
+  if (sampleRows.length === 0) return false;
 
   try {
     const rawVector = sampleRows[0].vector;
@@ -233,17 +237,8 @@ export async function checkAndRebuildEmbeddingsIfNeeded() {
       await db.execute('DELETE FROM embeddings');
       return true;
     } else if (rawVector) {
-      const bytes = new Uint8Array(rawVector);
-      let buffer = bytes.buffer;
-      let byteOffset = bytes.byteOffset;
-      if (byteOffset % 4 !== 0) {
-        const aligned = new Uint8Array(bytes.byteLength);
-        aligned.set(bytes);
-        buffer = aligned.buffer;
-        byteOffset = 0;
-      }
-      const floatVec = new Float32Array(buffer, byteOffset, bytes.byteLength / 4);
-      stored = Array.from(floatVec);
+      const floatVec = bytesToFloatArray(rawVector);
+      stored = floatVec ? Array.from(floatVec) : null;
     }
 
     const storedDim = Array.isArray(stored) ? stored.length : 0;
@@ -269,25 +264,15 @@ export async function checkAndRebuildEmbeddingsIfNeeded() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Incrementally sync all active lore entries, characters and chat summaries
- * into the SQLite embeddings table.
- *
- * Algorithm:
- *   • SHA-256 content hash → stable doc ID
- *   • Existing IDs fetched once → skip unchanged (hash match)
- *   • New docs batch-embedded and inserted
- *   • Stale docs (deleted from source) removed from embeddings table
- *
- * @param {{ worldId?: number } | null} options  - optional filter by worldId
- * @returns {Promise<{ added: number, skipped: number, deleted: number }>}
+ * Incrementally sync all active lore entries, characters and chat summaries.
  */
 export async function syncRagIndex(options = {}) {
   const db = await getDb();
 
-  // ── 0. Dimension mismatch check (auto-rebuild if needed) ─────────────────
+  // ── 0. Dimension mismatch check ──────────────────────────────────────────
   await checkAndRebuildEmbeddingsIfNeeded();
 
-  // ── 1. Fetch existing IDs (with resilience fallback) ─────────────────────
+  // ── 1. Fetch existing IDs ────────────────────────────────────────────────
   let existingIds = new Set();
   try {
     const existingRows = await db.select('SELECT id FROM embeddings');
@@ -296,7 +281,7 @@ export async function syncRagIndex(options = {}) {
     console.warn('[RAG] Could not fetch existing embedding IDs, treating as empty:', e);
   }
 
-  const rowsToAdd  = []; // { id, type, source_id, title, text }
+  const rowsToAdd  = [];
   const currentIds = new Set();
 
   // ── 2. Lore entries (parent-child chunking) ───────────────────────────────
@@ -359,9 +344,7 @@ export async function syncRagIndex(options = {}) {
 
     for (let i = 0; i < rowsToAdd.length; i++) {
       const row = rowsToAdd[i];
-      const vec = vectors[i];
-      const float32 = new Float32Array(vec);
-      const bytes = new Uint8Array(float32.buffer, float32.byteOffset, float32.byteLength);
+      const bytes = floatArrayToBytes(vectors[i]);
 
       await db.execute(
         `INSERT INTO embeddings (id, type, source_id, title, text, vector)
@@ -381,7 +364,7 @@ export async function syncRagIndex(options = {}) {
   const skipped = currentIds.size - added;
   console.log(`[RAG] Skipped ${skipped} unchanged document(s).`);
 
-  // ── 6. Remove stale docs (deleted source entries) ─────────────────────────
+  // ── 6. Remove stale docs ──────────────────────────────────────────────────
   const staleIds = [...existingIds].filter(id => !currentIds.has(id));
   let deleted = 0;
   if (staleIds.length > 0) {
@@ -396,12 +379,9 @@ export async function syncRagIndex(options = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 9. Cosine similarity  (unchanged)
+// 9. Cosine similarity
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Compute cosine similarity between two float arrays.
- */
 export function cosineSimilarity(a, b) {
   let dot = 0.0, normA = 0.0, normB = 0.0;
   for (let i = 0; i < a.length; i++) {
@@ -417,20 +397,6 @@ export function cosineSimilarity(a, b) {
 // 10. Semantic retrieval  (matches rag_store.py::retrieve())
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Semantic similarity search over the embeddings table.
- * RAG_DISTANCE_CUTOFF = 0.70 (cosine distance). Similarity >= 0.30 is matched.
- *
- * Mirrors rag_store.py::retrieve() — filter is optional; omitting type/sourceId
- * searches across all document kinds (equivalent to Python's filter_sql=None).
- *
- * @param {string}   query
- * @param {number}   topK         - max results to return (default 5)
- * @param {object}   filter       - optional { type?, sourceId? }
- *                                  type:     "lore" | "character" | "memory"
- *                                  sourceId: numeric string — narrows to one source entity
- * @returns {Promise<Array>}
- */
 export async function retrieveEmbeddings(query, topK = 5, filter = {}) {
   if (!query) return [];
 
@@ -443,12 +409,12 @@ export async function retrieveEmbeddings(query, topK = 5, filter = {}) {
   } else {
     if (typeof query !== 'string' || !query.trim()) return [];
     const queryEmbeddings = await embedTexts([query]);
-    queryVec        = queryEmbeddings[0];
+    queryVec = queryEmbeddings[0];
   }
 
   if (!queryVec) return [];
 
-  // 2. Build optional WHERE clause (pre-filter, like Python's prefilter=True)
+  // 2. Build optional WHERE clause
   let sql    = 'SELECT id, type, source_id, title, text, vector FROM embeddings';
   const params = [];
   const clauses = [];
@@ -469,21 +435,13 @@ export async function retrieveEmbeddings(query, topK = 5, filter = {}) {
       if (typeof row.vector === 'string') {
         rowVec = JSON.parse(row.vector);
       } else if (row.vector) {
-        const bytes = new Uint8Array(row.vector);
-        let buffer = bytes.buffer;
-        let byteOffset = bytes.byteOffset;
-        if (byteOffset % 4 !== 0) {
-          const aligned = new Uint8Array(bytes.byteLength);
-          aligned.set(bytes);
-          buffer = aligned.buffer;
-          byteOffset = 0;
-        }
-        rowVec = new Float32Array(buffer, byteOffset, bytes.byteLength / 4);
+        rowVec = bytesToFloatArray(row.vector);
       } else {
         continue;
       }
-      const sim    = cosineSimilarity(queryVec, rowVec);
-      const dist   = 1.0 - sim;
+      
+      const sim  = cosineSimilarity(queryVec, rowVec);
+      const dist = 1.0 - sim;
 
       if (dist <= 0.70) {
         scoredResults.push({
@@ -501,7 +459,7 @@ export async function retrieveEmbeddings(query, topK = 5, filter = {}) {
     }
   }
 
-  // 5. Sort by relevance (distance ascending = similarity descending)
+  // 5. Sort by relevance
   scoredResults.sort((a, b) => a._distance - b._distance);
 
   // 6. Return topK
@@ -509,32 +467,15 @@ export async function retrieveEmbeddings(query, topK = 5, filter = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 11. Single-document CRUD helpers  (unchanged API surface)
+// 11. Single-document CRUD helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Add or update a single embedding in SQLite.
- *
- * The stable document ID is ALWAYS derived from a SHA-256 content hash of
- * the text — matching rag_indexer.py's _content_hash() pattern.
- * The caller-supplied `id` parameter is ignored; callers should use the
- * returned hash if they need to reference the stored document later.
- *
- * @param {string} _id       - ignored; kept for API backward-compat
- * @param {string} type
- * @param {string} sourceId
- * @param {string} title
- * @param {string} text
- * @returns {Promise<string>} - the stable content-hash ID that was stored
- */
 export async function saveEmbedding(id, type, sourceId, title, text) {
   const db = await getDb();
 
-  // Use custom ID if provided, otherwise fallback to content hash to prevent duplicates
   const stableId  = id || await contentHash(text);
   const embeddings = await embedTexts([text]);
-  const float32 = new Float32Array(embeddings[0]);
-  const bytes = new Uint8Array(float32.buffer, float32.byteOffset, float32.byteLength);
+  const bytes = floatArrayToBytes(embeddings[0]);
 
   await db.execute(
     `INSERT INTO embeddings (id, type, source_id, title, text, vector)
@@ -549,14 +490,12 @@ export async function saveEmbedding(id, type, sourceId, title, text) {
   return stableId;
 }
 
-/** Delete a single embedding by ID. */
 export async function deleteEmbedding(id) {
   const db = await getDb();
   await db.execute('DELETE FROM embeddings WHERE id = ?', [id]);
   return true;
 }
 
-/** Delete all embeddings associated with a source type + sourceId. */
 export async function clearEmbeddings(type, sourceId) {
   const db = await getDb();
   await db.execute('DELETE FROM embeddings WHERE type = ? AND source_id = ?', [type, sourceId]);

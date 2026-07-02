@@ -246,29 +246,10 @@ async function _initDatabaseInternal() {
   // Seed default settings row if empty
   const settingsRows = await db.select("SELECT * FROM settings WHERE id = 1");
   if (settingsRows.length === 0) {
+    const keys = Object.keys(DEFAULT_SETTINGS);
     await db.execute(
-      `INSERT INTO settings (
-        id, provider, openrouter_key, custom_key, local_endpoint, selected_model, 
-        temperature, max_tokens, system_template, cloud_rate_limit, current_profile_id,
-        persona_name, persona_avatar, persona_description, persona_character_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        DEFAULT_SETTINGS.id,
-        DEFAULT_SETTINGS.provider,
-        DEFAULT_SETTINGS.openrouter_key,
-        DEFAULT_SETTINGS.custom_key,
-        DEFAULT_SETTINGS.local_endpoint,
-        DEFAULT_SETTINGS.selected_model,
-        DEFAULT_SETTINGS.temperature,
-        DEFAULT_SETTINGS.max_tokens,
-        DEFAULT_SETTINGS.system_template,
-        DEFAULT_SETTINGS.cloud_rate_limit,
-        DEFAULT_SETTINGS.current_profile_id,
-        DEFAULT_SETTINGS.persona_name,
-        DEFAULT_SETTINGS.persona_avatar,
-        DEFAULT_SETTINGS.persona_description,
-        DEFAULT_SETTINGS.persona_character_id
-      ]
+      `INSERT INTO settings (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`,
+      keys.map(k => DEFAULT_SETTINGS[k])
     );
     console.log("[DB] Seeded default settings.");
   }

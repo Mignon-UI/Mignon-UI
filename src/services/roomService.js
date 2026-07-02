@@ -8,30 +8,23 @@ import * as rag from './rag';
 import { runEfficientSelector } from './turnTaking';
 import { runCognitiveAuction, updateHybridSceneState } from './sceneService';
 
+const formatRoom = r => r ? {
+  id: r.id,
+  name: r.name,
+  is_group: r.is_group,
+  description: r.description,
+  scene_state: r.scene_state,
+  bots: r.members || [],
+  last_message: r.last_message
+} : null;
+
 export async function fetchRooms() {
   const rooms = await crud.getRooms();
-  return rooms.map(r => ({
-    id: r.id,
-    name: r.name,
-    is_group: r.is_group,
-    description: r.description,
-    scene_state: r.scene_state,
-    bots: r.members || [],
-    last_message: r.last_message
-  }));
+  return rooms.map(formatRoom);
 }
 
 export async function createRoom(roomData) {
-  const room = await crud.createRoom(roomData);
-  return {
-    id: room.id,
-    name: room.name,
-    is_group: room.is_group,
-    description: room.description,
-    scene_state: room.scene_state,
-    bots: room.members || [],
-    last_message: room.last_message
-  };
+  return formatRoom(await crud.createRoom(roomData));
 }
 
 export async function deleteRoom(id) {
@@ -89,57 +82,29 @@ export async function updateMessage(msgId, content) {
 
 export async function truncateMessages(roomId, messageId) {
   const { messages, orphanedIds } = await crud.truncateMessages(roomId, messageId);
-  if (orphanedIds && orphanedIds.length > 0) {
-    for (const id of orphanedIds) {
-      await rag.deleteEmbedding(`mem_${id}`);
-    }
+  if (orphanedIds?.length) {
+    await Promise.all(orphanedIds.map(id => rag.deleteEmbedding(`mem_${id}`)));
   }
   return messages;
 }
 
 export async function branchRoom(roomId, messageId) {
   const { room, clonedSummaries } = await crud.branchRoom(roomId, messageId);
-  if (clonedSummaries && clonedSummaries.length > 0) {
-    for (const summ of clonedSummaries) {
+  if (clonedSummaries?.length) {
+    await Promise.all(clonedSummaries.map(summ => {
       const textToEmbed = `[PAST EVENT EPISODE]: ${summ.summary_text}`;
-      await rag.saveEmbedding(`mem_${summ.id}`, "memory", room.id, `Room Memory Episode ${summ.id}`, textToEmbed);
-    }
+      return rag.saveEmbedding(`mem_${summ.id}`, "memory", room.id, `Room Memory Episode ${summ.id}`, textToEmbed);
+    }));
   }
-  return {
-    id: room.id,
-    name: room.name,
-    is_group: room.is_group,
-    description: room.description,
-    scene_state: room.scene_state,
-    bots: room.members || [],
-    last_message: room.last_message
-  };
+  return formatRoom(room);
 }
 
 export async function addRoomMember(roomId, characterId) {
-  const room = await crud.addRoomMember(roomId, characterId);
-  return {
-    id: room.id,
-    name: room.name,
-    is_group: room.is_group,
-    description: room.description,
-    scene_state: room.scene_state,
-    bots: room.members || [],
-    last_message: room.last_message
-  };
+  return formatRoom(await crud.addRoomMember(roomId, characterId));
 }
 
 export async function removeRoomMember(roomId, characterId) {
-  const room = await crud.removeRoomMember(roomId, characterId);
-  return {
-    id: room.id,
-    name: room.name,
-    is_group: room.is_group,
-    description: room.description,
-    scene_state: room.scene_state,
-    bots: room.members || [],
-    last_message: room.last_message
-  };
+  return formatRoom(await crud.removeRoomMember(roomId, characterId));
 }
 
 export async function fetchNextSpeaker(roomId, messageContent = "", mutedIds = "", mode = "efficient") {
@@ -170,17 +135,9 @@ export async function fetchNextSpeaker(roomId, messageContent = "", mutedIds = "
     // User Floor Hunger Check:
     // If the bots have spoken 3 or more times consecutively without the user,
     // yield the floor to the user by returning null.
-    let lastUserIdx = -1;
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].sender_type === "user") {
-        lastUserIdx = i;
-        break;
-      }
-    }
-    let botConsecutiveReplies = messages.length;
-    if (lastUserIdx !== -1) {
-      botConsecutiveReplies = (messages.length - 1) - lastUserIdx;
-    }
+    const lastUserIdx = messages.findLastIndex(m => m.sender_type === "user");
+    const botConsecutiveReplies = lastUserIdx === -1 ? messages.length : messages.length - 1 - lastUserIdx;
+    
     if (botConsecutiveReplies >= 3) {
       console.log(`[TurnTaking] Yielding floor to User (consecutive bot turns: ${botConsecutiveReplies}). Halting chain.`);
       return { next_speaker_id: null };

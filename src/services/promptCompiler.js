@@ -8,111 +8,65 @@ import { retrieveEmbeddings, embedTexts } from './rag';
 const RAG_TOP_K = 5;
 const RAG_DISTANCE_CUTOFF = 0.70;
 
-
+function getMessageContent(m) {
+  let swipes = [];
+  try {
+    swipes = typeof m?.swipes === 'string' ? JSON.parse(m.swipes) : (m?.swipes || []);
+  } catch {}
+  return swipes[m?.active_swipe_index || 0] ?? (m?.content || "");
+}
 
 function cleanRoleplayQuery(text) {
   if (!text) return "";
-  // Remove anything between asterisks, handling multiple * blocks
-  let cleaned = text.replace(/\*+.*?\*+/g, ' ');
-  // Clean up multiple whitespaces
-  cleaned = cleaned.replace(/\s+/g, ' ').trim();
-  // Fallback if the entire turn was an action
-  if (!cleaned) return text;
-  return cleaned;
+  const cleaned = text.replace(/\*+.*?\*+/g, ' ').replace(/\s+/g, ' ').trim();
+  return cleaned || text;
 }
 
 async function expandQueryTopics(rawText, rawContext, worldId) {
-  if (!rawText) return "";
+  if (!rawText || worldId == null) return rawText;
 
   const contextLower = rawContext.toLowerCase();
-  const expansions = [];
+  const expansions = new Set();
 
-  // 1. Dynamic SQLite Lore Triggers for the current World
-  if (worldId !== null && worldId !== undefined) {
-    try {
-      const db = await getDb();
-      const entries = await db.select(
-        "SELECT title, keys FROM lore_entries WHERE world_id = ? AND is_active = 1",
-        [worldId]
-      );
-      for (const entry of entries) {
-        if (!entry.keys) continue;
-        const keys = entry.keys.split(",").map(k => k.trim().toLowerCase()).filter(Boolean);
-        if (keys.some(k => contextLower.includes(k))) {
-          const expansionStr = `${entry.title} ${entry.keys.replace(/,/g, ' ')}`;
-          expansions.push(expansionStr);
-        }
+  try {
+    const db = await getDb();
+    const entries = await db.select(
+      "SELECT title, keys FROM lore_entries WHERE world_id = ? AND is_active = 1",
+      [worldId]
+    );
+    for (const entry of entries) {
+      const keys = entry.keys?.split(",").map(k => k.trim().toLowerCase()).filter(Boolean) || [];
+      if (keys.some(k => contextLower.includes(k))) {
+        expansions.add(`${entry.title} ${entry.keys.replace(/,/g, ' ')}`);
       }
-    } catch (e) {
-      console.warn(`[RAG Dynamic] Error loading LoreEntry expansions for world ${worldId}:`, e);
     }
+  } catch (e) {
+    console.warn(`[RAG Dynamic] Error loading LoreEntry expansions for world ${worldId}:`, e);
   }
 
-  if (expansions.length > 0) {
-    const uniqueExp = Array.from(new Set(expansions));
-    return rawText + " " + uniqueExp.join(" ");
-  }
-
-  return rawText;
+  return expansions.size ? `${rawText} ${[...expansions].join(" ")}` : rawText;
 }
 
 async function buildRagQuery(messages, worldId) {
-  const recentTexts = [];
-  const rawCombined = [];
-
-  const sliceIndex = Math.max(0, messages.length - 3);
-  const recentMsgs = messages.slice(sliceIndex);
-
-  for (const m of recentMsgs) {
-    let swipesList;
-    try {
-      swipesList = typeof m.swipes === 'string' ? JSON.parse(m.swipes) : (m.swipes || []);
-    } catch {
-      swipesList = [];
-    }
-    const idx = m.active_swipe_index || 0;
-    const content = (swipesList && swipesList.length > 0 && idx < swipesList.length) ? swipesList[idx] : (m.content || "");
-    rawCombined.push(content);
-    const cleanedContent = cleanRoleplayQuery(content);
-    recentTexts.push(cleanedContent);
-  }
-
-  const baseQuery = recentTexts.join(" ");
-  const rawContext = rawCombined.join(" ");
-
+  const recentMsgs = messages.slice(-3);
+  const contents = recentMsgs.map(getMessageContent);
+  const baseQuery = contents.map(cleanRoleplayQuery).join(" ");
+  const rawContext = contents.join(" ");
   return expandQueryTopics(baseQuery, rawContext, worldId);
 }
 
 async function retrieveKeywordLore(query) {
-  if (!query || !query.trim()) return [];
-
-  const tokens = query.toLowerCase().match(/\b\w+\b/g);
-  if (!tokens || tokens.length === 0) return [];
+  const tokens = query?.toLowerCase().match(/\b\w+\b/g);
+  if (!tokens) return [];
 
   const tokenSet = new Set(tokens);
   const db = await getDb();
-
   const entries = await db.select("SELECT id, world_id, title, keys, content FROM lore_entries WHERE is_active = 1");
-  const matchedEntries = [];
-
-  for (const entry of entries) {
-    if (!entry.keys) continue;
-    const keys = entry.keys.split(",").map(k => k.trim().toLowerCase()).filter(Boolean);
-    for (const key of keys) {
-      if (key.includes(" ")) {
-        // Multi-word key substring check
-        if (query.toLowerCase().includes(key)) {
-          matchedEntries.push(entry);
-          break;
-        }
-      } else {
-        if (tokenSet.has(key)) {
-          matchedEntries.push(entry);
-          break;
-        }
-      }
-    }
-  }
+  
+  const matchedEntries = entries.filter(entry => {
+    const keys = entry.keys?.split(",").map(k => k.trim().toLowerCase()).filter(Boolean) || [];
+    return keys.some(key => key.includes(" ") ? query.toLowerCase().includes(key) : tokenSet.has(key));
+  });
 
   return matchedEntries.map(entry => ({
     id: `lore_${entry.id}`,
@@ -127,71 +81,39 @@ async function retrieveKeywordLore(query) {
 async function retrieveRelevantContext(query, worldId, queryVec = null) {
   if (!query || !query.trim()) return [];
 
-  // 1. Fetch keyword matching lore from SQLite
   const keywordResults = await retrieveKeywordLore(query);
-
-  // 2. Fetch semantic matches from local RAG (distance <= 0.70)
   let semanticResults = [];
   try {
-    // Isolated by worldId (source_id in embeddings)
     const rawSemantic = await retrieveEmbeddings(queryVec || query, RAG_TOP_K, { type: "lore", sourceId: String(worldId || "") });
     semanticResults = rawSemantic.filter(r => r._distance <= RAG_DISTANCE_CUTOFF);
   } catch (e) {
     console.error("[RAG] Error fetching semantic search results:", e);
   }
 
-  // 3. Merge and Deduplicate Parent IDs
-  const uniqueParentIds = [];
-  const seenParentIds = new Set();
+  const allResults = [...keywordResults, ...semanticResults];
+  const uniqueParentIds = [...new Set(allResults.map(r => parseInt(r.source_id, 10)))].slice(0, RAG_TOP_K);
 
-  for (const r of keywordResults) {
-    const parentId = parseInt(r.source_id);
-    if (!seenParentIds.has(parentId)) {
-      uniqueParentIds.push(parentId);
-      seenParentIds.add(parentId);
-    }
-  }
+  if (uniqueParentIds.length === 0) return [];
 
-  for (const r of semanticResults) {
-    const parentId = parseInt(r.source_id);
-    if (!seenParentIds.has(parentId)) {
-      uniqueParentIds.push(parentId);
-      seenParentIds.add(parentId);
-    }
-  }
+  const db = await getDb();
+  const placeholders = uniqueParentIds.map(() => '?').join(',');
+  const parents = await db.select(
+    `SELECT id, title, keys, content FROM lore_entries WHERE id IN (${placeholders})`,
+    uniqueParentIds
+  );
 
-  const cappedParentIds = uniqueParentIds.slice(0, RAG_TOP_K);
-
-  // 4. Batch query SQLite for full parent lore entries to preserve order
-  const results = [];
-  if (cappedParentIds.length > 0) {
-    const db = await getDb();
-    // SQLite query building IN parameter safely
-    const placeholders = cappedParentIds.map(() => '?').join(',');
-    const parents = await db.select(
-      `SELECT id, title, keys, content FROM lore_entries WHERE id IN (${placeholders})`,
-      cappedParentIds
-    );
-
-    const parentMap = {};
-    parents.forEach(p => { parentMap[p.id] = p; });
-
-    for (const pid of cappedParentIds) {
-      const entry = parentMap[pid];
-      if (entry) {
-        results.push({
-          id: `lore_${entry.id}`,
-          type: "lore",
-          source_id: String(entry.id),
-          title: entry.title,
-          text: `[LORE: ${entry.title}]\nTrigger keywords: ${entry.keys}\n\n${entry.content}`,
-          _distance: 0.0
-        });
-      }
-    }
-  }
-
-  return results;
+  const parentMap = Object.fromEntries(parents.map(p => [p.id, p]));
+  return uniqueParentIds
+    .map(pid => parentMap[pid])
+    .filter(Boolean)
+    .map(entry => ({
+      id: `lore_${entry.id}`,
+      type: "lore",
+      source_id: String(entry.id),
+      title: entry.title,
+      text: `[LORE: ${entry.title}]\nTrigger keywords: ${entry.keys}\n\n${entry.content}`,
+      _distance: 0.0
+    }));
 }
 
 async function retrieveRelevantMemories(query, roomId, queryVec = null) {
@@ -221,13 +143,9 @@ async function resolvePersona(settings) {
 
 async function compilePlayerPersona(settings) {
   const [pName, pDesc] = await resolvePersona(settings);
-  let xml = "<player_persona>\n";
-  xml += `  <name>${pName}</name>\n`;
-  if (pDesc) {
-    xml += `  <persona_backstory>${pDesc}</persona_backstory>\n`;
-  }
-  xml += "</player_persona>\n\n";
-  return xml;
+  return `<player_persona>
+  <name>${pName}</name>${pDesc ? `\n  <persona_backstory>${pDesc}</persona_backstory>` : ''}
+</player_persona>\n\n`;
 }
 
 async function getRecentMessages(roomId, limit = 20) {
@@ -241,79 +159,51 @@ async function getRecentMessages(roomId, limit = 20) {
 }
 
 async function compileRagContext(messages, worldId, roomId) {
-  let relevantChunks = [];
-  let relevantMemories = [];
+  if (!messages.length) return "";
 
-  if (messages.length > 0) {
-    const ragQuery = await buildRagQuery(messages, worldId);
-    
-    // Precompute query embedding once to avoid multiple duplicate network/inference calls
-    let queryVec = null;
-    try {
-      const queryEmbeddings = await embedTexts([ragQuery]);
-      if (queryEmbeddings && queryEmbeddings.length > 0) {
-        queryVec = queryEmbeddings[0];
-      }
-    } catch (e) {
-      console.warn("[RAG] Failed to precompute query embedding:", e);
-    }
-    
-    relevantChunks = await retrieveRelevantContext(ragQuery, worldId, queryVec);
-    relevantMemories = await retrieveRelevantMemories(ragQuery, roomId, queryVec);
+  const ragQuery = await buildRagQuery(messages, worldId);
+  let queryVec = null;
+  try {
+    const queryEmbeddings = await embedTexts([ragQuery]);
+    queryVec = queryEmbeddings?.[0] || null;
+  } catch (e) {
+    console.warn("[RAG] Failed to precompute query embedding:", e);
   }
+
+  const [relevantChunks, relevantMemories] = await Promise.all([
+    retrieveRelevantContext(ragQuery, worldId, queryVec),
+    retrieveRelevantMemories(ragQuery, roomId, queryVec)
+  ]);
 
   let xml = "";
-  if (relevantChunks.length > 0) {
-    xml += "<retrieved_world_lore>\n";
-    for (const chunk of relevantChunks) {
-      xml += `  <lore_entry title="${chunk.title}">\n`;
-      xml += `    ${chunk.text.trim()}\n`;
-      xml += "  </lore_entry>\n";
-    }
-    xml += "</retrieved_world_lore>\n\n";
+  if (relevantChunks.length) {
+    xml += `<retrieved_world_lore>\n${relevantChunks.map(chunk => 
+      `  <lore_entry title="${chunk.title}">\n    ${chunk.text.trim()}\n  </lore_entry>`
+    ).join("\n")}\n</retrieved_world_lore>\n\n`;
   }
 
-  if (relevantMemories.length > 0) {
-    xml += "<retrieved_episodic_memories>\n";
-    for (const mem of relevantMemories) {
-      const cleanText = mem.text.replace("[PAST EVENT EPISODE]: ", "").trim();
-      xml += `  <past_event>${cleanText}</past_event>\n`;
-    }
-    xml += "</retrieved_episodic_memories>\n\n";
+  if (relevantMemories.length) {
+    xml += `<retrieved_episodic_memories>\n${relevantMemories.map(mem => 
+      `  <past_event>${mem.text.replace("[PAST EVENT EPISODE]: ", "").trim()}</past_event>`
+    ).join("\n")}\n</retrieved_episodic_memories>\n\n`;
   }
   return xml;
 }
 
 function compileCharacterProfile(bot) {
-  let xml = "<character_profile>\n";
-  xml += `  <name>${bot.name}</name>\n`;
-  if (bot.personality) {
-    xml += `  <personality_description>${bot.personality}</personality_description>\n`;
-  }
-  if (bot.scenario) {
-    xml += `  <scenario_situation>${bot.scenario}</scenario_situation>\n`;
-  }
-  xml += "</character_profile>\n\n";
-  return xml;
+  return `<character_profile>
+  <name>${bot.name}</name>${bot.personality ? `\n  <personality_description>${bot.personality}</personality_description>` : ''}${bot.scenario ? `\n  <scenario_situation>${bot.scenario}</scenario_situation>` : ''}
+</character_profile>\n\n`;
 }
 
 function compileOtherGroupMembers(roomBots, targetBotId) {
-  let xml = "";
-  if (roomBots.length > 1) {
-    xml += "<group_chat_members>\n";
-    for (const bot of roomBots) {
-      if (bot.id !== targetBotId) {
-        xml += "  <member_character>\n";
-        xml += `    <name>${bot.name}</name>\n`;
-        if (bot.personality) {
-          xml += `    <persona>${bot.personality.slice(0, 300)}...</persona>\n`;
-        }
-        xml += "  </member_character>\n";
-      }
-    }
-    xml += "</group_chat_members>\n\n";
-  }
-  return xml;
+  const others = roomBots.filter(b => b.id !== targetBotId);
+  if (!others.length) return "";
+
+  return `<group_chat_members>\n${others.map(bot => `  <member_character>
+    <name>${bot.name}</name>${bot.personality ? `\n    <persona>${bot.personality.slice(0, 300)}...</persona>` : ''}
+  </member_character>`).join("\n")}
+</group_chat_members>\n\n`;
 }
 
 function compileActiveSceneBoard(sceneState, targetBotId = null) {
@@ -321,30 +211,24 @@ function compileActiveSceneBoard(sceneState, targetBotId = null) {
   try {
     const stateDict = typeof sceneState === 'string' ? JSON.parse(sceneState) : sceneState;
     if (!stateDict || Object.keys(stateDict).length === 0) return "";
+    
     const env = stateDict.environment || {};
-    let xml = "<active_scene_board>\n";
-    xml += `  <location>${env.location || 'Main Room'}</location>\n`;
-    if (env.atmosphere) {
-      xml += `  <atmosphere>${env.atmosphere}</atmosphere>\n`;
-    }
-    xml += "  <character_statuses>\n";
+    let xml = `<active_scene_board>
+  <location>${env.location || 'Main Room'}</location>${env.atmosphere ? `\n  <atmosphere>${env.atmosphere}</atmosphere>` : ''}
+  <character_statuses>\n`;
 
     for (const [charIdStr, status] of Object.entries(stateDict)) {
       if (charIdStr === "environment" || charIdStr === "active_motivation" || !status || typeof status !== 'object') continue;
-      const name = status.name || "Unknown";
-      const action = status.action || "Idle / Standing by";
-      const loc = status.location || "Main Room";
-      const mood = status.mood || "neutral";
-
-      const namePrefix = (targetBotId !== null && charIdStr === String(targetBotId)) ? "You" : name;
-      xml += `    <character_status name="${namePrefix}">\n`;
-      xml += `      <location>${loc}</location>\n`;
-      xml += `      <current_action>${action}</current_action>\n`;
-      xml += `      <mood>${mood}</mood>\n`;
-      xml += "    </character_status>\n";
+      
+      const namePrefix = (targetBotId !== null && charIdStr === String(targetBotId)) ? "You" : (status.name || "Unknown");
+      xml += `    <character_status name="${namePrefix}">
+      <location>${status.location || "Main Room"}</location>
+      <current_action>${status.action || "Idle / Standing by"}</current_action>
+      <mood>${status.mood || "neutral"}</mood>
+    </character_status>\n`;
     }
-    xml += "  </character_statuses>\n";
-    xml += "</active_scene_board>\n\n";
+    
+    xml += "  </character_statuses>\n</active_scene_board>\n\n";
     return xml;
   } catch (e) {
     console.warn("[Prompt Compiler] Failed to parse scene_state:", e);
@@ -353,16 +237,12 @@ function compileActiveSceneBoard(sceneState, targetBotId = null) {
 }
 
 function compileMotivationDirective(sceneState) {
-  if (!sceneState) return "";
   try {
-    const sState = typeof sceneState === 'string' ? JSON.parse(sceneState) : sceneState;
-    const motivation = sState.active_motivation;
-    if (motivation) {
-      return `  <immediate_private_motivation>Your immediate private motivation for speaking right now: "${motivation}". Let this naturally guide the direction of your next dialogue turn.</immediate_private_motivation>\n`;
+    const sState = typeof sceneState === 'string' ? JSON.parse(sceneState) : (sceneState || {});
+    if (sState.active_motivation) {
+      return `  <immediate_private_motivation>Your immediate private motivation for speaking right now: "${sState.active_motivation}". Let this naturally guide the direction of your next dialogue turn.</immediate_private_motivation>\n`;
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
   return "";
 }
 
@@ -373,7 +253,6 @@ export async function compileSystemPrompt(roomId, targetBot, settings) {
   // 1. Resolve room members
   const members = await db.select("SELECT character_id FROM room_members WHERE room_id = ?", [roomId]);
   const charIds = members.map(m => m.character_id);
-  
   const personaId = settings?.persona_character_id || null;
 
   // Load characters
@@ -392,10 +271,8 @@ export async function compileSystemPrompt(roomId, targetBot, settings) {
   // 2. Global room scenario
   const roomRows = await db.select("SELECT description, scene_state FROM chat_sessions WHERE id = ?", [roomId]);
   const room = roomRows[0] || null;
-  if (room && room.description) {
-    systemPrompt += "<global_room_scenario>\n";
-    systemPrompt += `  ${room.description}\n`;
-    systemPrompt += "</global_room_scenario>\n\n";
+  if (room?.description) {
+    systemPrompt += `<global_room_scenario>\n  ${room.description}\n</global_room_scenario>\n\n`;
   }
 
   // 3. Other group-chat members
@@ -440,32 +317,20 @@ export async function compileJointMultiAgentPrompt(roomId, candidates, settings)
   const [pName] = await resolvePersona(settings);
 
   // 1. Static Prompt Prefix
-  const sysTpl = (candidates.length > 0 && candidates[0].system_prompt) ? candidates[0].system_prompt : (settings?.system_template || "");
+  const sysTpl = candidates[0]?.system_prompt || settings?.system_template || "";
   let systemPrompt = `${sysTpl}\n\n`;
 
   // 2. Roster profiles of candidates
-  systemPrompt += "<candidate_roster>\n";
-  for (const bot of candidates) {
-    systemPrompt += `  <character id="${bot.id}">\n`;
-    systemPrompt += `    <name>${bot.name}</name>\n`;
-    if (bot.personality) {
-      systemPrompt += `    <personality_description>${bot.personality.slice(0, 300)}...</personality_description>\n`;
-    }
-    if (bot.scenario) {
-      systemPrompt += `    <scenario_situation>${bot.scenario.slice(0, 200)}...</scenario_situation>\n`;
-    }
-    systemPrompt += "  </character>\n";
-  }
-  systemPrompt += "</candidate_roster>\n\n";
+  systemPrompt += `<candidate_roster>\n${candidates.map(bot => `  <character id="${bot.id}">
+    <name>${bot.name}</name>${bot.personality ? `\n    <personality_description>${bot.personality.slice(0, 300)}...</personality_description>` : ''}${bot.scenario ? `\n    <scenario_situation>${bot.scenario.slice(0, 200)}...</scenario_situation>` : ''}
+  </character>`).join("\n")}\n</candidate_roster>\n\n`;
 
   const roomRows = await db.select("SELECT description, scene_state FROM chat_sessions WHERE id = ?", [roomId]);
   const room = roomRows[0] || null;
 
   // 3. Global room scenario
-  if (room && room.description) {
-    systemPrompt += "<global_room_scenario>\n";
-    systemPrompt += `  ${room.description}\n`;
-    systemPrompt += "</global_room_scenario>\n\n";
+  if (room?.description) {
+    systemPrompt += `<global_room_scenario>\n  ${room.description}\n</global_room_scenario>\n\n`;
   }
 
   // 4. Player Persona
@@ -473,11 +338,11 @@ export async function compileJointMultiAgentPrompt(roomId, candidates, settings)
 
   // ── Semi-Static Prompt Middle (RAG) ──
   const messages = await getRecentMessages(roomId, 20);
-  const worldId = candidates.length > 0 ? candidates[0].world_id : null;
+  const worldId = candidates[0]?.world_id || null;
   systemPrompt += await compileRagContext(messages, worldId, roomId);
 
   // ── Dynamic Prompt Suffix ──
-  if (room && room.scene_state) {
+  if (room?.scene_state) {
     systemPrompt += compileActiveSceneBoard(room.scene_state, null);
   }
 
@@ -495,7 +360,6 @@ export async function compileJointMultiAgentPrompt(roomId, candidates, settings)
   systemPrompt += "  <directive>At the absolute end of the character's response, after all dialogue and actions, you MUST decide who should speak next in the room and output a next speaker XML tag exactly as shown below:\n";
   systemPrompt += "  `<next_speaker id=\"NEXT_CHARACTER_ID\">` or `<next_speaker id=\"user\">` if the conversation should pause for user input.\n";
   systemPrompt += "  Replace NEXT_CHARACTER_ID with the exact numeric ID string of the active character from the roster who should speak next. Do not write any dialogue or actions after this tag.</directive>\n";
-
   systemPrompt += "</system_instructions>";
 
   return systemPrompt;
@@ -506,7 +370,7 @@ export async function formatChatHistory(roomId, targetBot, settings = null, excl
 
   let queryStr = "SELECT id, sender_type, character_id, sender_name, content, swipes, active_swipe_index FROM messages WHERE room_id = ?";
   const params = [roomId];
-  if (excludeFrom !== null && excludeFrom !== undefined) {
+  if (excludeFrom != null) {
     queryStr += " AND id < ?";
     params.push(excludeFrom);
   }
@@ -520,46 +384,26 @@ export async function formatChatHistory(roomId, targetBot, settings = null, excl
   // Resolve room members
   const members = await db.select("SELECT character_id FROM room_members WHERE room_id = ?", [roomId]);
   const charIds = members.map(m => m.character_id);
-  let roomBots = [];
-  if (charIds.length > 0) {
-    const placeholders = charIds.map(() => '?').join(',');
-    roomBots = await db.select(`SELECT * FROM characters WHERE id IN (${placeholders})`, charIds);
-  }
+  const roomBots = charIds.length
+    ? await db.select(`SELECT * FROM characters WHERE id IN (${charIds.map(() => '?').join(',')})`, charIds)
+    : [];
 
-  let lastSpeakerName = null;
-  if (messages.length > 0) {
-    const lastMsg = messages[messages.length - 1];
-    lastSpeakerName = lastMsg.sender_type === "user" ? pName : lastMsg.sender_name;
-  }
+  const lastMsg = messages[messages.length - 1];
+  const lastSpeakerName = lastMsg ? (lastMsg.sender_type === "user" ? pName : lastMsg.sender_name) : null;
 
-  let historyStr = "";
-  for (const m of messages) {
-    let swipesList;
-    try {
-      swipesList = typeof m.swipes === 'string' ? JSON.parse(m.swipes) : (m.swipes || []);
-    } catch {
-      swipesList = [];
-    }
-    const idx = m.active_swipe_index || 0;
-    const mContent = (swipesList && swipesList.length > 0 && idx < swipesList.length) ? swipesList[idx] : (m.content || "");
-    if (m.sender_type === "user") {
-      historyStr += `${pName}: ${mContent}\n\n`;
-    } else {
-      historyStr += `${m.sender_name}: ${mContent}\n\n`;
-    }
-  }
+  let historyStr = messages.map(m => {
+    const sender = m.sender_type === "user" ? pName : m.sender_name;
+    return `${sender}: ${getMessageContent(m)}`;
+  }).join("\n\n") + "\n\n";
 
   if (lastSpeakerName && lastSpeakerName !== targetBot.name) {
-    const isGroup = roomBots.length > 1;
-    if (isGroup) {
+    if (roomBots.length > 1) {
       const othersPresent = roomBots
         .filter(b => b.id !== targetBot.id && b.name !== lastSpeakerName)
         .map(b => b.name);
-      if (lastSpeakerName !== pName) {
-        othersPresent.push(pName);
-      }
-      const othersStr = othersPresent.join(", ");
-      historyStr += `(${targetBot.name} is now responding in the group setting, reacting particularly to ${lastSpeakerName}'s latest statement, while remaining fully aware of ${othersStr} listening and present...)\n`;
+      if (lastSpeakerName !== pName) othersPresent.push(pName);
+      
+      historyStr += `(${targetBot.name} is now responding in the group setting, reacting particularly to ${lastSpeakerName}'s latest statement, while remaining fully aware of ${othersPresent.join(", ")} listening and present...)\n`;
     } else {
       historyStr += `(${targetBot.name} is now responding to ${pName}...)\n`;
     }
