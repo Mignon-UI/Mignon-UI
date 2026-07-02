@@ -60,7 +60,6 @@ export async function getProfiles() {
 
 export async function createProfile(name) {
   const db = await getDb();
-  // Fetch settings ID 1 to duplicate current settings into profile
   const settings = await getSettings();
   await db.execute(
     `INSERT INTO connection_profiles (
@@ -180,7 +179,6 @@ export async function createCharacter(char) {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     serializeCharacterParams(char)
   );
-  // Get last inserted character
   const rows = await db.select("SELECT * FROM characters ORDER BY id DESC LIMIT 1");
   return deserializeCharacter(rows[0]);
 }
@@ -215,28 +213,23 @@ export async function getRooms() {
      LEFT JOIN messages m ON m.id = (SELECT MAX(id) FROM messages WHERE room_id = s.id)
      ORDER BY last_msg_id DESC, s.created_at DESC`
   );
-  const result = [];
-  for (const s of sessions) {
-    // Load members
+  return Promise.all(sessions.map(async s => {
     const members = await db.select(
       `SELECT c.* FROM characters c 
        JOIN room_members rm ON c.id = rm.character_id 
        WHERE rm.room_id = ?`,
       [s.id]
     );
-    const parsedMembers = members.map(deserializeCharacter);
-    const lastMessage = s.last_msg_id > 0 ? {
-      sender_name: s.last_msg_sender,
-      content: s.last_msg_content
-    } : null;
-    result.push({
+    return {
       ...s,
       is_group: s.is_group === 1,
-      members: parsedMembers,
-      last_message: lastMessage
-    });
-  }
-  return result;
+      members: members.map(deserializeCharacter),
+      last_message: s.last_msg_id > 0 ? {
+        sender_name: s.last_msg_sender,
+        content: s.last_msg_content
+      } : null
+    };
+  }));
 }
 
 export async function createRoom(room) {
@@ -246,53 +239,38 @@ export async function createRoom(room) {
     `INSERT INTO chat_sessions (id, name, is_group, description, scene_state) VALUES (?, ?, ?, ?, ?)`,
     [id, room.name, room.is_group ? 1 : 0, room.description || null, room.scene_state || '{}']
   );
-  // Add members
+
   if (room.character_ids && Array.isArray(room.character_ids)) {
-    for (const cid of room.character_ids) {
-      await db.execute(`INSERT OR IGNORE INTO room_members (room_id, character_id) VALUES (?, ?)`, [id, cid]);
-    }
+    await Promise.all(room.character_ids.map(cid =>
+      db.execute(`INSERT OR IGNORE INTO room_members (room_id, character_id) VALUES (?, ?)`, [id, cid])
+    ));
   }
 
-  // Seed character greetings as the first messages in individual 1-on-1 chats
+  // Seed character greetings in 1-on-1 chats
   if (!room.is_group && room.character_ids && room.character_ids.length > 0) {
     for (const cid of room.character_ids) {
       const charRows = await db.select("SELECT * FROM characters WHERE id = ?", [cid]);
       if (charRows.length > 0) {
         const bot = charRows[0];
-        const greetings = bot.greeting ? [bot.greeting] : [];
         let altGreetings = [];
         try {
           altGreetings = typeof bot.alternate_greetings === 'string'
             ? JSON.parse(bot.alternate_greetings || '[]')
             : (bot.alternate_greetings || []);
-        } catch {
-          // ignore
-        }
-        for (const alt of altGreetings) {
-          if (alt && alt.trim() && !greetings.includes(alt)) {
-            greetings.push(alt);
-          }
-        }
+        } catch { }
+
+        const greetings = [...new Set([bot.greeting, ...altGreetings])].map(g => g?.trim()).filter(Boolean);
         if (greetings.length > 0) {
           await db.execute(
             `INSERT INTO messages (room_id, sender_type, character_id, sender_name, content, swipes, active_swipe_index)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [
-              id,
-              "character",
-              bot.id,
-              bot.name,
-              greetings[0],
-              JSON.stringify(greetings),
-              0
-            ]
+            [id, "character", bot.id, bot.name, greetings[0], JSON.stringify(greetings), 0]
           );
         }
       }
     }
   }
 
-  // Load new room
   const rooms = await getRooms();
   return rooms.find(r => r.id === id);
 }
@@ -312,19 +290,20 @@ export async function deleteRoom(id) {
   return true;
 }
 
-// Room Members Junction
-export async function addRoomMember(roomId, characterId) {
-  const db = await getDb();
-  await db.execute(`INSERT OR IGNORE INTO room_members (room_id, character_id) VALUES (?, ?)`, [roomId, characterId]);
-
-  // Update is_group dynamically based on bots count (excluding persona character)
+// Room Members Junction Helpers
+async function updateRoomGroupStatus(db, roomId) {
   const settings = await getSettings();
   const personaId = settings?.persona_character_id || null;
   const members = await db.select("SELECT character_id FROM room_members WHERE room_id = ?", [roomId]);
   const activeBots = members.filter(m => m.character_id !== personaId);
   const shouldBeGroup = activeBots.length > 1 ? 1 : 0;
   await db.execute("UPDATE chat_sessions SET is_group = ? WHERE id = ?", [shouldBeGroup, roomId]);
+}
 
+export async function addRoomMember(roomId, characterId) {
+  const db = await getDb();
+  await db.execute(`INSERT OR IGNORE INTO room_members (room_id, character_id) VALUES (?, ?)`, [roomId, characterId]);
+  await updateRoomGroupStatus(db, roomId);
   const rooms = await getRooms();
   return rooms.find(r => r.id === roomId);
 }
@@ -332,37 +311,32 @@ export async function addRoomMember(roomId, characterId) {
 export async function removeRoomMember(roomId, characterId) {
   const db = await getDb();
   await db.execute(`DELETE FROM room_members WHERE room_id = ? AND character_id = ?`, [roomId, characterId]);
-
-  // Update is_group dynamically based on bots count (excluding persona character)
-  const settings = await getSettings();
-  const personaId = settings?.persona_character_id || null;
-  const members = await db.select("SELECT character_id FROM room_members WHERE room_id = ?", [roomId]);
-  const activeBots = members.filter(m => m.character_id !== personaId);
-  const shouldBeGroup = activeBots.length > 1 ? 1 : 0;
-  await db.execute("UPDATE chat_sessions SET is_group = ? WHERE id = ?", [shouldBeGroup, roomId]);
-
+  await updateRoomGroupStatus(db, roomId);
   const rooms = await getRooms();
   return rooms.find(r => r.id === roomId);
 }
 
 // Messages
+function deserializeMessage(m) {
+  if (!m) return null;
+  let swipes = [];
+  try {
+    swipes = typeof m.swipes === 'string'
+      ? JSON.parse(m.swipes || '[]')
+      : (m.swipes || []);
+  } catch (e) {
+    console.error(`[DB] Failed to parse swipes for message ${m.id}:`, e);
+  }
+  return {
+    ...m,
+    swipes: Array.isArray(swipes) ? swipes : []
+  };
+}
+
 export async function getRoomMessages(roomId) {
   const db = await getDb();
   const rows = await db.select("SELECT * FROM messages WHERE room_id = ? ORDER BY id ASC", [roomId]);
-  return rows.map(r => {
-    let swipes = [];
-    try {
-      swipes = typeof r.swipes === 'string'
-        ? JSON.parse(r.swipes || '[]')
-        : (r.swipes || []);
-    } catch (e) {
-      console.error(`[DB] Failed to parse swipes for message ${r.id}:`, e);
-    }
-    return {
-      ...r,
-      swipes: Array.isArray(swipes) ? swipes : []
-    };
-  });
+  return rows.map(deserializeMessage);
 }
 
 export async function createMessage(msg) {
@@ -381,35 +355,16 @@ export async function createMessage(msg) {
     ]
   );
   const rows = await db.select("SELECT * FROM messages WHERE room_id = ? ORDER BY id DESC LIMIT 1", [msg.room_id]);
-  const m = rows[0];
-  let swipes = [];
-  try {
-    swipes = typeof m.swipes === 'string'
-      ? JSON.parse(m.swipes || '[]')
-      : (m.swipes || []);
-  } catch (e) {
-    console.error(`[DB] Failed to parse swipes for created message ${m?.id}:`, e);
-  }
-  return {
-    ...m,
-    swipes: Array.isArray(swipes) ? swipes : []
-  };
+  return deserializeMessage(rows[0]);
 }
 
 export async function updateMessage(id, content) {
   const db = await getDb();
-  // First load message to get swipes
   const msgRows = await db.select("SELECT * FROM messages WHERE id = ?", [id]);
   if (msgRows.length === 0) throw new Error("Message not found");
-  const m = msgRows[0];
-  let swipes = [];
-  try {
-    swipes = typeof m.swipes === 'string'
-      ? JSON.parse(m.swipes || '[]')
-      : (m.swipes || []);
-  } catch (e) {
-    console.error(`[DB] Failed to parse swipes for message ${id} update:`, e);
-  }
+  const m = deserializeMessage(msgRows[0]);
+
+  const swipes = m.swipes;
   const idx = m.active_swipe_index || 0;
   if (swipes.length > 0 && idx < swipes.length) {
     swipes[idx] = content;
@@ -439,7 +394,6 @@ export async function swipeMessage(roomId, msgId, newIndex) {
 export async function truncateMessages(roomId, messageId) {
   const db = await getDb();
 
-  // 1. Fetch and clean up episodic summaries that cover deleted messages
   const orphanedSummaries = await db.select(
     "SELECT id FROM chat_summaries WHERE room_id = ? AND end_message_id > ?",
     [roomId, messageId]
@@ -452,25 +406,20 @@ export async function truncateMessages(roomId, messageId) {
     await db.execute(`DELETE FROM chat_summaries WHERE id IN (${placeholders})`, orphanedIds);
   }
 
-  // 2. Delete messages after the target message
   await db.execute("DELETE FROM messages WHERE room_id = ? AND id > ?", [roomId, messageId]);
-
   const messages = await getRoomMessages(roomId);
   return { messages, orphanedIds };
 }
 
 export async function branchRoom(roomId, messageId) {
   const db = await getDb();
-  // 1. Fetch room details
   const roomRows = await db.select("SELECT * FROM chat_sessions WHERE id = ?", [roomId]);
   if (roomRows.length === 0) throw new Error("Room not found");
   const originalRoom = roomRows[0];
 
-  // 2. Fetch room members
   const members = await db.select("SELECT character_id FROM room_members WHERE room_id = ?", [roomId]);
   const charIds = members.map(m => m.character_id);
 
-  // 3. Create branched room
   const newRoomId = crypto.randomUUID();
   const branchedRoomName = `${originalRoom.name} (Branched)`;
 
@@ -479,11 +428,10 @@ export async function branchRoom(roomId, messageId) {
     [newRoomId, branchedRoomName, originalRoom.is_group, originalRoom.description, originalRoom.scene_state]
   );
 
-  for (const cid of charIds) {
-    await db.execute(`INSERT INTO room_members (room_id, character_id) VALUES (?, ?)`, [newRoomId, cid]);
-  }
+  await Promise.all(charIds.map(cid =>
+    db.execute(`INSERT INTO room_members (room_id, character_id) VALUES (?, ?)`, [newRoomId, cid])
+  ));
 
-  // 4. Copy messages up to and including messageId
   const messagesToCopy = await db.select(
     "SELECT * FROM messages WHERE room_id = ? AND id <= ? ORDER BY id ASC",
     [roomId, messageId]
@@ -491,9 +439,7 @@ export async function branchRoom(roomId, messageId) {
 
   const msgIdMap = {};
   for (const m of messagesToCopy) {
-    const safeSwipes = typeof m.swipes === 'string'
-      ? m.swipes
-      : JSON.stringify(m.swipes || []);
+    const safeSwipes = typeof m.swipes === 'string' ? m.swipes : JSON.stringify(m.swipes || []);
     await db.execute(
       `INSERT INTO messages (room_id, sender_type, character_id, sender_name, content, swipes, active_swipe_index, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -505,7 +451,6 @@ export async function branchRoom(roomId, messageId) {
     }
   }
 
-  // 5. Copy all episodic memory summaries up to and including the target message
   const origSummaries = await db.select(
     "SELECT * FROM chat_summaries WHERE room_id = ? AND end_message_id <= ? ORDER BY id ASC",
     [roomId, messageId]
@@ -525,7 +470,6 @@ export async function branchRoom(roomId, messageId) {
     }
   }
 
-  // 6. Load the newly created branched room details
   const rooms = await getRooms();
   const room = rooms.find(r => r.id === newRoomId);
   return { room, clonedSummaries };
@@ -622,8 +566,7 @@ export async function deleteLore(id) {
 // UI Stickers
 export async function getStickers() {
   const db = await getDb();
-  const rows = await db.select("SELECT * FROM ui_stickers ORDER BY created_at ASC");
-  return rows;
+  return db.select("SELECT * FROM ui_stickers ORDER BY created_at ASC");
 }
 
 export async function createSticker(sticker) {
