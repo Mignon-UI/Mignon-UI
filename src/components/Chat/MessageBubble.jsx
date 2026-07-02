@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { User as UserIcon, ChevronLeft, ChevronRight, RefreshCw, Trash2, MoreVertical, Copy, ArrowRightCircle, GitBranch as BranchIcon, Pencil, Check, X as XIcon } from 'lucide-react';
 import { formatRoleplayText, getBotAccent, getBotAvatarUrl } from '../../utils/textFormatter';
 
+const transparentBtnStyle = { background: 'transparent', border: 'none', padding: '4px', cursor: 'pointer', color: 'inherit', opacity: 0.7 };
+
 const MessageBubble = React.memo(({
   m,
   activeRoomBots,
@@ -149,8 +151,6 @@ const MessageBubble = React.memo(({
     }
     setShowMenu(false);
   };
-
-  const transparentBtnStyle = { background: 'transparent', border: 'none', padding: '4px', cursor: 'pointer', color: 'inherit', opacity: 0.7 };
 
   return (
     <div className={`msg-bubble-wrapper ${isUser ? 'user animate-fade-in' : 'bot'}${!isFirstInGroup ? ' is-consecutive' : ''}`}>

@@ -14,7 +14,7 @@ export async function runCognitiveAuction(roomId, messageContent, eligibleBots, 
   }
 
   const db = await getDb();
-  
+
   // 1. Read scene_state to check for next_speaker_id
   let nextSpeakerId = null;
   const rooms = await db.select("SELECT scene_state FROM chat_sessions WHERE id = ?", [roomId]);
@@ -23,7 +23,7 @@ export async function runCognitiveAuction(roomId, messageContent, eligibleBots, 
     try {
       stateDict = JSON.parse(rooms[0].scene_state);
       nextSpeakerId = stateDict.next_speaker_id;
-      
+
       // Delete next_speaker_id immediately so it is consumed only once
       if (nextSpeakerId !== undefined) {
         delete stateDict.next_speaker_id;
@@ -44,11 +44,11 @@ export async function runCognitiveAuction(roomId, messageContent, eligibleBots, 
     const candidate = eligibleBots.find(b => b.id === nextId);
     if (candidate) {
       console.log(`[Cognitive] Turn Hinting awarded floor to: ${candidate.name} (ID: ${nextId})`);
-      
+
       // Update active motivation in scene state
       stateDict["active_motivation"] = `Selected by LLM turn hinting to speak next.`;
       await db.execute("UPDATE chat_sessions SET scene_state = ? WHERE id = ?", [JSON.stringify(stateDict), roomId]);
-      
+
       return nextId;
     }
   }
@@ -60,7 +60,7 @@ export async function runCognitiveAuction(roomId, messageContent, eligibleBots, 
     const winnerBot = eligibleBots.find(b => b.id === fallbackWinnerId);
     const wName = winnerBot ? winnerBot.name : "Unknown";
     console.log(`[Cognitive] Fallback awarded floor to: ${wName} (ID: ${fallbackWinnerId})`);
-    
+
     stateDict["active_motivation"] = "Participating in active conversation turns (Fallback).";
     await db.execute("UPDATE chat_sessions SET scene_state = ? WHERE id = ?", [JSON.stringify(stateDict), roomId]);
   }
@@ -69,11 +69,11 @@ export async function runCognitiveAuction(roomId, messageContent, eligibleBots, 
 
 function extractPhysicalAction(replyContent) {
   if (!replyContent) return "";
-  
+
   // Match single asterisks
   const matches = replyContent.match(/\*(.*?)\*/g);
   if (!matches) return "";
-  
+
   const cleanedActions = [];
   for (const match of matches) {
     const cleaned = match.replace(/\*/g, "").trim();

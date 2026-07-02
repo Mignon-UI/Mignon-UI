@@ -14,14 +14,17 @@ import { getWallpaperById } from '../../utils/chatWallpapers';
 import { LOCAL_STORAGE_PREFIX } from '../../config';
 
 function ChatHeader({ activeRoom, activeRoomBots, isMenuOpen, setIsMenuOpen, ui, chat, showConfirm }) {
+  const menuItems = [
+    { label: 'Start New Chat', icon: <MessageSquarePlus size={14} style={{ color: 'var(--pink)' }} />, onClick: () => chat.handleStartNewChat(activeRoom, activeRoomBots, ui.setActiveModal, ui.setActiveTab, ui.setActiveWorldDetail) },
+    { label: 'Change Persona', icon: <Sparkles size={14} style={{ color: 'var(--pink)' }} />, onClick: () => ui.setActiveModal('persona-picker') },
+    { label: 'Edit Background', icon: <Palette size={14} style={{ color: 'var(--pink)' }} />, onClick: () => ui.setActiveModal('chat-theme') },
+    { label: 'Delete Chat', icon: <Trash2 size={14} />, className: 'danger', onClick: () => chat.handleDeleteActiveRoom(showConfirm) }
+  ];
+
   return (
     <header className="chat-header">
       <div className="chat-info">
-        <button
-          className="mobile-back-btn"
-          title="Back to List"
-          onClick={() => chat.setCurrentRoomId(null)}
-        >
+        <button className="mobile-back-btn" title="Back to List" onClick={() => chat.setCurrentRoomId(null)}>
           <ArrowLeft size={16} />
         </button>
         <div id="chat-room-avatars" className="avatar-stack">
@@ -33,79 +36,24 @@ function ChatHeader({ activeRoom, activeRoomBots, isMenuOpen, setIsMenuOpen, ui,
         </div>
         <div className="chat-titles">
           <h2 id="chat-room-name">{activeRoom.name}</h2>
-          {activeRoom.is_group && (
-            <span id="chat-room-subtitle">
-              {activeRoomBots.length} Bots active
-            </span>
-          )}
+          {activeRoom.is_group && <span id="chat-room-subtitle">{activeRoomBots.length} Bots active</span>}
         </div>
       </div>
       <div className="header-actions">
-        <button
-          id="btn-view-memories"
-          className="icon-btn"
-          title="View Smart Memory Book"
-          onClick={() => ui.setActiveModal('memories')}
-        >
+        <button id="btn-view-memories" className="icon-btn" title="View Smart Memory Book" onClick={() => ui.setActiveModal('memories')}>
           <Scroll size={16} />
         </button>
-
-        {/* 3-Dot Options Dropdown */}
         <div className="chat-menu-wrapper" style={{ position: 'relative' }}>
-          <button
-            id="btn-chat-options"
-            className={`icon-btn ${isMenuOpen ? 'active' : ''}`}
-            title="Chat Options"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsMenuOpen(!isMenuOpen);
-            }}
-          >
+          <button id="btn-chat-options" className={`icon-btn ${isMenuOpen ? 'active' : ''}`} title="Chat Options" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}>
             <MoreVertical size={16} />
           </button>
-
           {isMenuOpen && (
             <div className="chat-actions-dropdown glassmorphism">
-              <button
-                type="button"
-                className="dropdown-item"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  chat.handleStartNewChat(activeRoom, activeRoomBots, ui.setActiveModal, ui.setActiveTab, ui.setActiveWorldDetail);
-                }}
-              >
-                <MessageSquarePlus size={14} style={{ color: 'var(--pink)' }} /> Start New Chat
-              </button>
-              <button
-                type="button"
-                className="dropdown-item"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  ui.setActiveModal('persona-picker');
-                }}
-              >
-                <Sparkles size={14} style={{ color: 'var(--pink)' }} /> Change Persona
-              </button>
-              <button
-                type="button"
-                className="dropdown-item"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  ui.setActiveModal('chat-theme');
-                }}
-              >
-                <Palette size={14} style={{ color: 'var(--pink)' }} /> Edit Background
-              </button>
-              <button
-                type="button"
-                className="dropdown-item danger"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  chat.handleDeleteActiveRoom(showConfirm);
-                }}
-              >
-                <Trash2 size={14} /> Delete Chat
-              </button>
+              {menuItems.map((item, idx) => (
+                <button key={idx} type="button" className={`dropdown-item ${item.className || ''}`} onClick={() => { setIsMenuOpen(false); item.onClick(); }}>
+                  {item.icon} {item.label}
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -203,6 +151,20 @@ function ReplyOrderOption({ modeId, activeModeId, title, subtitle, icon, onClick
   );
 }
 
+const DEFAULT_THEME_CONFIG = {
+  themeId: 'theme-default',
+  useStaticColor: false,
+  bgColor: '',
+  strokeColor: '',
+  opacity: 10,
+  useCustomBgImage: false,
+  bgImage: null,
+  bgImageOriginal: null,
+  bgImageOpacity: 100,
+  bgImageFill: 'cover',
+  vignette: 40
+};
+
 export default function ChatView() {
   const chat = useChatContext();
   const { chatHistoryRef, chatTextareaRef } = chat;
@@ -215,19 +177,7 @@ export default function ChatView() {
   const [isOrderMenuOpen, setIsOrderMenuOpen] = React.useState(false);
 
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const [themeConfig, setThemeConfig] = React.useState({
-    themeId: 'theme-default',
-    useStaticColor: false,
-    bgColor: '',
-    strokeColor: '',
-    opacity: 10,
-    useCustomBgImage: false,
-    bgImage: null,
-    bgImageOriginal: null,
-    bgImageOpacity: 100,
-    bgImageFill: 'cover',
-    vignette: 40
-  });
+  const [themeConfig, setThemeConfig] = React.useState(DEFAULT_THEME_CONFIG);
 
   React.useEffect(() => {
     if (chat.activeRoom?.id) {
@@ -239,19 +189,7 @@ export default function ChatView() {
           console.error("Failed to parse theme config:", e);
         }
       } else {
-        setThemeConfig({
-          themeId: 'theme-default',
-          useStaticColor: false,
-          bgColor: '',
-          strokeColor: '',
-          opacity: 10,
-          useCustomBgImage: false,
-          bgImage: null,
-          bgImageOriginal: null,
-          bgImageOpacity: 100,
-          bgImageFill: 'cover',
-          vignette: 40
-        });
+        setThemeConfig(DEFAULT_THEME_CONFIG);
       }
     }
   }, [chat.activeRoom?.id]);
@@ -271,55 +209,28 @@ export default function ChatView() {
     const styles = {};
     if (!chat.activeRoom) return styles;
 
-    // 1. Background Image & Opacity & Fill Method
     if (themeConfig.useCustomBgImage && themeConfig.bgImage) {
       styles.backgroundImage = `url("${themeConfig.bgImage}")`;
-
-      const opacityVal = themeConfig.bgImageOpacity !== undefined ? themeConfig.bgImageOpacity / 100 : 1;
-      styles.opacity = opacityVal.toString();
+      styles.opacity = (themeConfig.bgImageOpacity !== undefined ? themeConfig.bgImageOpacity / 100 : 1).toString();
 
       const fill = themeConfig.bgImageFill || 'cover';
-      if (fill === 'tile') {
-        styles.backgroundSize = 'auto';
-        styles.backgroundRepeat = 'repeat';
-        styles.backgroundPosition = 'top left';
-      } else if (fill === 'stretch') {
-        styles.backgroundSize = '100% 100%';
-        styles.backgroundRepeat = 'no-repeat';
-        styles.backgroundPosition = 'center';
-      } else if (fill === 'contain') {
-        styles.backgroundSize = 'contain';
-        styles.backgroundRepeat = 'no-repeat';
-        styles.backgroundPosition = 'center';
-      } else {
-        styles.backgroundSize = 'cover';
-        styles.backgroundRepeat = 'no-repeat';
-        styles.backgroundPosition = 'center';
-      }
+      const fillPresets = {
+        tile: { backgroundSize: 'auto', backgroundRepeat: 'repeat', backgroundPosition: 'top left' },
+        stretch: { backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' },
+        contain: { backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' },
+        cover: { backgroundSize: 'cover', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }
+      };
+      Object.assign(styles, fillPresets[fill] || fillPresets.cover);
     } else if (themeConfig.themeId === 'none') {
       styles.backgroundImage = 'none';
       styles.opacity = '1';
-    } else if (themeConfig.themeId && themeConfig.themeId !== 'theme-default') {
-      const selectedWallpaper = getWallpaperById(themeConfig.themeId);
-      if (selectedWallpaper) {
-        const strokeColor = themeConfig.strokeColor || selectedWallpaper.defaultColor;
-        const strokeOpacity = (themeConfig.opacity !== undefined ? themeConfig.opacity : 10) / 100;
-        const svgContent = selectedWallpaper.svg(strokeColor, strokeOpacity);
-
-        styles.backgroundImage = `url("data:image/svg+xml,${encodeURIComponent(svgContent)}")`;
-        styles.opacity = '1';
-        styles.backgroundRepeat = 'repeat';
-        styles.backgroundSize = '160px 160px';
-        styles.backgroundPosition = '0 0';
-      }
     } else {
-      // theme-default override using current UI theme Design Doodles
-      const currentUiTheme = ui.themeDesign;
-      const activeWallpaper = getWallpaperById(currentUiTheme);
-      if (activeWallpaper) {
-        const strokeColor = themeConfig.strokeColor || activeWallpaper.defaultColor;
+      const wallpaperId = (themeConfig.themeId && themeConfig.themeId !== 'theme-default') ? themeConfig.themeId : ui.themeDesign;
+      const wallpaper = getWallpaperById(wallpaperId);
+      if (wallpaper) {
+        const strokeColor = themeConfig.strokeColor || wallpaper.defaultColor;
         const strokeOpacity = (themeConfig.opacity !== undefined ? themeConfig.opacity : 10) / 100;
-        const svgContent = activeWallpaper.svg(strokeColor, strokeOpacity);
+        const svgContent = wallpaper.svg(strokeColor, strokeOpacity);
 
         styles.backgroundImage = `url("data:image/svg+xml,${encodeURIComponent(svgContent)}")`;
         styles.opacity = '1';
@@ -329,7 +240,6 @@ export default function ChatView() {
       }
     }
 
-    // 2. Vignette box shadow
     const vignetteStrength = themeConfig.vignette !== undefined ? themeConfig.vignette : 40;
     styles.boxShadow = `inset 0 0 ${vignetteStrength}px rgba(0, 0, 0, 0.45)`;
 
@@ -360,6 +270,13 @@ export default function ChatView() {
     setIsOrderMenuOpen(!isOrderMenuOpen);
     setIsAddPickerOpen(false);
   };
+
+  const replyOrderModes = [
+    { id: 'auto', title: 'Auto (Hybrid Mode)', subtitle: 'Proximity boosts & constraints', icon: <ChevronUp size={14} /> },
+    { id: 'cognitive', title: 'Intelligence (Cognitive)', subtitle: 'Single-call LLM mind auction', icon: <ChevronUp size={14} style={{ transform: 'rotate(90deg)' }} /> },
+    { id: 'efficient', title: 'Efficient (Math Model)', subtitle: 'Fast sacks model, zero overhead', icon: <ChevronUp size={14} style={{ transform: 'rotate(180deg)' }} /> },
+    { id: null, title: 'Manual (Click Roster)', subtitle: 'Choose speaker manually', icon: <UserIcon size={14} /> }
+  ];
 
   if (!chat.activeRoom) return null;
 
@@ -598,52 +515,21 @@ export default function ChatView() {
                       zIndex: 9999,
                     }}
                   >
-                    <div className="dropup-header">Next Speaker Mode</div>
                     <div className="dropup-list">
-                      <ReplyOrderOption
-                        modeId="auto"
-                        activeModeId={chat.selectedTriggerBotId}
-                        title="Auto (Hybrid Mode)"
-                        subtitle="Proximity boosts & constraints"
-                        icon={<ChevronUp size={14} />}
-                        onClick={() => {
-                          chat.setSelectedTriggerBotId('auto');
-                          setIsOrderMenuOpen(false);
-                        }}
-                      />
-                      <ReplyOrderOption
-                        modeId="cognitive"
-                        activeModeId={chat.selectedTriggerBotId}
-                        title="Intelligence (Cognitive)"
-                        subtitle="Single-call LLM mind auction"
-                        icon={<ChevronUp size={14} style={{ transform: 'rotate(90deg)' }} />}
-                        onClick={() => {
-                          chat.setSelectedTriggerBotId('cognitive');
-                          setIsOrderMenuOpen(false);
-                        }}
-                      />
-                      <ReplyOrderOption
-                        modeId="efficient"
-                        activeModeId={chat.selectedTriggerBotId}
-                        title="Efficient (Math Model)"
-                        subtitle="Fast sacks model, zero overhead"
-                        icon={<ChevronUp size={14} style={{ transform: 'rotate(180deg)' }} />}
-                        onClick={() => {
-                          chat.setSelectedTriggerBotId('efficient');
-                          setIsOrderMenuOpen(false);
-                        }}
-                      />
-                      <ReplyOrderOption
-                        modeId={null}
-                        activeModeId={chat.selectedTriggerBotId}
-                        title="Manual (Click Roster)"
-                        subtitle="Choose speaker manually"
-                        icon={<UserIcon size={14} />}
-                        onClick={() => {
-                          chat.setSelectedTriggerBotId(null);
-                          setIsOrderMenuOpen(false);
-                        }}
-                      />
+                      {replyOrderModes.map(mode => (
+                        <ReplyOrderOption
+                          key={mode.id}
+                          modeId={mode.id}
+                          activeModeId={chat.selectedTriggerBotId}
+                          title={mode.title}
+                          subtitle={mode.subtitle}
+                          icon={mode.icon}
+                          onClick={() => {
+                            chat.setSelectedTriggerBotId(mode.id);
+                            setIsOrderMenuOpen(false);
+                          }}
+                        />
+                      ))}
                     </div>
                   </div>
                 )}
