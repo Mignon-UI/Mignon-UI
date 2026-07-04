@@ -145,7 +145,9 @@ export async function getDb() {
               const bytes = new Uint8Array(buffer, 0, 4);
               useLocalWasm = bytes.length === 4 && [0x00, 0x61, 0x73, 0x6d].every((val, idx) => bytes[idx] === val);
             }
-          } catch {}
+          } catch {
+            // Ignore fetch errors and fallback to default useLocalWasm = false
+          }
 
           if (!useLocalWasm) {
             throw new Error("Local SQLite WASM file was not found or is invalid. CDN fallback is disabled for security compliance.");

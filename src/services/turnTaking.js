@@ -77,7 +77,7 @@ function parseCharacterStatus(bioLower) {
   return match ? statusDict[match] : 5;
 }
 
-function calculateComfortLevels(bioLower, otherNames, assertiveness, neuroticism) {
+function calculateComfortLevels(bioLower, otherNames, assertiveness) {
   const rules = [
     [/\bbest\s+friend(?:s)?\s+(?:with|of)\s+X\b/i, 0.95],
     [/\bclosest\s+to\s+X\b/i, 0.95],
@@ -130,7 +130,7 @@ function parseCharacterBio(bio, otherNames) {
     silenceDiscomfort: 0.7 * traits.extraversion + 0.3 * traits.neuroticism,
     slc: traits.neuroticism,
     status: parseCharacterStatus(bioLower),
-    comfort: calculateComfortLevels(bioLower, otherNames, traits.assertiveness, traits.neuroticism)
+    comfort: calculateComfortLevels(bioLower, otherNames, traits.assertiveness)
   };
 }
 

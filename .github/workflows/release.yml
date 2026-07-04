@@ -79,7 +79,7 @@ jobs:
       - name: Create Windows Portable ZIP
         if: matrix.platform == 'windows-latest'
         run: |
-          Rename-Item -Path "src-tauri/target/release/app.exe" -NewName "Mignon UI.exe"
+          Rename-Item -Path "src-tauri/target/release/mignon-ui.exe" -NewName "Mignon UI.exe"
           Compress-Archive -Path "src-tauri/target/release/Mignon UI.exe" -DestinationPath "src-tauri/target/release/Mignon_UI_windows_portable.zip"
         shell: powershell
 
