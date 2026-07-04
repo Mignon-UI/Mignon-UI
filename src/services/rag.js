@@ -24,11 +24,6 @@ import { decryptKey } from './llmClient';
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function normalizeVector(v) {
-  const norm = Math.sqrt(v.reduce((sum, val) => sum + val * val, 0));
-  return norm === 0 ? v : v.map(val => val / norm);
-}
-
 function bytesToFloatArray(rawBytes) {
   if (!rawBytes) return null;
   const bytes = new Uint8Array(rawBytes);
