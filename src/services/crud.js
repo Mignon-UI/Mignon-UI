@@ -257,7 +257,9 @@ export async function createRoom(room) {
           altGreetings = typeof bot.alternate_greetings === 'string'
             ? JSON.parse(bot.alternate_greetings || '[]')
             : (bot.alternate_greetings || []);
-        } catch { }
+        } catch {
+          // Ignore parsing errors for invalid alternate greetings format
+        }
 
         const greetings = [...new Set([bot.greeting, ...altGreetings])].map(g => g?.trim()).filter(Boolean);
         if (greetings.length > 0) {

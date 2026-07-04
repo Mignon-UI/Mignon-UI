@@ -12,7 +12,9 @@ function getMessageContent(m) {
   let swipes = [];
   try {
     swipes = typeof m?.swipes === 'string' ? JSON.parse(m.swipes) : (m?.swipes || []);
-  } catch {}
+  } catch {
+    // Ignore JSON parse errors for message swipes fallback
+  }
   return swipes[m?.active_swipe_index || 0] ?? (m?.content || "");
 }
 
@@ -242,7 +244,9 @@ function compileMotivationDirective(sceneState) {
     if (sState.active_motivation) {
       return `  <immediate_private_motivation>Your immediate private motivation for speaking right now: "${sState.active_motivation}". Let this naturally guide the direction of your next dialogue turn.</immediate_private_motivation>\n`;
     }
-  } catch {}
+  } catch {
+    // Ignore JSON parse errors for active motivation scene state
+  }
   return "";
 }
 
