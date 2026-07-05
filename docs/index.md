@@ -2,7 +2,7 @@
 
 Welcome to the official developer and user documentation suite for **Mignon UI**—the ultra-premium, offline-first local AI roleplay sandbox. 
 
-This project is engineered to provide fully private, uncensored, and deeply immersive multi-agent storytelling, specifically optimized to run at maximum throughput on standard consumer hardware setups (such as gaming laptops with **6GB VRAM and 16GB RAM** footprints).
+This project is engineered to provide fully private, uncensored, and deeply immersive multi-agent storytelling, specifically optimized to run at maximum throughput on standard consumer hardware setups.
 
 ---
 
@@ -29,7 +29,6 @@ graph TD
     Index --> Group[group_chat.md: Turn-Taking & Scene Boards]
     Index --> Stickers[stickers.md: Experimental Decals Canvas]
     Index --> Design[design_system.md: Themes & CSS design system]
-    Index --> Opt[optimization.md: 6GB Hardware Tuning Guide]
     
     %% Node Styling Definitions
     style Index fill:#d4af37,stroke:#000,stroke-width:2px,color:#000,rx:8px,ry:8px
@@ -39,7 +38,6 @@ graph TD
     style Group fill:#e67e22,stroke:#000,stroke-width:1.5px,color:#fff,rx:6px,ry:6px
     style Stickers fill:#1abc9c,stroke:#000,stroke-width:1.5px,color:#fff,rx:6px,ry:6px
     style Design fill:#e74c3c,stroke:#000,stroke-width:1.5px,color:#fff,rx:6px,ry:6px
-    style Opt fill:#f1c40f,stroke:#000,stroke-width:2px,color:#000,rx:8px,ry:8px
     
     %% Connection Lines Class overrides
     linkStyle default stroke:#000,stroke-width:1.5px;
@@ -73,9 +71,6 @@ graph TD
 * **What's Covered**: Neobrutalist design tokens CSS architectures, dynamic HSL variable injections, and breakdowns of all 7 premium themes (Bubblegum Pop, Neo-Cyber, Dollhouse, Builder, Mignon UI Classic, Dark Yellow, and Sketch Book).
 * **Best For**: Styling custom UI additions or coding your own custom HSL color-presets layout overrides.
 
-### ⚡ [7. 6GB VRAM Laptop Tuning Guide (optimization.md)](optimization.md)
-* **What's Covered**: VRAM budget partitioning configurations, CUDA hardware allocations, smart context shift sliding windows, and KV cache quantization sizes.
-* **Best For**: Running heavy 8B models (Llama-3) on mid-tier hardware with fluid speeds (20+ tokens/sec).
 
 ---
 
