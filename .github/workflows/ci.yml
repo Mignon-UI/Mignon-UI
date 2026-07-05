@@ -61,7 +61,7 @@ jobs:
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 
       - name: Cargo Clippy (lints & check)
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --no-deps -- -D warnings
 
       - name: Cargo Audit (vulnerability scan)
         uses: actions-rust-lang/audit@v1
