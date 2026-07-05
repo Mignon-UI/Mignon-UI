@@ -20,12 +20,16 @@ jobs:
         include:
           - platform: 'macos-latest'
             args: '--target universal-apple-darwin'
+            container: ''
           - platform: 'ubuntu-22.04'
             args: ''
+            container: 'ghcr.io/mignon-ui/mignon-ui-ci-runner:latest'
           - platform: 'windows-latest'
             args: ''
+            container: ''
 
     runs-on: ${{ matrix.platform }}
+    container: ${{ matrix.container || null }}
     env:
       CARGO_INCREMENTAL: 0
       CARGO_TERM_COLOR: always
@@ -34,12 +38,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Node.js
+        if: matrix.container == ''
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
 
       - name: Install Rust stable
+        if: matrix.container == ''
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
@@ -50,7 +56,7 @@ jobs:
           workspaces: src-tauri -> target
 
       - name: Install system dependencies (Linux only)
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.platform == 'ubuntu-22.04' && matrix.container == ''
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -59,6 +65,15 @@ jobs:
             libssl-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev
+
+      - name: Cache Node modules (Linux only)
+        if: matrix.platform == 'ubuntu-22.04'
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Install frontend dependencies
         run: npm ci
