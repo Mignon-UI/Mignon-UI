@@ -6,7 +6,7 @@ Mignon UI features a customizable, gamified user interface layer: the **Interact
 
 ## 🎨 Viewport Overlay Architecture
 
-The decals canvas operates as an absolute-positioned React viewport overlay managed inside [UIStickerCanvas.jsx](../src/components/UIStickers/UIStickerCanvas.jsx).
+The decals canvas operates as an absolute-positioned React viewport overlay managed inside [UIStickerCanvas.jsx](../src/components/Layout/UIStickerCanvas.jsx).
 
 ```mermaid
 graph LR

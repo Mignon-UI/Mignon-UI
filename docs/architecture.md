@@ -10,41 +10,41 @@ The diagram below maps how the frontend React views communicate with the local J
 
 ```mermaid
 graph TB
-26:      %% Core Client Interface
-27:      subgraph Client Layer [Vite React Client Shell]
-28:          UI[React Viewport Components] -->|Action Dispatch| Contexts[React Context Providers]
-29:          Contexts -->|State Management| UI
-30:      end
-31:  
-32:      %% Local JS Service Core
-33:      subgraph Service Core [Local Service Layer]
-34:          Contexts -->|Unified Calls| API[services/api.js]
-35:          API -->|Init/Query SQL| DB[services/db.js]
-36:          API -->|WASM / API Embeddings| RAG[services/rag.js]
-37:          API -->|Coordinate Turn Auction| TES[services/turnTaking.js]
-38:          API -->|Compile Prompt Frames| Compiler[services/promptCompiler.js]
-39:          API -->|Tavern Card Parsing| Parser[services/tavernParser.js]
-40:          API -->|CORS-Free HTTP Clients| LLM[services/llmClient.js]
-41:      end
-42:  
-43:      %% Tauri IPC & Native Bridge
-44:      subgraph Tauri Bridge [Tauri v2 IPC Core]
-45:          DB -->|@tauri-apps/plugin-sql| SQLPlugin[Native SQLite Plugin]
-46:          LLM -->|@tauri-apps/plugin-http| HTTPPlugin[Native HTTP Client]
-47:          LLM -->|Tauri Custom Invoke| RustCrypto[Rust Cryptographic Module]
-48:      end
-49:  
-50:      %% Storage Grid
-51:      subgraph Storage Grid [Offline Storage]
-52:          SQLPlugin -->|Read/Write WAL| SQLite[(SQLite: data.db)]
-53:          RAG -->|Store Float Vectors| SQLite
-54:          RustCrypto -->|Key Storage| SecretFile[(AppData: secret.key)]
-55:      end
-56:  
-57:      %% Inference Grid
-58:      subgraph Inference Grid [Execution Kernels]
-59:          HTTPPlugin -->|Bypass CORS| ExternalLLM[Ollama / OpenRouter / Custom Endpoint]
-60:      end
+    %% Core Client Interface
+    subgraph Client Layer [Vite React Client Shell]
+        UI[React Viewport Components] -->|Action Dispatch| Contexts[React Context Providers]
+        Contexts -->|State Management| UI
+    end
+
+    %% Local JS Service Core
+    subgraph Service Core [Local Service Layer]
+        Contexts -->|Unified Calls| API[services/api.js]
+        API -->|Init/Query SQL| DB[services/db.js]
+        API -->|WASM / API Embeddings| RAG[services/rag.js]
+        API -->|Coordinate Turn Auction| TES[services/turnTaking.js]
+        API -->|Compile Prompt Frames| Compiler[services/promptCompiler.js]
+        API -->|Tavern Card Parsing| Parser[services/tavernParser.js]
+        API -->|CORS-Free HTTP Clients| LLM[services/llmClient.js]
+    end
+
+    %% Tauri IPC & Native Bridge
+    subgraph Tauri Bridge [Tauri v2 IPC Core]
+        DB -->|@tauri-apps/plugin-sql| SQLPlugin[Native SQLite Plugin]
+        LLM -->|@tauri-apps/plugin-http| HTTPPlugin[Native HTTP Client]
+        LLM -->|Tauri Custom Invoke| RustCrypto[Rust Cryptographic Module]
+    end
+
+    %% Storage Grid
+    subgraph Storage Grid [Offline Storage]
+        SQLPlugin -->|Read/Write WAL| SQLite[(SQLite: data.db)]
+        RAG -->|Store Float Vectors| SQLite
+        RustCrypto -->|Key Storage| SecretFile[(AppData: secret.key)]
+    end
+
+    %% Inference Grid
+    subgraph Inference Grid [Execution Kernels]
+        HTTPPlugin -->|Bypass CORS| ExternalLLM[Ollama / OpenRouter / Custom Endpoint]
+    end
 ```
 
 ---
@@ -186,7 +186,7 @@ Similarity matching is computed client-side using a high-performance JS cosine s
 | **`source_id`** | `TEXT` | Isolation tags matching either Room UUID or World Lore ID. |
 | **`title`** | `TEXT` | Header label mapping summaries or codex titles. |
 | **`text`** | `TEXT` | The raw text chunk analyzed by the embedding engine. |
-| **`vector`** | `TEXT` | JSON-serialized float array representing the high-dimensional vector. |
+| **`vector`** | `BLOB` | Binary float array (Float32Array byte representation) representing the high-dimensional vector. |
 
 > [!TIP]
 > **Semantic Isolation Layer**: To prevent private memory leaks between separate chat sessions, SQLite vector fetches restrict candidates via: `SELECT * FROM embeddings WHERE type = 'memory' AND source_id = '{room_id}'`. The resulting vectors are evaluated in memory, which runs in <1ms for active rooms (typically containing <200 vectors).
