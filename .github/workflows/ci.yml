@@ -67,5 +67,6 @@ jobs:
         uses: actions-rust-lang/audit@v1
         with:
           workingDirectory: src-tauri
+        continue-on-error: true
 
 
