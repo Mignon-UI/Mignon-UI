@@ -77,7 +77,7 @@ To prevent "hallucinated context" or irrelevant noise, cosine distance filters (
 
 ## ⚡ KV Prefix Caching Optimization
 
-For standard 6GB VRAM setups, processing system prompts with large history matrices causes huge generation delays (Time-to-First-Token lag). Mignon UI solves this by enforcing strict **Prefix Caching Layouts** inside [promptCompiler.js](../src/services/promptCompiler.js).
+Processing system prompts with large history matrices can cause generation delays (Time-to-First-Token lag) on standard consumer hardware. Mignon UI solves this by enforcing strict **Prefix Caching Layouts** inside [promptCompiler.js](../src/services/promptCompiler.js).
 
 Prefix caching allows LLM engines (like Kobold.cpp or Ollama) to lock compiled key-value pairs in memory as long as the prompt prefix remains identical.
 

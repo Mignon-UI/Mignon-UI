@@ -2,7 +2,7 @@
   "name": "mignon-ui",
   "private": true,
   "license": "AGPL-3.0-only",
-  "version": "1.0.1-beta",
+  "version": "1.0.0-beta",
   "type": "module",
   "scripts": {
     "start": "tauri dev",
