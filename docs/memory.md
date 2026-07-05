@@ -31,9 +31,9 @@ graph TD
     
     CheckProvider -->|openrouter| EmbedOpenRouter[Query OpenRouter text-embedding-3-small]
     CheckProvider -->|ollama / kobold| EmbedLocalAPI[Query local Ollama/Kobold /embeddings endpoint]
-    CheckProvider -->|default / fallback| EmbedWASM[Load @huggingface/transformers inside browser worker]
+    CheckProvider -->|default / fallback| EmbedWASM[Load @huggingface/transformers locally in Webview]
 
-    EmbedOpenRouter -->|Success| SQLite[(Write vector JSON to SQLite)]
+    EmbedOpenRouter -->|Success| SQLite[(Write vector BLOB to SQLite)]
     EmbedLocalAPI -->|Success| SQLite
     EmbedWASM -->|jina-embeddings-v2-small-en| SQLite
 

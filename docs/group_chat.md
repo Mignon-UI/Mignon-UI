@@ -54,7 +54,7 @@ Where:
 
 ### 1. Willingness ($W_i$)
 Tracks social drive adjusted by overall group comfort and active mood.
-$$W_i = (E_{xt} \times A_{ss}) \times C_i \times \text{mood\_factor}$$
+$$W_i = (E_{xt} \times A_{ss}) \times C_i \times \text{mood\textunderscore factor}$$
 
 The **Comfort Multiplier ($C_i$)** determines how safe the character feels in the current group:
 $$C_i = \max(0.1, \; 1.0 - [\text{slc}_i \cdot (1 - c^{\min}_i) + (1 - \text{slc}_i) \cdot (1 - \bar{c}_i)])$$
@@ -62,12 +62,12 @@ $$C_i = \max(0.1, \; 1.0 - [\text{slc}_i \cdot (1 - c^{\min}_i) + (1 - \text{slc
 
 ### 2. Topic Engagement ($E_i$)
 Measures keyword overlap between the last message and the character card biography to calculate topic relevance.
-$$E_i = \max(\text{Keyword Overlap Ratio}(\text{last\_message}, \; \text{bio}), \; 0.5)$$
+$$E_i = \max(\text{Keyword Overlap Ratio}(\text{last\textunderscore message}, \; \text{bio}), \; 0.5)$$
 Calculated via a fast, sub-millisecond local token overlap matcher. No slow embedding models or network API calls required, ensuring optimal client performance and battery efficiency.
 
 ### 3. Silence-Breaking Boost ($B_i$)
 Escalates dynamically as silence stretches ($\tau$ in seconds) past the threshold ($T_{\text{sil}} = 1.5$ s):
-$$B_i = 1.0 + \text{silence\_discomfort}_i \times (\tau - T_{\text{sil}}) \times 0.5 \quad (\text{if } \tau \ge T_{\text{sil}})$$
+$$B_i = 1.0 + \text{silence\textunderscore discomfort}_i \times (\tau - T_{\text{sil}}) \times 0.5 \quad (\text{if } \tau \ge T_{\text{sil}})$$
 *Extroverts and anxious characters who hate awkward pauses eventually force themselves to break the silence.*
 
 ### 4. Selection Boost ($\mathbf{1}_{\text{sel}}(i)$)

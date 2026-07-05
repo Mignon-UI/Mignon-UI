@@ -56,7 +56,7 @@ graph TD
 * **Best For**: Understanding the relational schema mapping, cascading database constraints, and vector coordinate arrays.
 
 ### 🧠 [3. Semantic RAG & Smart Memory (memory.md)](memory.md)
-* **What's Covered**: Asynchronous milestone summaries compilation, multi-tiered embedding pipeline (OpenRouter, local API offload, browser-worker WASM Jina v2 fallback), client-side JS cosine similarity RAG, and prompt prefix KV cache layouts.
+* **What's Covered**: Asynchronous milestone summaries compilation, multi-tiered embedding pipeline (OpenRouter, local API offload, local WASM Jina v2 fallback), client-side JS cosine similarity RAG, and prompt prefix KV cache layouts.
 * **Best For**: Configuring long-term character memories and squeezing fast evaluation speeds (<150ms) out of massive contexts.
 
 ### 🎭 [4. Lobbies & Cognitive Turn Allocation (group_chat.md)](group_chat.md)
