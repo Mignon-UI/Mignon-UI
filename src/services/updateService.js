@@ -13,7 +13,9 @@ const GITHUB_TRACKING_URL = 'https://github.com/Mignon-UI/Mignon-UI/releases/lat
  */
 export async function checkForUpdates(force = false) {
   const now = Date.now();
-  const lastCheck = Number(localStorage.getItem('mignon_last_update_check')) || 0;  if (force || now - lastCheck >= 24 * 60 * 60 * 1000) {
+  const lastCheck = Number(localStorage.getItem('mignon_last_update_check')) || 0;
+
+  if (force || now - lastCheck >= 24 * 60 * 60 * 1000) {
     safeFetch(GITHUB_TRACKING_URL, { method: 'GET', mode: 'no-cors' }).catch(() => {});
     localStorage.setItem('mignon_last_update_check', now.toString());
   }
