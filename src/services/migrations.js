@@ -1,19 +1,91 @@
 import { getDb } from './db';
 import { DEFAULT_SETTINGS, DEFAULT_CHARACTERS } from './seedData';
 
+const isTauri = typeof window !== 'undefined' && (!!window.__TAURI_IPC__ || !!window.__TAURI_INTERNALS__);
+
+// ponytail: backup is only run for Tauri environments, browser WASM skipped
+async function backupDatabase() {
+  if (!isTauri) return;
+  try {
+    const { appLocalDataDir, join } = await import('@tauri-apps/api/path');
+    const { copyFile, exists } = await import('@tauri-apps/plugin-fs');
+    const dataDir = await appLocalDataDir();
+    const dbPath = await join(dataDir, 'data.db');
+    const backupPath = await join(dataDir, 'data.db.backup');
+
+    if (await exists(dbPath)) {
+      await copyFile(dbPath, backupPath);
+      console.log("[DB Migration] Created database backup at data.db.backup");
+    }
+  } catch (e) {
+    console.error("[DB Migration] Failed to create database backup:", e);
+  }
+}
+
+async function restoreDatabase() {
+  if (!isTauri) return;
+  try {
+    const { appLocalDataDir, join } = await import('@tauri-apps/api/path');
+    const { copyFile, exists } = await import('@tauri-apps/plugin-fs');
+    const dataDir = await appLocalDataDir();
+    const dbPath = await join(dataDir, 'data.db');
+    const backupPath = await join(dataDir, 'data.db.backup');
+
+    if (await exists(backupPath)) {
+      await copyFile(backupPath, dbPath);
+      console.log("[DB Migration] Restored database from data.db.backup");
+    }
+  } catch (e) {
+    console.error("[DB Migration] Failed to restore database backup:", e);
+  }
+}
+
+async function cleanBackup() {
+  if (!isTauri) return;
+  try {
+    const { appLocalDataDir, join } = await import('@tauri-apps/api/path');
+    const { remove, exists } = await import('@tauri-apps/plugin-fs');
+    const dataDir = await appLocalDataDir();
+    const backupPath = await join(dataDir, 'data.db.backup');
+
+    if (await exists(backupPath)) {
+      await remove(backupPath);
+      console.log("[DB Migration] Cleaned up data.db.backup");
+    }
+  } catch (e) {
+    console.error("[DB Migration] Failed to clean up database backup:", e);
+  }
+}
+
 async function migrateTableColumns(db, tableName, expectedCols) {
   try {
     const info = await db.select(`PRAGMA table_info(${tableName})`);
     const existing = info.map(c => c.name.toLowerCase());
+    const columnsToAdd = [];
     for (const [colName, colDef] of Object.entries(expectedCols)) {
       if (!existing.includes(colName.toLowerCase())) {
-        console.log(`[DB Migration] Adding column ${colName} to table ${tableName}...`);
-        // fallow-ignore-next-line security-sink
-        await db.execute(`ALTER TABLE ${tableName} ADD COLUMN ${colName} ${colDef}`);
+        columnsToAdd.push({ name: colName, def: colDef });
+      }
+    }
+
+    if (columnsToAdd.length > 0) {
+      // ponytail: alter table operations are rolled back atomically on error
+      await db.execute("BEGIN TRANSACTION;");
+      try {
+        for (const col of columnsToAdd) {
+          console.log(`[DB Migration] Adding column ${col.name} to table ${tableName}...`);
+          // fallow-ignore-next-line security-sink
+          await db.execute(`ALTER TABLE ${tableName} ADD COLUMN ${col.name} ${col.def}`);
+        }
+        await db.execute("COMMIT;");
+      } catch (e) {
+        await db.execute("ROLLBACK;");
+        throw e;
       }
     }
   } catch (e) {
     console.error(`[DB Migration] Failed to migrate table ${tableName}:`, e);
+    throw e;
   }
 }
 
@@ -21,14 +93,25 @@ let initDatabasePromise = null;
 
 export async function initDatabase() {
   if (!initDatabasePromise) {
-    initDatabasePromise = _initDatabaseInternal();
+    initDatabasePromise = (async () => {
+      await backupDatabase();
+      try {
+        await _initDatabaseInternal();
+        await cleanBackup();
+      } catch (err) {
+        console.error("[DB Migration] Migration failed. Restoring backup...", err);
+        await restoreDatabase();
+        initDatabasePromise = null;
+        throw err;
+      }
+    })();
   }
   return initDatabasePromise;
 }
 
 async function _initDatabaseInternal() {
   const db = await getDb();
-  await db.execute("PRAGMA foreign_keys = ON;");
+  await db.execute("PRAGMA foreign_keys = OFF;");
 
   // 1. Settings Table
   await db.execute(`
@@ -296,4 +379,5 @@ async function _initDatabaseInternal() {
       console.log(`[DB] Seeded default character: ${char.name}`);
     }
   }
+  await db.execute("PRAGMA foreign_keys = ON;");
 }
