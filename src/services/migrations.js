@@ -1,62 +1,6 @@
 import { getDb } from './db';
 import { DEFAULT_SETTINGS, DEFAULT_CHARACTERS } from './seedData';
 
-const isTauri = typeof window !== 'undefined' && (!!window.__TAURI_IPC__ || !!window.__TAURI_INTERNALS__);
-
-// ponytail: backup is only run for Tauri environments, browser WASM skipped
-async function backupDatabase() {
-  if (!isTauri) return;
-  try {
-    const { appLocalDataDir, join } = await import('@tauri-apps/api/path');
-    const { copyFile, exists } = await import('@tauri-apps/plugin-fs');
-    const dataDir = await appLocalDataDir();
-    const dbPath = await join(dataDir, 'data.db');
-    const backupPath = await join(dataDir, 'data.db.backup');
-
-    if (await exists(dbPath)) {
-      await copyFile(dbPath, backupPath);
-      console.log("[DB Migration] Created database backup at data.db.backup");
-    }
-  } catch (e) {
-    console.error("[DB Migration] Failed to create database backup:", e);
-  }
-}
-
-async function restoreDatabase() {
-  if (!isTauri) return;
-  try {
-    const { appLocalDataDir, join } = await import('@tauri-apps/api/path');
-    const { copyFile, exists } = await import('@tauri-apps/plugin-fs');
-    const dataDir = await appLocalDataDir();
-    const dbPath = await join(dataDir, 'data.db');
-    const backupPath = await join(dataDir, 'data.db.backup');
-
-    if (await exists(backupPath)) {
-      await copyFile(backupPath, dbPath);
-      console.log("[DB Migration] Restored database from data.db.backup");
-    }
-  } catch (e) {
-    console.error("[DB Migration] Failed to restore database backup:", e);
-  }
-}
-
-async function cleanBackup() {
-  if (!isTauri) return;
-  try {
-    const { appLocalDataDir, join } = await import('@tauri-apps/api/path');
-    const { remove, exists } = await import('@tauri-apps/plugin-fs');
-    const dataDir = await appLocalDataDir();
-    const backupPath = await join(dataDir, 'data.db.backup');
-
-    if (await exists(backupPath)) {
-      await remove(backupPath);
-      console.log("[DB Migration] Cleaned up data.db.backup");
-    }
-  } catch (e) {
-    console.error("[DB Migration] Failed to clean up database backup:", e);
-  }
-}
-
 async function migrateTableColumns(db, tableName, expectedCols) {
   try {
     const info = await db.select(`PRAGMA table_info(${tableName})`);
@@ -93,18 +37,10 @@ let initDatabasePromise = null;
 
 export async function initDatabase() {
   if (!initDatabasePromise) {
-    initDatabasePromise = (async () => {
-      await backupDatabase();
-      try {
-        await _initDatabaseInternal();
-        await cleanBackup();
-      } catch (err) {
-        console.error("[DB Migration] Migration failed. Restoring backup...", err);
-        await restoreDatabase();
-        initDatabasePromise = null;
-        throw err;
-      }
-    })();
+    initDatabasePromise = _initDatabaseInternal().catch((err) => {
+      initDatabasePromise = null;
+      throw err;
+    });
   }
   return initDatabasePromise;
 }
@@ -348,15 +284,6 @@ async function _initDatabaseInternal() {
   }
 
   // Seed default characters individually if they do not exist
-  try {
-    const charsInfo = await db.select(`PRAGMA table_info(characters)`);
-    if (charsInfo.some(c => c.name.toLowerCase() === 'nsfw_inject')) {
-      await db.execute(`ALTER TABLE characters DROP COLUMN nsfw_inject`);
-      console.log("[DB] Dropped nsfw_inject column from characters table.");
-    }
-  } catch (e) {
-    console.error("[DB] Could not drop nsfw_inject column:", e);
-  }
 
   for (const char of DEFAULT_CHARACTERS) {
     const existing = await db.select("SELECT id FROM characters WHERE name = ?", [char.name]);
