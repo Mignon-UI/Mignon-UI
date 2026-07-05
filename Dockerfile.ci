@@ -33,6 +33,7 @@ ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable \
-    && rustup component add clippy rustfmt
+    && rustup component add clippy rustfmt \
+    && cargo install cargo-audit
 
 WORKDIR /workspace
