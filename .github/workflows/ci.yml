@@ -66,6 +66,6 @@ jobs:
       - name: Cargo Audit (vulnerability scan)
         uses: actions-rust-lang/audit@v1
         with:
-          working-directory: src-tauri
+          workingDirectory: src-tauri
 
 
