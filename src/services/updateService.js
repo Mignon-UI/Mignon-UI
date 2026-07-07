@@ -92,7 +92,7 @@ export function isNewerVersion(current, latest) {
     if ((cp[i] || 0) > (lp[i] || 0)) return false;
   }
 
-  // ponytail: stable vs pre-release tags logic
+  // stable vs pre-release tags logic
   const cpPre = c.includes('-');
   const lpPre = l.includes('-');
   return cpPre !== lpPre ? cpPre : l > c;
