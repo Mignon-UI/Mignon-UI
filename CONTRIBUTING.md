@@ -74,5 +74,4 @@ To maintain the project's long-term sustainability and enable distribution on of
 Before submitting a Pull Request, please review our full [Contributor License Agreement & Open-Source Promise](Contributor%20License%20Agreement).
 
 ### How to Sign
-Our automated workflow will guide you. You can sign the agreement by replying to the check comment on your Pull Request with:
-> **I agree to the CLA**
+Our automated CLA Assistant bot will guide you. When you open a Pull Request, the bot will post a comment with a link to sign the agreement using your GitHub credentials.
