@@ -7,6 +7,18 @@
 
 <br clear="left"/>
 
+<p align="center">
+  <img src="docs/images/welcome.png" width="48%" alt="Mignon UI Welcome" />
+  <img src="docs/images/chat_interface.png" width="48%" alt="Mignon UI Chat" />
+</p>
+<p align="center">
+  <img src="docs/images/theme_settings.png" width="48%" alt="Mignon UI Themes" />
+  <img src="docs/images/workspace_customizer.png" width="48%" alt="Mignon UI Customizer" />
+</p>
+<p align="center">
+  <img src="docs/images/character_edit.png" width="48%" alt="Mignon UI Edit Character" />
+</p>
+
 ---
 
 ## ✨ Key Features
