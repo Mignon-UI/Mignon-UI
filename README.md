@@ -7,6 +7,21 @@
 
 <br clear="left"/>
 
+---
+
+## ✨ Key Features
+
+* **✨ Clean UI & Simple Setup**: Mignon UI is designed to be clean, distraction-free, and simple to navigate. We've pre-configured the heavy lifting behind the scenes (prompt formatting, model settings) so you can get straight to your stories without configuration fatigue.
+* **👥 Dynamic Multi-Bot Lobbies**: Chat with multiple AI characters at the same time. Characters take turns naturally, talking to you and each other based on their personality, context, and proximity without you having to manually prompt each one. (You can also set any character card as your active persona to play *as* them!)
+* **📥 Tavern Card Imports & Lorebooks**: Bring your favorite characters with you by importing standard character cards (.png V2 format) and JSON cards instantly. Link world lorebooks to characters or rooms to dynamically trigger world rules and locations.
+* **🧠 Smart Story Memory**: Keeps long roleplays going without characters forgetting who they are or what happened. Summarizes key events into milestone chapters and uses smart local memory retrieval.
+* **🔒 Private & Offline-First**: Your chats, characters, and API keys are stored in a secure local database directly on your device. Zero telemetry, and no cloud dependencies by default. Run completely offline via Ollama or Kobold.cpp, or connect your personal API keys.
+* **🎨 Aesthetic Themes**: Instantly switch between beautiful custom styles like *Bubblegum Pop*, *Neo-Cyber*, *Dollhouse*, *Builder*, *Mignon UI Classic*, *Dark Yellow*, and *Sketch Book*, with full support for light and dark modes.
+
+---
+
+## 📷 Screenshots
+
 <p align="center">
   <img src="docs/images/welcome.png" width="48%" alt="Mignon UI Welcome" />
   <img src="docs/images/chat_interface.png" width="48%" alt="Mignon UI Chat" />
@@ -18,17 +33,6 @@
 <p align="center">
   <img src="docs/images/character_edit.png" width="48%" alt="Mignon UI Edit Character" />
 </p>
-
----
-
-## ✨ Key Features
-
-* **✨ Clean UI & Simple Setup**: Mignon UI is designed to be clean, distraction-free, and simple to navigate. We've pre-configured the heavy lifting behind the scenes (prompt formatting, model settings) so you can get straight to your stories without configuration fatigue.
-* **👥 Dynamic Multi-Bot Lobbies**: Chat with multiple AI characters at the same time. Characters take turns naturally, talking to you and each other based on their personality, context, and proximity without you having to manually prompt each one. (You can also set any character card as your active persona to play *as* them!)
-* **📥 Tavern Card Imports & Lorebooks**: Bring your favorite characters with you by importing standard character cards (.png V2 format) and JSON cards instantly. Link world lorebooks to characters or rooms to dynamically trigger world rules and locations.
-* **🧠 Smart Story Memory**: Keeps long roleplays going without characters forgetting who they are or what happened. Summarizes key events into milestone chapters and uses smart local memory retrieval.
-* **🔒 Private & Offline-First**: Your chats, characters, and API keys are stored in a secure local database directly on your device. Zero telemetry, and no cloud dependencies by default. Run completely offline via Ollama or Kobold.cpp, or connect your personal API keys.
-* **🎨 Aesthetic Themes**: Instantly switch between beautiful custom styles like *Bubblegum Pop*, *Neo-Cyber*, *Dollhouse*, *Builder*, *Mignon UI Classic*, *Dark Yellow*, and *Sketch Book*, with full support for light and dark modes.
 
 ---
 
