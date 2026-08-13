@@ -9,6 +9,7 @@ dist/
 dist-ssr/
 static/
 build/
+website/
 
 # Tauri build artifacts
 src-tauri/target/

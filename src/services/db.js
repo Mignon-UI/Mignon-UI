@@ -53,7 +53,7 @@ function loadSqlJsScript() {
     }
     
     const script = document.createElement("script");
-    script.src = "/sql-wasm.js";
+    script.src = "./sql-wasm.js";
     script.onload = () => {
       if (window.initSqlJs) {
         resolve(window.initSqlJs);
@@ -139,7 +139,7 @@ export async function getDb() {
           let SQL;
           let useLocalWasm = false;
           try {
-            const checkRes = await fetch("/sql-wasm.wasm");
+            const checkRes = await fetch("./sql-wasm.wasm");
             if (checkRes.ok) {
               const buffer = await checkRes.arrayBuffer();
               const bytes = new Uint8Array(buffer, 0, 4);
@@ -153,7 +153,7 @@ export async function getDb() {
             throw new Error("Local SQLite WASM file was not found or is invalid. CDN fallback is disabled for security compliance.");
           }
 
-          SQL = await initSqlJsFn({ locateFile: filename => `/${filename}` });
+          SQL = await initSqlJsFn({ locateFile: filename => `./${filename}` });
 
           const saved = await loadDbFromIndexedDB();
           const sqlDb = new SQL.Database(saved ? new Uint8Array(saved) : undefined);

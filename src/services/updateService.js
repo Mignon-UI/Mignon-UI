@@ -27,9 +27,9 @@ export async function checkForUpdates(force = false) {
     const list = await res.json();
     if (!Array.isArray(list) || !list.length) throw new Error('No releases found in the repository.');
 
-    const isBeta = localStorage.getItem('mignon_update_channel') === 'beta';
-    const data = isBeta ? list[0] : list.find(r => !r.prerelease);
-    if (!data) throw new Error(`No ${isBeta ? 'beta' : 'stable'} releases found in the repository.`);
+    const channel = localStorage.getItem('mignon_update_channel') || (APP_VERSION.includes('beta') ? 'beta' : 'stable');
+    const data = channel === 'beta' ? list[0] : (list.find(r => !r.prerelease) || list[0]);
+    if (!data) throw new Error('No releases found in the repository.');
 
     const latestVersion = data.tag_name;
     const htmlUrl = data.html_url || 'https://github.com/Mignon-UI/Mignon-UI/releases';

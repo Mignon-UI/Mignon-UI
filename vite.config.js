@@ -18,6 +18,7 @@ const localIP = getLocalIP();
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: './',
   plugins: [react()],
   server: {
     port: 5173,

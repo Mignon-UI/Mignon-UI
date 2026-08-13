@@ -12,8 +12,11 @@ import {
   Eye, EyeOff
 } from 'lucide-react';
 import { getThemeSwatches } from '../../utils/themeHelper';
+import { safeFetch } from '../../utils/safeFetch';
+import { decryptKey } from '../../services/llmClient';
 
 export default function SettingsModal({ isOpen, isInline }) {
+  const isTauri = typeof window !== 'undefined' && (!!window.__TAURI_IPC__ || !!window.__TAURI_INTERNALS__);
   const ui = useUIContext();
   const settings = useSettingsContext();
   const { toast } = useToast();
@@ -32,6 +35,89 @@ export default function SettingsModal({ isOpen, isInline }) {
   const [showCustomKey, setShowCustomKey] = useState(false);
   const personaAvatarInputRef = useRef(null);
   const mouseDownTargetRef = useRef(null);
+
+  const [availableModels, setAvailableModels] = useState([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const modelSelectorRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (modelSelectorRef.current && !modelSelectorRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const fetchAvailableModels = async () => {
+      setIsLoadingModels(true);
+      try {
+        const provider = settings.settingsForm.provider;
+        const endpoint = settings.settingsForm.local_endpoint;
+        
+        let url = "";
+        let headers = {};
+        
+        if (provider === "ollama") {
+          const base = endpoint.split("/v1")[0].replace(/\/$/, "");
+          url = `${base}/api/tags`;
+        } else if (provider === "kobold") {
+          const base = endpoint.split("/v1")[0].replace(/\/$/, "");
+          url = `${base}/v1/models`;
+        } else if (provider === "openrouter") {
+          url = "https://openrouter.ai/api/v1/models";
+          if (settings.settingsForm.openrouter_key) {
+            const decKey = await decryptKey(settings.settingsForm.openrouter_key);
+            if (decKey) headers["Authorization"] = `Bearer ${decKey}`;
+          }
+        } else if (provider === "custom") {
+          const base = endpoint.split("/v1")[0].replace(/\/$/, "");
+          url = base.endsWith("/v1") ? `${base}/models` : `${base}/v1/models`;
+          if (settings.settingsForm.custom_key) {
+            const decKey = await decryptKey(settings.settingsForm.custom_key);
+            if (decKey) headers["Authorization"] = `Bearer ${decKey}`;
+          }
+        }
+        
+        if (!url) {
+          setAvailableModels([]);
+          return;
+        }
+        
+        const res = await safeFetch(url, { headers });
+        if (res.ok) {
+          const json = await res.json();
+          let models = [];
+          if (provider === "ollama") {
+            models = (json.models || []).map(m => m.name);
+          } else if (json.data && Array.isArray(json.data)) {
+            models = json.data.map(m => m.id);
+          }
+          setAvailableModels(models);
+        } else {
+          setAvailableModels([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch models list:", err);
+        setAvailableModels([]);
+      } finally {
+        setIsLoadingModels(false);
+      }
+    };
+    
+    fetchAvailableModels();
+  }, [
+    isOpen,
+    settings.settingsForm.provider,
+    settings.settingsForm.local_endpoint,
+    settings.settingsForm.openrouter_key,
+    settings.settingsForm.custom_key
+  ]);
 
   // Connection Profile Inline Editing
   const [editingProfileType, setEditingProfileType] = useState(null); // 'new', 'rename', or null
@@ -343,6 +429,16 @@ export default function SettingsModal({ isOpen, isInline }) {
             <option value="custom">Custom (OpenAI compatible)</option>
             <option value="openrouter">Cloud OpenRouter</option>
           </select>
+          {!isTauri && (settings.settingsForm.provider === "ollama" || settings.settingsForm.provider === "kobold") && (
+            <div style={{
+              marginTop: '10px', padding: '10px', borderRadius: 'var(--r-sm)',
+              border: 'var(--border-width) solid var(--border)',
+              background: 'var(--yellow, #ffe699)', color: '#000', fontSize: '0.82rem',
+              lineHeight: '1.4', boxShadow: '2px 2px 0px rgba(0,0,0,1)'
+            }}>
+              <strong>🔌 Local Engines in Browser:</strong> We recommend downloading the native desktop app for a seamless offline connection. To connect in this web demo, follow our <a href="https://github.com/Mignon-UI/Mignon-UI/blob/main/docs/CORS-Bypass.md" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline', color: 'inherit', fontWeight: 'bold' }}>CORS Bypass Guide</a> to configure CORS permissions or install the browser extension.
+            </div>
+          )}
         </div>
 
         {settings.settingsForm.provider === "openrouter" && (
@@ -451,15 +547,56 @@ export default function SettingsModal({ isOpen, isInline }) {
           </div>
         )}
 
-        <div className="form-group">
+        <div className="form-group" ref={modelSelectorRef} style={{ position: 'relative' }}>
           <label>Selected Model Name</label>
           <input
             type="text"
             id="setting-selected-model"
-            placeholder="Enter model name..."
-            value={settings.settingsForm.selected_model}
-            onChange={(e) => settings.setSettingsForm(prev => ({ ...prev, selected_model: e.target.value }))}
+            placeholder={isLoadingModels ? "Loading models..." : "Select or enter model name..."}
+            value={settings.settingsForm.selected_model || ''}
+            onChange={(e) => {
+              settings.setSettingsForm(prev => ({ ...prev, selected_model: e.target.value }));
+              setShowDropdown(true);
+            }}
+            onFocus={() => setShowDropdown(true)}
+            autoComplete="off"
           />
+          {showDropdown && availableModels.length > 0 && (
+            <div 
+              style={{
+                position: 'absolute', top: '100%', left: 0, right: 0,
+                zIndex: 1000, maxHeight: '200px', overflowY: 'auto',
+                background: 'var(--bg-light, #1e1e2e)', border: 'var(--border-width) solid var(--border)',
+                borderRadius: 'var(--r-sm)', marginTop: '4px',
+                boxShadow: '4px 4px 0px rgba(0,0,0,1)', color: 'var(--text-main, #fff)'
+              }}
+            >
+              {availableModels.map(model => (
+                <div
+                  key={model}
+                  onClick={() => {
+                    settings.setSettingsForm(prev => ({ ...prev, selected_model: model }));
+                    setShowDropdown(false);
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = 'var(--blue, #00ffcc)';
+                    e.target.style.color = '#000';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = 'transparent';
+                    e.target.style.color = 'inherit';
+                  }}
+                  style={{
+                    padding: '10px 12px', cursor: 'pointer',
+                    borderBottom: 'var(--border-width) solid var(--border)', fontSize: '0.85rem',
+                    transition: 'background 0.1s ease', fontWeight: 'bold'
+                  }}
+                >
+                  {model}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
 

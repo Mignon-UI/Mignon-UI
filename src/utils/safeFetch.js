@@ -4,7 +4,7 @@ export const isTauri = typeof window !== 'undefined' && (!!window.__TAURI_IPC__ 
 
 export const safeFetch = (url, options) => {
   let targetUrl = url;
-  if (!isTauri && typeof url === 'string') {
+  if (!isTauri && import.meta.env.DEV && typeof url === 'string') {
     targetUrl = url.replace(/^https?:\/\/(127\.0\.0\.1|localhost):11434/, '/api-proxy');
   }
   return isTauri ? tauriFetch(targetUrl, options) : window.fetch(targetUrl, options);
