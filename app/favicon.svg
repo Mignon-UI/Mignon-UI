@@ -1,0 +1,74 @@
+<svg
+  viewBox="0 0 100 100"
+  xmlns="http://www.w3.org/2000/svg"
+>
+
+
+  <!-- Unified Feline Silhouette: white fur, WHITE outline -->
+  <path
+    d="M 36,28 C 34,20 30,10 26,10 C 16,10 12,24 20,34 C 15,42 15,52 15,52 C 15,74 30,86 50,86 C 70,86 85,74 85,52 C 85,52 85,42 80,34 C 88,24 84,10 74,10 C 70,10 66,20 64,28 Q 50,23 36,28 Z"
+    fill="#ffffff"
+    stroke="#ffffff"
+    stroke-width="2.5"
+    stroke-linejoin="round"
+  />
+
+  <!-- Left Inner Ear -->
+  <path
+    d="M 23,31 C 18,23 21,17 26,17 C 29,17 31,22 33,27 Z"
+    fill="#1e293b"
+  />
+
+  <!-- Right Inner Ear -->
+  <path
+    d="M 77,31 C 82,23 79,17 74,17 C 71,17 69,22 67,27 Z"
+    fill="#1e293b"
+  />
+
+  <!-- Forehead Tabby Stripes -->
+  <polygon points="48,27 52,27 50,38" fill="#0f172a" opacity="0.30" />
+  <polygon points="41,28 45,27 44,36" fill="#0f172a" opacity="0.30" />
+  <polygon points="59,28 55,27 56,36" fill="#0f172a" opacity="0.30" />
+
+  <!-- Cheek Tabby Stripes (left) -->
+  <polygon points="15,48 24,50 16,52" fill="#0f172a" opacity="0.25" />
+  <polygon points="14,54 22,55 15,58" fill="#0f172a" opacity="0.25" />
+  <polygon points="16,60 21,60 17,63" fill="#0f172a" opacity="0.25" />
+
+  <!-- Cheek Tabby Stripes (right) -->
+  <polygon points="85,48 76,50 84,52" fill="#0f172a" opacity="0.25" />
+  <polygon points="86,54 78,55 85,58" fill="#0f172a" opacity="0.25" />
+  <polygon points="84,60 79,60 83,63" fill="#0f172a" opacity="0.25" />
+
+  <!-- Left Eye -->
+  <circle cx="36" cy="55" r="7" fill="#090d16" />
+  <circle cx="34" cy="52" r="2.5" fill="#ffffff" />
+  <circle cx="38" cy="58" r="1" fill="#ffffff" />
+
+  <!-- Right Eye -->
+  <circle cx="64" cy="55" r="7" fill="#090d16" />
+  <circle cx="62" cy="52" r="2.5" fill="#ffffff" />
+  <circle cx="66" cy="58" r="1" fill="#ffffff" />
+
+  <!-- Blush Cheeks -->
+  <ellipse cx="28" cy="66" rx="5" ry="3" fill="#ffffff" opacity="0.15" />
+  <ellipse cx="72" cy="66" rx="5" ry="3" fill="#ffffff" opacity="0.15" />
+
+  <!-- Whiskers -->
+  <line x1="20" y1="62" x2="8"  y2="60" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" />
+  <line x1="20" y1="68" x2="6"  y2="69" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" />
+  <line x1="80" y1="62" x2="92" y2="60" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" />
+  <line x1="80" y1="68" x2="94" y2="69" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" />
+
+  <!-- Nose -->
+  <polygon points="50,68 46,64 54,64" fill="#090d16" />
+
+  <!-- Smiling Mouth -->
+  <path
+    d="M45,71 Q50,75 50,71 Q50,75 55,71"
+    fill="none"
+    stroke="#090d16"
+    stroke-width="3"
+    stroke-linecap="round"
+  />
+</svg>
