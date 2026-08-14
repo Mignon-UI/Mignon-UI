@@ -25,16 +25,8 @@ If you prefer not to install browser extensions, you can configure your local en
 
 You must set the `OLLAMA_ORIGINS` environment variable to permit connections from `https://mignon-ui.vercel.app`.
 
-#### Windows (Method 1: Persistent System Variable)
-1. Close Ollama from the Windows system tray (right-click the tray icon and click **Quit Ollama**).
-2. Open **PowerShell** and run:
-   ```powershell
-   [Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS", "https://mignon-ui.vercel.app", "User")
-   ```
-3. Restart Ollama from your Start Menu.
-
-#### Windows (Method 2: Immediate PowerShell Startup)
-If the persistent environment variable is not loading, you can start the Ollama server directly in a terminal session:
+#### Windows (Method 1: Quick PowerShell Startup - Recommended)
+The fastest and most reliable way to start the Ollama server with the correct variables is to launch it directly in a terminal session:
 1. Close Ollama from the Windows system tray (right-click the tray icon and click **Quit Ollama**).
 2. Open **PowerShell** and run:
    ```powershell
@@ -42,6 +34,15 @@ If the persistent environment variable is not loading, you can start the Ollama 
    ollama serve
    ```
 3. Keep this terminal window open while using Mignon UI in your browser.
+
+#### Windows (Method 2: Persistent User Variable)
+If you want to set the variable permanently so you don't have to keep a PowerShell window open:
+1. Close Ollama from the Windows system tray (right-click the tray icon and click **Quit Ollama**).
+2. Open **PowerShell** and run:
+   ```powershell
+   [Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS", "https://mignon-ui.vercel.app", "User")
+   ```
+3. **Important**: You must restart your computer (or restart `explorer.exe` in Task Manager) for Windows to reload the registry environment variables, then start Ollama from your Start Menu.
 
 #### macOS
 1. Open Terminal.
