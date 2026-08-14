@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -33,7 +33,6 @@ jobs:
 
       - name: Security Audit (npm audit)
         run: npm audit --audit-level=high
-        continue-on-error: true
 
       - name: Run ESLint
         run: npm run lint
@@ -69,5 +68,3 @@ jobs:
         with:
           workingDirectory: src-tauri
         continue-on-error: true
-
-
