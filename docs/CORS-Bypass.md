@@ -1,12 +1,12 @@
 # Mignon UI Connection Guide
 
-Browsers enforce a security mechanism called **CORS (Cross-Origin Resource Sharing)**. By default, this blocks web pages (like the online demo hosted on GitHub Pages) from communicating with local servers running on your machine (like Ollama on `localhost:11434` or Kobold.cpp on `localhost:5001`).
+Web browsers enforce a security mechanism called **CORS (Cross-Origin Resource Sharing)**. By default, this blocks public web pages (like the online demo hosted on Vercel) from communicating with local servers running on your machine (like Ollama on `localhost:11434` or Kobold.cpp on `localhost:5001`).
 
 To use your local hardware models with the web demo, you have two options:
 
 ---
 
-## ⚡ Option A: Use a Browser Extension (Easiest — 5 Seconds)
+## ⚡ Option A: Use a Browser Extension (Quickest)
 
 The lowest-friction way to bypass browser blocks is to install a browser extension that temporarily adds the required CORS headers to your local API requests.
 
@@ -15,7 +15,6 @@ The lowest-friction way to bypass browser blocks is to install a browser extensi
    * **Firefox**: [CORS Everywhere](https://addons.mozilla.org/en-US/firefox/addon/cors-everywhere/)
 2. Open the extension from your browser's toolbar and toggle it **ON** (the icon will light up or turn green).
 3. Go back to Mignon UI Web Demo, open Settings, and click **Test Connection**.
-
 ---
 
 ## 🛠️ Option B: Configure Your Local LLM Engine
@@ -24,21 +23,31 @@ If you prefer not to install browser extensions, you can configure your local en
 
 ### 1. For Ollama
 
-You must set the `OLLAMA_ORIGINS` environment variable to permit connections from `https://mignon-ui.github.io` (or `http://localhost:3000` if previewing locally).
+You must set the `OLLAMA_ORIGINS` environment variable to permit connections from `https://mignon-ui.vercel.app`.
 
-#### Windows
-1. Close Ollama from the Windows system tray (right-click the taskbar tray icon and click **Quit**).
+#### Windows (Method 1: Persistent System Variable)
+1. Close Ollama from the Windows system tray (right-click the tray icon and click **Quit Ollama**).
 2. Open **PowerShell** and run:
    ```powershell
-   [Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS", "https://mignon-ui.github.io", "User")
+   [Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS", "https://mignon-ui.vercel.app", "User")
    ```
-3. Restart Ollama from your Start menu.
+3. Restart Ollama from your Start Menu.
+
+#### Windows (Method 2: Immediate PowerShell Startup)
+If the persistent environment variable is not loading, you can start the Ollama server directly in a terminal session:
+1. Close Ollama from the Windows system tray (right-click the tray icon and click **Quit Ollama**).
+2. Open **PowerShell** and run:
+   ```powershell
+   $env:OLLAMA_ORIGINS="https://mignon-ui.vercel.app"
+   ollama serve
+   ```
+3. Keep this terminal window open while using Mignon UI in your browser.
 
 #### macOS
 1. Open Terminal.
 2. Run:
    ```bash
-   launchctl setenv OLLAMA_ORIGINS "https://mignon-ui.github.io"
+   launchctl setenv OLLAMA_ORIGINS "https://mignon-ui.vercel.app"
    ```
 3. Restart the Ollama application.
 
@@ -48,7 +57,7 @@ If running as a systemd service:
 2. Add these lines under the `[Service]` block:
    ```ini
    [Service]
-   Environment="OLLAMA_ORIGINS=https://mignon-ui.github.io"
+   Environment="OLLAMA_ORIGINS=https://mignon-ui.vercel.app"
    ```
 3. Reload systemd and restart the service:
    ```bash
@@ -60,7 +69,7 @@ If running as a systemd service:
 
 Launch Kobold.cpp with the `--cors` flag:
 ```bash
-koboldcpp.exe --cors https://mignon-ui.github.io
+koboldcpp.exe --cors https://mignon-ui.vercel.app
 ```
 *(If using the launcher GUI, check the "CORS" box under the settings tab).*
 
