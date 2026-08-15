@@ -4,6 +4,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { parseSseStream } from '../utils/sseParser';
 import { safeFetch } from '../utils/safeFetch';
+import { runInWorker } from './rag';
+
 import { APP_NAME } from '../config';
 
 const isTauri = () => typeof window !== 'undefined' && (!!window.__TAURI_IPC__ || !!window.__TAURI_INTERNALS__);
@@ -98,52 +100,94 @@ export async function streamLlmResponse(settings, systemPrompt, userPrompt, onTo
 
   headers["Content-Type"] = "application/json";
 
-  try {
-    const response = await safeFetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload),
-      signal
-    });
+  const taskId = `stream-${Math.random().toString(36).substring(2, 11)}`;
 
-    if (!response.ok) {
-      const errBody = await response.text();
-      throw new Error(`LLM API returned status ${response.status}: ${errBody}`);
+  // 1. Offload streaming to Tauri Rust backend if running inside desktop/mobile build
+  if (isTauri()) {
+    const { listen } = await import('@tauri-apps/api/event');
+    
+    let unlistenToken = null;
+    let unlistenDone = null;
+    let unlistenError = null;
+    let finished = false;
+
+    const cleanup = () => {
+      finished = true;
+      if (unlistenToken) unlistenToken();
+      if (unlistenDone) unlistenDone();
+      if (unlistenError) unlistenError();
+    };
+
+    try {
+      unlistenToken = await listen(`llm-token-${taskId}`, (event) => {
+        if (!finished) onToken(event.payload);
+      });
+
+      const donePromise = new Promise((resolve, reject) => {
+        listen(`llm-done-${taskId}`, () => {
+          cleanup();
+          resolve();
+        }).then(un => { unlistenDone = un; });
+
+        listen(`llm-error-${taskId}`, (event) => {
+          cleanup();
+          reject(new Error(event.payload));
+        }).then(un => { unlistenError = un; });
+      });
+
+      if (signal) {
+        signal.addEventListener('abort', () => {
+          cleanup();
+          invoke('abort_llm_stream_rust', { taskId }).catch(e => {
+            console.error('[LLM Client] Abort request failed:', e);
+          });
+        }, { once: true });
+      }
+
+      await invoke('stream_llm_response_rust', {
+        url,
+        headers,
+        payload,
+        taskId
+      });
+
+      await donePromise;
+      return;
+    } catch (err) {
+      cleanup();
+      if (signal?.aborted) {
+        console.log("[LLM Client] Stream aborted by caller.");
+      } else {
+        console.error("[LLM Client] Rust stream error:", err);
+        throw err;
+      }
+      return;
+    }
+  }
+
+  // 2. Offload streaming to Web Worker if running in browser (web demo)
+  try {
+    if (signal) {
+      signal.addEventListener('abort', () => {
+        runInWorker('ABORT_LLM_STREAM', { taskId }).catch(e => {
+          console.error('[LLM Client] Worker abort failed:', e);
+        });
+      }, { once: true });
     }
 
-    await parseSseStream(response, (dataContent) => {
-      if (dataContent === "[DONE]") return;
+    await runInWorker('START_LLM_STREAM', {
+      url,
+      payload,
+      headers,
+      taskId
+    }, onToken);
 
-      try {
-        const parsed = JSON.parse(dataContent);
-        let token = null;
-
-        if (isAnthropic) {
-          if (parsed.type === "content_block_delta") {
-            token = parsed.delta?.text;
-          }
-        } else {
-          // Standard OpenAI / Kobold
-          if (parsed.choices && parsed.choices.length > 0) {
-            token = parsed.choices[0].delta?.content;
-          } else {
-            // Ollama native
-            token = parsed.message?.content;
-          }
-        }
-
-        if (token) {
-          onToken(token);
-        }
-      } catch {
-        // Ignore JSON parse errors for incomplete streaming lines
-      }
-    });
+    return;
   } catch (err) {
-    if (err.name === "AbortError") {
+    if (signal?.aborted) {
       console.log("[LLM Client] Stream aborted by caller.");
     } else {
-      console.error("[LLM Client] Streaming connection error:", err);
+      console.error("[LLM Client] Worker streaming connection error:", err);
       throw err;
     }
   }

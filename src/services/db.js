@@ -97,14 +97,81 @@ class TauriSqliteWrapper {
   }
 }
 
+let pendingSaveTimeout = null;
+let activeSavePromise = null;
+let hasUnsavedChanges = false;
+let globalSqlDb = null;
+
+function triggerDelayedSave() {
+  hasUnsavedChanges = true;
+  if (pendingSaveTimeout) {
+    clearTimeout(pendingSaveTimeout);
+  }
+  pendingSaveTimeout = setTimeout(async () => {
+    await flushPendingSave();
+  }, 1000);
+}
+
+export async function flushPendingSave() {
+  if (!hasUnsavedChanges || !globalSqlDb) return;
+
+  if (activeSavePromise) {
+    await activeSavePromise;
+  }
+
+  hasUnsavedChanges = false;
+  activeSavePromise = (async () => {
+    try {
+      const binaryData = globalSqlDb.export();
+      await saveDbToIndexedDB(binaryData);
+    } catch (e) {
+      console.error("[DB] Failed to auto-save database:", e);
+      hasUnsavedChanges = true;
+    } finally {
+      activeSavePromise = null;
+    }
+  })();
+
+  await activeSavePromise;
+}
+
+export async function forceSaveDatabase() {
+  hasUnsavedChanges = true;
+  if (pendingSaveTimeout) {
+    clearTimeout(pendingSaveTimeout);
+    pendingSaveTimeout = null;
+  }
+  await flushPendingSave();
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    if (hasUnsavedChanges && globalSqlDb) {
+      try {
+        const binaryData = globalSqlDb.export();
+        saveDbToIndexedDB(binaryData);
+      } catch (e) {
+        console.error("[DB] Emergency unload save failed:", e);
+      }
+    }
+  });
+}
+
 class BrowserSqliteWrapper {
   constructor(sqlDb) {
     this.db = sqlDb;
+    globalSqlDb = sqlDb;
   }
 
   async execute(query, bindValues = []) {
     this.db.run(query, sanitizeParams(bindValues));
-    await saveDbToIndexedDB(this.db.export());
+    const lower = query.toLowerCase();
+    const isCritical = lower.includes("delete") || lower.includes("drop") || lower.includes("settings") || lower.includes("characters");
+    if (isCritical) {
+      await forceSaveDatabase();
+    } else {
+      triggerDelayedSave();
+    }
   }
 
   async select(query, bindValues = []) {
@@ -129,6 +196,8 @@ export async function getDb() {
     dbInitializationPromise = (async () => {
       if (isTauri) {
         const rawDb = await Database.load(`sqlite:${DB_KEY}`);
+        await rawDb.execute("PRAGMA journal_mode = WAL;");
+        await rawDb.execute("PRAGMA synchronous = NORMAL;");
         await rawDb.execute("PRAGMA foreign_keys = ON;");
         dbInstance = new TauriSqliteWrapper(rawDb);
       } else {
@@ -159,6 +228,8 @@ export async function getDb() {
           const sqlDb = new SQL.Database(saved ? new Uint8Array(saved) : undefined);
           console.info(saved ? "[DB] Restored database from IndexedDB." : "[DB] Created in-memory database.");
           
+          sqlDb.run("PRAGMA journal_mode = WAL;");
+          sqlDb.run("PRAGMA synchronous = NORMAL;");
           sqlDb.run("PRAGMA foreign_keys = ON;");
           dbInstance = new BrowserSqliteWrapper(sqlDb);
         } catch (err) {

@@ -35,7 +35,8 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'lucide-react']
+    include: ['react', 'react-dom', 'lucide-react'],
+    exclude: ['@huggingface/transformers']
   },
   build: {
     outDir: './static',

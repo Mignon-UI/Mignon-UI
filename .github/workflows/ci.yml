@@ -12,33 +12,36 @@ concurrency:
 
 jobs:
   frontend:
-    name: Frontend (Node.js)
+    name: Frontend (Bun)
     runs-on: ubuntu-latest
-    container: ghcr.io/mignon-ui/mignon-ui-ci-runner:latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Cache Node modules
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Bun dependencies
         uses: actions/cache@v4
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
           restore-keys: |
-            ${{ runner.os }}-node-
+            ${{ runner.os }}-bun-
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
 
-      - name: Security Audit (npm audit)
-        run: npm audit --audit-level=high
+      - name: Security Audit (bun pm audit)
+        run: bun pm audit
 
       - name: Run ESLint
-        run: npm run lint
+        run: bun run lint
 
       - name: Run Vitest Tests
-        run: npm run test
+        run: bun run test
 
   backend:
     name: Backend (Rust)

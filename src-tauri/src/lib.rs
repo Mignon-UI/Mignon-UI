@@ -1,6 +1,10 @@
 // src-tauri/src/lib.rs
 // Rust entrypoint for Tauri v2. Configures plugins and exposes cryptographic commands for secure key storage.
 
+mod turn_taking;
+mod llm_stream;
+
+
 use aes_gcm::{
     aead::{Aead, KeyInit},
     Aes256Gcm, Nonce,
@@ -177,6 +181,95 @@ fn decrypt_key(app: AppHandle, encrypted_str: String) -> Result<String, String> 
     }
 }
 
+#[derive(serde::Deserialize)]
+struct Candidate {
+    id: String,
+    r#type: String,
+    source_id: String,
+    title: String,
+    text: String,
+    vector: Vec<u8>,
+}
+
+#[derive(serde::Serialize)]
+struct ScoredResult {
+    id: String,
+    r#type: String,
+    source_id: String,
+    title: String,
+    text: String,
+    _distance: f32,
+    _similarity: f32,
+}
+
+fn bytes_to_float_array(bytes: &[u8]) -> Vec<f32> {
+    if bytes.len() % 4 != 0 {
+        return Vec::new();
+    }
+    bytes
+        .chunks_exact(4)
+        .map(|chunk| {
+            let arr = [chunk[0], chunk[1], chunk[2], chunk[3]];
+            f32::from_ne_bytes(arr)
+        })
+        .collect()
+}
+
+fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+    let mut dot = 0.0;
+    let mut norm_a = 0.0;
+    let mut norm_b = 0.0;
+    for i in 0..a.len().min(b.len()) {
+        dot += a[i] * b[i];
+        norm_a += a[i] * a[i];
+        norm_b += b[i] * b[i];
+    }
+    if norm_a == 0.0 || norm_b == 0.0 {
+        return 0.0;
+    }
+    dot / (norm_a.sqrt() * norm_b.sqrt())
+}
+
+#[tauri::command]
+fn compute_similarities_rust(
+    query_vector: Vec<f32>,
+    candidates: Vec<Candidate>,
+    top_k: usize,
+) -> Result<Vec<ScoredResult>, String> {
+    let mut scored_results = Vec::new();
+
+    for candidate in candidates {
+        let candidate_vector = bytes_to_float_array(&candidate.vector);
+        if candidate_vector.is_empty() {
+            continue;
+        }
+
+        let sim = cosine_similarity(&query_vector, &candidate_vector);
+        let dist = 1.0 - sim;
+
+        if dist <= 0.70 {
+            scored_results.push(ScoredResult {
+                id: candidate.id,
+                r#type: candidate.r#type,
+                source_id: candidate.source_id,
+                title: candidate.title,
+                text: candidate.text,
+                _distance: dist,
+                _similarity: sim,
+            });
+        }
+    }
+
+    scored_results.sort_by(|a, b| a._distance.partial_cmp(&b._distance).unwrap_or(std::cmp::Ordering::Equal));
+    scored_results.truncate(top_k);
+
+    Ok(scored_results)
+}
+
+
+
+
+
 #[tauri::command]
 #[allow(unused_variables)]
 fn set_system_bars_color(window: tauri::Window, color_hex: String, dark_icons: bool) {
@@ -333,7 +426,11 @@ pub fn run() {
             decrypt_key,
             set_system_bars_color,
             start_update_download,
-            open_url
+            open_url,
+            compute_similarities_rust,
+            turn_taking::run_efficient_selector_rust,
+            llm_stream::stream_llm_response_rust,
+            llm_stream::abort_llm_stream_rust
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

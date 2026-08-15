@@ -14,11 +14,105 @@
 //   • Stale-document deletion (existing_ids − current_ids)
 //   • Dimension-mismatch detection → clears embeddings table and forces rebuild
 
-import { pipeline } from '@huggingface/transformers';
+import { invoke } from '@tauri-apps/api/core';
 import { safeFetch } from '../utils/safeFetch';
 import { getDb } from './db';
 import { getSettings } from './crud';
 import { decryptKey } from './llmClient';
+
+const isTauri = () => typeof window !== 'undefined' && (!!window.__TAURI_IPC__ || !!window.__TAURI_INTERNALS__);
+
+let ragWorker = null;
+let messageIdCounter = 0;
+const pendingCallbacks = new Map();
+
+function getRagWorker() {
+  if (typeof Worker === 'undefined') {
+    return null;
+  }
+  if (!ragWorker) {
+    console.log('[RAG] Initializing background Web Worker...');
+    ragWorker = new Worker(new URL('./background.worker.js', import.meta.url), { type: 'module' });
+    
+    ragWorker.onmessage = (e) => {
+      const { id, type, result, error } = e.data;
+      const callback = pendingCallbacks.get(id);
+      if (callback) {
+        if (type === 'STREAM_TOKEN') {
+          if (callback.onToken) {
+            callback.onToken(result.token);
+          }
+        } else {
+          pendingCallbacks.delete(id);
+          if (type === 'SUCCESS') {
+            callback.resolve(result);
+          } else {
+            callback.reject(new Error(error || 'Worker operation failed'));
+          }
+        }
+      }
+    };
+
+    ragWorker.onerror = (err) => {
+      console.error('[RAG Worker] Critical worker error:', err);
+    };
+  }
+  return ragWorker;
+}
+
+async function runOnMainThread(type, payload) {
+  if (type === 'EMBED_TEXTS') {
+    const { pipeline } = await import('@huggingface/transformers');
+    console.log('[RAG] Running local Jina WASM extraction on main thread fallback...');
+    const extractor = await pipeline('feature-extraction', 'Xenova/jina-embeddings-v2-small-en');
+    return Promise.all(payload.texts.map(async text => {
+      const output = await extractor(text, { pooling: 'mean', normalize: true });
+      return Array.from(output.data);
+    }));
+  } else if (type === 'COMPUTE_SIMILARITIES') {
+    const { queryVector, candidates, topK } = payload;
+    const scoredResults = [];
+    for (const row of candidates) {
+      let rowVec;
+      if (typeof row.vector === 'string') {
+        rowVec = JSON.parse(row.vector);
+      } else if (row.vector) {
+        rowVec = bytesToFloatArray(row.vector);
+      } else {
+        continue;
+      }
+      if (!rowVec) continue;
+      const sim = cosineSimilarity(queryVector, rowVec);
+      const dist = 1.0 - sim;
+      if (dist <= 0.70) {
+        scoredResults.push({
+          id:          row.id,
+          type:        row.type,
+          source_id:   row.source_id,
+          title:       row.title,
+          text:        row.text,
+          _distance:   dist,
+          _similarity: sim
+        });
+      }
+    }
+    scoredResults.sort((a, b) => a._distance - b._distance);
+    return scoredResults.slice(0, topK);
+  }
+}
+
+export async function runInWorker(type, payload, onToken = null) {
+  const worker = getRagWorker();
+  if (!worker) {
+    return runOnMainThread(type, payload);
+  }
+  const id = ++messageIdCounter;
+  return new Promise((resolve, reject) => {
+    pendingCallbacks.set(id, { resolve, reject, onToken });
+    worker.postMessage({ id, type, payload });
+  });
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -43,19 +137,8 @@ function floatArrayToBytes(floatArray) {
   return new Uint8Array(f32.buffer, f32.byteOffset, f32.byteLength);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 1. Local WASM extractor singleton
-// ─────────────────────────────────────────────────────────────────────────────
+// Local WASM extractor is offloaded to the Web Worker.
 
-let extractorInstance = null;
-
-async function getLocalExtractor() {
-  if (!extractorInstance) {
-    console.log('[RAG] Initializing local Jina Embeddings v2 WASM model...');
-    extractorInstance = await pipeline('feature-extraction', 'Xenova/jina-embeddings-v2-small-en');
-  }
-  return extractorInstance;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Embedding dimension resolver  (matches get_embedding_dimension())
@@ -148,13 +231,9 @@ export async function embedTexts(texts) {
 
   // ── 3. WASM fallback (jinaai/jina-embeddings-v2-small-en) ────────────────
   try {
-    const extractor = await getLocalExtractor();
-    return Promise.all(cleanTexts.map(async text => {
-      const output = await extractor(text, { pooling: 'mean', normalize: true });
-      return Array.from(output.data);
-    }));
+    return await runInWorker('EMBED_TEXTS', { texts: cleanTexts });
   } catch (e) {
-    console.error('[RAG] Critical: Local Jina WASM extraction failed:', e);
+    console.error('[RAG] Critical: Local Jina WASM extraction in worker failed:', e);
     const dim = await getEmbeddingDimension();
     return cleanTexts.map(() => new Array(dim).fill(0.0));
   }
@@ -422,43 +501,53 @@ export async function retrieveEmbeddings(query, topK = 5, filter = {}) {
   // 3. Fetch candidates from SQLite
   const rows = await db.select(sql, params);
 
-  // 4. Compute cosine similarity in JS
-  const scoredResults = [];
+  // 4. Sanitize candidates to serialize correctly as standard arrays
+  const sanitizedCandidates = [];
   for (const row of rows) {
-    try {
-      let rowVec;
-      if (typeof row.vector === 'string') {
-        rowVec = JSON.parse(row.vector);
-      } else if (row.vector) {
-        rowVec = bytesToFloatArray(row.vector);
-      } else {
+    if (!row.vector) continue;
+    let rawVec;
+    if (row.vector instanceof Uint8Array) {
+      rawVec = Array.from(row.vector);
+    } else if (Array.isArray(row.vector)) {
+      rawVec = row.vector;
+    } else if (typeof row.vector === 'string') {
+      try {
+        rawVec = JSON.parse(row.vector);
+      } catch {
         continue;
       }
-      
-      const sim  = cosineSimilarity(queryVec, rowVec);
-      const dist = 1.0 - sim;
+    } else {
+      rawVec = Array.from(new Uint8Array(row.vector));
+    }
+    
+    sanitizedCandidates.push({
+      id: row.id,
+      type: row.type,
+      source_id: row.source_id,
+      title: row.title,
+      text: row.text,
+      vector: rawVec
+    });
+  }
 
-      if (dist <= 0.70) {
-        scoredResults.push({
-          id:          row.id,
-          type:        row.type,
-          source_id:   row.source_id,
-          title:       row.title,
-          text:        row.text,
-          _distance:   dist,
-          _similarity: sim
-        });
-      }
+  // 5. Offload similarity computations (Tauri -> Rust, Browser -> Web Worker)
+  if (isTauri()) {
+    try {
+      return await invoke('compute_similarities_rust', {
+        queryVector: Array.from(queryVec),
+        candidates: sanitizedCandidates,
+        topK
+      });
     } catch (e) {
-      console.warn(`[RAG] Failed to parse vector for row ${row.id}:`, e);
+      console.error('[RAG] Rust similarity offload failed, falling back to Web Worker:', e);
     }
   }
 
-  // 5. Sort by relevance
-  scoredResults.sort((a, b) => a._distance - b._distance);
-
-  // 6. Return topK
-  return scoredResults.slice(0, topK);
+  return await runInWorker('COMPUTE_SIMILARITIES', {
+    queryVector: Array.from(queryVec),
+    candidates: sanitizedCandidates,
+    topK
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

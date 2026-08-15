@@ -21,6 +21,7 @@ vi.mock('../src/services/rag', () => {
       return texts.map(() => [0.1, 0.2, 0.3, 0.4, 0.5]);
     }),
     cosineSimilarity: vi.fn().mockReturnValue(0.85),
+    runInWorker: vi.fn().mockRejectedValue(new Error("Worker not available in tests")),
   };
 });
 
