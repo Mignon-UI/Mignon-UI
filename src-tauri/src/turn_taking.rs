@@ -137,7 +137,7 @@ fn calculate_ocean_traits(bio_lower: &str) -> (f32, f32, f32, f32, f32) {
                 sum += weight;
             }
         }
-        sum.max(0.0).min(1.0)
+        sum.clamp(0.0, 1.0)
     };
 
     let extraversion = compute(
@@ -395,7 +395,7 @@ fn get_keyword_relevance(msg_text: &str, bio_text: &str) -> f32 {
     }
 
     let score = 0.5 + (overlap as f32) * 0.15;
-    score.max(0.5).min(1.0)
+    score.clamp(0.5, 1.0)
 }
 
 fn check_direct_address(user_text: &str, last_msg: Option<&Message>, bots: &[Bot]) -> Option<i64> {
@@ -557,10 +557,10 @@ fn calculate_candidate_score(
     };
 
     let status_diff = (status_s as f32 - traits.status as f32) / 10.0;
-    let status_diff = status_diff.max(0.0).min(1.0);
+    let status_diff = status_diff.clamp(0.0, 1.0);
 
     let deference_penalty = traits.agreeableness * (1.0 - traits.assertiveness) * status_diff;
-    let deference_penalty = deference_penalty.max(0.0).min(0.9);
+    let deference_penalty = deference_penalty.clamp(0.0, 0.9);
 
     let mut score =
         willingness * engagement * silence_boost * is_selected * (1.0 - deference_penalty);

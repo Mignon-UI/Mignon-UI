@@ -1,6 +1,5 @@
 // src-tauri/src/lib.rs
 // Rust entrypoint for Tauri v2. Configures plugins and exposes cryptographic commands for secure key storage.
-
 mod llm_stream;
 mod turn_taking;
 
@@ -202,7 +201,7 @@ struct ScoredResult {
 }
 
 fn bytes_to_float_array(bytes: &[u8]) -> Vec<f32> {
-    if bytes.len() % 4 != 0 {
+    if !bytes.len().is_multiple_of(4) {
         return Vec::new();
     }
     bytes
