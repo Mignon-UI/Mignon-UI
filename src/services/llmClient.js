@@ -2,7 +2,6 @@
 // Client-side LLM connection manager. Communicates with LLMs (Ollama, Kobold, OpenRouter, Anthropic) 
 // using CORS-free Tauri HTTP fetch. Handles SSE token streams.
 import { invoke } from '@tauri-apps/api/core';
-import { parseSseStream } from '../utils/sseParser';
 import { safeFetch } from '../utils/safeFetch';
 import { runInWorker } from './rag';
 
