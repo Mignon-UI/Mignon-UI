@@ -54,9 +54,13 @@ fn run_stream_thread(
         }
     }
 
-    let client = client_builder.default_headers(headers).build().map_err(|e| e.to_string())?;
+    let client = client_builder
+        .default_headers(headers)
+        .build()
+        .map_err(|e| e.to_string())?;
     let payload_str = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
-    let response = client.post(url)
+    let response = client
+        .post(url)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
         .body(payload_str)
         .send()
@@ -92,15 +96,27 @@ fn run_stream_thread(
 
             if is_anthropic {
                 if parsed.get("type").and_then(|v| v.as_str()) == Some("content_block_delta") {
-                    token = parsed.get("delta").and_then(|d| d.get("text")).and_then(|t| t.as_str()).map(|s| s.to_string());
+                    token = parsed
+                        .get("delta")
+                        .and_then(|d| d.get("text"))
+                        .and_then(|t| t.as_str())
+                        .map(|s| s.to_string());
                 }
             } else {
                 if let Some(choices) = parsed.get("choices").and_then(|c| c.as_array()) {
                     if !choices.is_empty() {
-                        token = choices[0].get("delta").and_then(|d| d.get("content")).and_then(|c| c.as_str()).map(|s| s.to_string());
+                        token = choices[0]
+                            .get("delta")
+                            .and_then(|d| d.get("content"))
+                            .and_then(|c| c.as_str())
+                            .map(|s| s.to_string());
                     }
                 } else {
-                    token = parsed.get("message").and_then(|m| m.get("content")).and_then(|c| c.as_str()).map(|s| s.to_string());
+                    token = parsed
+                        .get("message")
+                        .and_then(|m| m.get("content"))
+                        .and_then(|c| c.as_str())
+                        .map(|s| s.to_string());
                 }
             }
 
@@ -124,7 +140,7 @@ pub fn stream_llm_response_rust(
     add_active_stream(task_id.clone());
     let app_clone = app.clone();
     let task_id_clone = task_id.clone();
-    
+
     std::thread::spawn(move || {
         use tauri::Emitter;
         if let Err(e) = run_stream_thread(&app_clone, &url, headers, payload, &task_id_clone) {
@@ -134,7 +150,7 @@ pub fn stream_llm_response_rust(
         }
         remove_active_stream(&task_id_clone);
     });
-    
+
     Ok(())
 }
 

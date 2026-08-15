@@ -20,14 +20,24 @@ pub struct Message {
 fn is_word_match(text: &str, word: &str) -> bool {
     let text_lower = text.to_lowercase();
     let word_lower = word.to_lowercase();
-    
+
     let mut start = 0;
     while let Some(pos) = text_lower[start..].find(&word_lower) {
         let abs_pos = start + pos;
-        let before_ok = abs_pos == 0 || !text_lower.chars().nth(abs_pos - 1).unwrap_or(' ').is_alphanumeric();
+        let before_ok = abs_pos == 0
+            || !text_lower
+                .chars()
+                .nth(abs_pos - 1)
+                .unwrap_or(' ')
+                .is_alphanumeric();
         let end_pos = abs_pos + word_lower.len();
-        let after_ok = end_pos == text_lower.len() || !text_lower.chars().nth(end_pos).unwrap_or(' ').is_alphanumeric();
-        
+        let after_ok = end_pos == text_lower.len()
+            || !text_lower
+                .chars()
+                .nth(end_pos)
+                .unwrap_or(' ')
+                .is_alphanumeric();
+
         if before_ok && after_ok {
             return true;
         }
@@ -39,72 +49,83 @@ fn is_word_match(text: &str, word: &str) -> bool {
 fn get_comfort_level(bio: &str, other: &str, assertiveness: f32) -> f32 {
     let bio = bio.to_lowercase();
     let other = other.to_lowercase();
-    
-    if bio.contains(&format!("best friend with {}", other)) ||
-       bio.contains(&format!("best friends with {}", other)) ||
-       bio.contains(&format!("best friend of {}", other)) ||
-       bio.contains(&format!("best friends of {}", other)) ||
-       bio.contains(&format!("closest to {}", other)) {
+
+    if bio.contains(&format!("best friend with {}", other))
+        || bio.contains(&format!("best friends with {}", other))
+        || bio.contains(&format!("best friend of {}", other))
+        || bio.contains(&format!("best friends of {}", other))
+        || bio.contains(&format!("closest to {}", other))
+    {
         return 0.95;
     }
-    if bio.contains(&format!("dating {}", other)) ||
-       bio.contains(&format!("in a relationship with {}", other)) {
+    if bio.contains(&format!("dating {}", other))
+        || bio.contains(&format!("in a relationship with {}", other))
+    {
         return 0.90;
     }
-    if bio.contains(&format!("childhood friend with {}", other)) ||
-       bio.contains(&format!("childhood friend of {}", other)) ||
-       bio.contains(&format!("childhood friend {}", other)) {
+    if bio.contains(&format!("childhood friend with {}", other))
+        || bio.contains(&format!("childhood friend of {}", other))
+        || bio.contains(&format!("childhood friend {}", other))
+    {
         return 0.85;
     }
-    if bio.contains(&format!("friend with {}", other)) ||
-       bio.contains(&format!("friends with {}", other)) ||
-       bio.contains(&format!("friend of {}", other)) ||
-       bio.contains(&format!("friends of {}", other)) ||
-       bio.contains(&format!("likes {}", other)) {
+    if bio.contains(&format!("friend with {}", other))
+        || bio.contains(&format!("friends with {}", other))
+        || bio.contains(&format!("friend of {}", other))
+        || bio.contains(&format!("friends of {}", other))
+        || bio.contains(&format!("likes {}", other))
+    {
         return 0.80;
     }
-    if bio.contains(&format!("terrified of {}", other)) ||
-       bio.contains(&format!("afraid of {}", other)) ||
-       bio.contains(&format!("fears {}", other)) {
+    if bio.contains(&format!("terrified of {}", other))
+        || bio.contains(&format!("afraid of {}", other))
+        || bio.contains(&format!("fears {}", other))
+    {
         return 0.15;
     }
-    if bio.contains(&format!("enemy with {}", other)) ||
-       bio.contains(&format!("enemies with {}", other)) ||
-       bio.contains(&format!("enemy of {}", other)) ||
-       bio.contains(&format!("enemies of {}", other)) ||
-       bio.contains(&format!("hates {}", other)) {
+    if bio.contains(&format!("enemy with {}", other))
+        || bio.contains(&format!("enemies with {}", other))
+        || bio.contains(&format!("enemy of {}", other))
+        || bio.contains(&format!("enemies of {}", other))
+        || bio.contains(&format!("hates {}", other))
+    {
         return 0.10;
     }
-    if bio.contains(&format!("rival with {}", other)) ||
-       bio.contains(&format!("rivals with {}", other)) ||
-       bio.contains(&format!("rival of {}", other)) ||
-       bio.contains(&format!("rivals of {}", other)) ||
-       bio.contains(&format!("competitive with {}", other)) {
+    if bio.contains(&format!("rival with {}", other))
+        || bio.contains(&format!("rivals with {}", other))
+        || bio.contains(&format!("rival of {}", other))
+        || bio.contains(&format!("rivals of {}", other))
+        || bio.contains(&format!("competitive with {}", other))
+    {
         return 0.20;
     }
-    if bio.contains(&format!("looks up to {}", other)) ||
-       bio.contains(&format!("admires {}", other)) {
+    if bio.contains(&format!("looks up to {}", other))
+        || bio.contains(&format!("admires {}", other))
+    {
         return 0.50;
     }
-    if bio.contains(&format!("boss of {}", other)) ||
-       bio.contains(&format!("{} is the leader", other)) {
+    if bio.contains(&format!("boss of {}", other))
+        || bio.contains(&format!("{} is the leader", other))
+    {
         if assertiveness < 0.3 {
             return 0.10;
         } else {
             return 0.30;
         }
     }
-    if bio.contains(&format!("acquaintance with {}", other)) ||
-       bio.contains(&format!("acquaintances with {}", other)) ||
-       bio.contains(&format!("acquaintance of {}", other)) ||
-       bio.contains(&format!("acquaintances of {}", other)) {
+    if bio.contains(&format!("acquaintance with {}", other))
+        || bio.contains(&format!("acquaintances with {}", other))
+        || bio.contains(&format!("acquaintance of {}", other))
+        || bio.contains(&format!("acquaintances of {}", other))
+    {
         return 0.60;
     }
-    if bio.contains(&format!("does not know {}", other)) ||
-       bio.contains(&format!("stranger to {}", other)) {
+    if bio.contains(&format!("does not know {}", other))
+        || bio.contains(&format!("stranger to {}", other))
+    {
         return 0.45;
     }
-    
+
     0.45
 }
 
@@ -119,56 +140,161 @@ fn calculate_ocean_traits(bio_lower: &str) -> (f32, f32, f32, f32, f32) {
         sum.max(0.0).min(1.0)
     };
 
-    let extraversion = compute(&[
-        ("shy", -0.4), ("timid", -0.4), ("quiet", -0.4), ("reserved", -0.4), ("withdrawn", -0.4),
-        ("introverted", -0.4), ("loner", -0.6), ("keeps to themself", -0.6), ("reclusive", -0.6),
-        ("talkative", 0.4), ("chatty", 0.4), ("outgoing", 0.4), ("sociable", 0.4), ("gregarious", 0.4),
-        ("life of the party", 0.5), ("loud", 0.5), ("boisterous", 0.5), ("extroverted", 0.5),
-        ("speaks rarely", -0.3), ("only talks when necessary", -0.3), ("friendly and approachable", 0.2)
-    ], 0.5);
+    let extraversion = compute(
+        &[
+            ("shy", -0.4),
+            ("timid", -0.4),
+            ("quiet", -0.4),
+            ("reserved", -0.4),
+            ("withdrawn", -0.4),
+            ("introverted", -0.4),
+            ("loner", -0.6),
+            ("keeps to themself", -0.6),
+            ("reclusive", -0.6),
+            ("talkative", 0.4),
+            ("chatty", 0.4),
+            ("outgoing", 0.4),
+            ("sociable", 0.4),
+            ("gregarious", 0.4),
+            ("life of the party", 0.5),
+            ("loud", 0.5),
+            ("boisterous", 0.5),
+            ("extroverted", 0.5),
+            ("speaks rarely", -0.3),
+            ("only talks when necessary", -0.3),
+            ("friendly and approachable", 0.2),
+        ],
+        0.5,
+    );
 
     let initial_assert = if bio_lower.contains("shy") { 0.3 } else { 0.5 };
-    let assertiveness = compute(&[
-        ("meek", -0.4), ("submissive", -0.4), ("pushover", -0.4), ("will not speak up", -0.4),
-        ("aggressive", 0.4), ("dominant", 0.4), ("commands attention", 0.4), ("bossy", 0.4),
-        ("assertive", 0.3), ("confident", 0.3), ("speaks their mind", 0.3), ("bold", 0.3),
-        ("hesitant", -0.2), ("indecisive", -0.2), ("waits for others", -0.2), ("natural leader", 0.5),
-        ("takes charge", 0.5)
-    ], initial_assert);
+    let assertiveness = compute(
+        &[
+            ("meek", -0.4),
+            ("submissive", -0.4),
+            ("pushover", -0.4),
+            ("will not speak up", -0.4),
+            ("aggressive", 0.4),
+            ("dominant", 0.4),
+            ("commands attention", 0.4),
+            ("bossy", 0.4),
+            ("assertive", 0.3),
+            ("confident", 0.3),
+            ("speaks their mind", 0.3),
+            ("bold", 0.3),
+            ("hesitant", -0.2),
+            ("indecisive", -0.2),
+            ("waits for others", -0.2),
+            ("natural leader", 0.5),
+            ("takes charge", 0.5),
+        ],
+        initial_assert,
+    );
 
-    let agreeableness = compute(&[
-        ("kind", 0.3), ("warm", 0.3), ("compassionate", 0.3), ("gentle", 0.3), ("caring", 0.3),
-        ("cooperative", 0.2), ("good listener", 0.2), ("polite", 0.2), ("cold", -0.3),
-        ("harsh", -0.3), ("rude", -0.3), ("blunt", -0.3), ("competitive", -0.3),
-        ("argumentative", -0.2), ("hostile", -0.2), ("mean", -0.2), ("sarcastic", -0.2),
-        ("sweet", 0.2), ("soft-spoken", 0.2)
-    ], 0.5);
+    let agreeableness = compute(
+        &[
+            ("kind", 0.3),
+            ("warm", 0.3),
+            ("compassionate", 0.3),
+            ("gentle", 0.3),
+            ("caring", 0.3),
+            ("cooperative", 0.2),
+            ("good listener", 0.2),
+            ("polite", 0.2),
+            ("cold", -0.3),
+            ("harsh", -0.3),
+            ("rude", -0.3),
+            ("blunt", -0.3),
+            ("competitive", -0.3),
+            ("argumentative", -0.2),
+            ("hostile", -0.2),
+            ("mean", -0.2),
+            ("sarcastic", -0.2),
+            ("sweet", 0.2),
+            ("soft-spoken", 0.2),
+        ],
+        0.5,
+    );
 
-    let neuroticism = compute(&[
-        ("anxious", 0.4), ("nervous", 0.4), ("worried", 0.4), ("insecure", 0.4), ("self-conscious", 0.4),
-        ("calm", -0.3), ("laid-back", -0.3), ("unflappable", -0.3), ("relaxed", -0.3), ("moody", 0.3),
-        ("temperamental", 0.3), ("volatile", 0.3), ("dramatic", 0.3), ("easily stressed", 0.4),
-        ("panics", 0.4), ("stoic", -0.2), ("emotionless", -0.2)
-    ], 0.5);
+    let neuroticism = compute(
+        &[
+            ("anxious", 0.4),
+            ("nervous", 0.4),
+            ("worried", 0.4),
+            ("insecure", 0.4),
+            ("self-conscious", 0.4),
+            ("calm", -0.3),
+            ("laid-back", -0.3),
+            ("unflappable", -0.3),
+            ("relaxed", -0.3),
+            ("moody", 0.3),
+            ("temperamental", 0.3),
+            ("volatile", 0.3),
+            ("dramatic", 0.3),
+            ("easily stressed", 0.4),
+            ("panics", 0.4),
+            ("stoic", -0.2),
+            ("emotionless", -0.2),
+        ],
+        0.5,
+    );
 
-    let openness = compute(&[
-        ("curious", 0.4), ("imaginative", 0.4), ("creative", 0.4), ("unconventional", 0.4),
-        ("adventurous", 0.3), ("open-minded", 0.3), ("philosophical", 0.3), ("traditional", -0.3),
-        ("conservative", -0.3), ("set in their ways", -0.3), ("stubborn", -0.3),
-        ("loves new ideas", 0.5), ("explorer", 0.5), ("practical", -0.2), ("down-to-earth", -0.2)
-    ], 0.5);
+    let openness = compute(
+        &[
+            ("curious", 0.4),
+            ("imaginative", 0.4),
+            ("creative", 0.4),
+            ("unconventional", 0.4),
+            ("adventurous", 0.3),
+            ("open-minded", 0.3),
+            ("philosophical", 0.3),
+            ("traditional", -0.3),
+            ("conservative", -0.3),
+            ("set in their ways", -0.3),
+            ("stubborn", -0.3),
+            ("loves new ideas", 0.5),
+            ("explorer", 0.5),
+            ("practical", -0.2),
+            ("down-to-earth", -0.2),
+        ],
+        0.5,
+    );
 
-    (extraversion, assertiveness, agreeableness, neuroticism, openness)
+    (
+        extraversion,
+        assertiveness,
+        agreeableness,
+        neuroticism,
+        openness,
+    )
 }
 
 fn parse_character_status(bio_lower: &str) -> i32 {
     let status_dict = [
-        ("king", 10), ("queen", 10), ("emperor", 10), ("god", 10), ("ruler", 10),
-        ("lord", 9), ("duke", 9), ("general", 9), ("high priest", 9),
-        ("captain", 8), ("chief", 8), ("master", 8), ("knight", 7), ("officer", 7),
-        ("elder", 7), ("average citizen", 5), ("villager", 5), ("merchant", 5),
-        ("servant", 3), ("butler", 3), ("assistant", 3), ("slave", 1), ("prisoner", 1),
-        ("outcast", 1)
+        ("king", 10),
+        ("queen", 10),
+        ("emperor", 10),
+        ("god", 10),
+        ("ruler", 10),
+        ("lord", 9),
+        ("duke", 9),
+        ("general", 9),
+        ("high priest", 9),
+        ("captain", 8),
+        ("chief", 8),
+        ("master", 8),
+        ("knight", 7),
+        ("officer", 7),
+        ("elder", 7),
+        ("average citizen", 5),
+        ("villager", 5),
+        ("merchant", 5),
+        ("servant", 3),
+        ("butler", 3),
+        ("assistant", 3),
+        ("slave", 1),
+        ("prisoner", 1),
+        ("outcast", 1),
     ];
 
     let mut tokens = Vec::new();
@@ -220,7 +346,8 @@ struct CharacterTraits {
 
 fn parse_character_bio(bio: &str) -> CharacterTraits {
     let bio_lower = bio.to_lowercase();
-    let (extraversion, assertiveness, agreeableness, neuroticism, _) = calculate_ocean_traits(&bio_lower);
+    let (extraversion, assertiveness, agreeableness, neuroticism, _) =
+        calculate_ocean_traits(&bio_lower);
     CharacterTraits {
         extraversion,
         assertiveness,
@@ -241,9 +368,15 @@ fn get_keyword_relevance(msg_text: &str, bio_text: &str) -> f32 {
     let bio = bio_text.to_lowercase();
     let clean_text: String = msg_text
         .chars()
-        .map(|c| if c.is_alphanumeric() { c.to_ascii_lowercase() } else { ' ' })
+        .map(|c| {
+            if c.is_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                ' '
+            }
+        })
         .collect();
-    
+
     let words: Vec<&str> = clean_text
         .split_whitespace()
         .filter(|w| w.len() >= 3)
@@ -307,8 +440,14 @@ fn check_direct_address(user_text: &str, last_msg: Option<&Message>, bots: &[Bot
 }
 
 fn filter_incapacitated_bots(bots: &[Bot], scene_state: &Option<serde_json::Value>) -> Vec<Bot> {
-    let terms = ["unconscious", "fainted", "asleep", "sleeping", "knocked out"];
-    
+    let terms = [
+        "unconscious",
+        "fainted",
+        "asleep",
+        "sleeping",
+        "knocked out",
+    ];
+
     let state_map = match scene_state {
         Some(serde_json::Value::Object(map)) => Some(map),
         _ => None,
@@ -319,10 +458,20 @@ fn filter_incapacitated_bots(bots: &[Bot], scene_state: &Option<serde_json::Valu
             if let Some(map) = state_map {
                 let bot_id_str = bot.id.to_string();
                 if let Some(serde_json::Value::Object(state)) = map.get(&bot_id_str) {
-                    let action = state.get("action").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
-                    let mood = state.get("mood").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
-                    
-                    let is_incap = terms.iter().any(|term| action.contains(term) || mood.contains(term));
+                    let action = state
+                        .get("action")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_lowercase();
+                    let mood = state
+                        .get("mood")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_lowercase();
+
+                    let is_incap = terms
+                        .iter()
+                        .any(|term| action.contains(term) || mood.contains(term));
                     if is_incap {
                         return false;
                     }
@@ -359,36 +508,44 @@ fn calculate_candidate_score(
 ) -> f32 {
     let personality = bot.personality.as_deref().unwrap_or("");
     let traits = parse_character_bio(personality);
-    
+
     let mut comfort_vals = Vec::new();
     for name in other_names {
         if name.to_lowercase() != bot.name.to_lowercase() {
             comfort_vals.push(get_comfort_level(personality, name, traits.assertiveness));
         }
     }
-    
-    let min_c = if comfort_vals.is_empty() { 0.45 } else { comfort_vals.iter().copied().fold(f32::INFINITY, f32::min) };
+
+    let min_c = if comfort_vals.is_empty() {
+        0.45
+    } else {
+        comfort_vals.iter().copied().fold(f32::INFINITY, f32::min)
+    };
     let sum_c: f32 = comfort_vals.iter().sum();
-    let avg_c = if comfort_vals.is_empty() { 0.45 } else { sum_c / (comfort_vals.len() as f32) };
+    let avg_c = if comfort_vals.is_empty() {
+        0.45
+    } else {
+        sum_c / (comfort_vals.len() as f32)
+    };
 
     let comfort_penalty = traits.slc * (1.0 - min_c) + (1.0 - traits.slc) * (1.0 - avg_c);
     let comfort_multiplier = (1.0 - comfort_penalty).max(0.1);
 
     let willingness = traits.extraversion * traits.assertiveness * comfort_multiplier;
-    
+
     let content_to_check = if !user_text.trim().is_empty() {
         user_text
     } else {
         last_msg.map(|m| m.content.as_str()).unwrap_or("")
     };
     let engagement = get_keyword_relevance(content_to_check, personality).max(0.5);
-    
+
     let silence_boost = if tau >= 1.5 {
         1.0 + traits.silence_discomfort * (tau - 1.5) * 0.5
     } else {
         1.0
     };
-    
+
     let is_selected = if let Some(msg) = last_msg {
         if msg.sender_name.to_lowercase() == bot.name.to_lowercase() {
             100.0
@@ -398,14 +555,15 @@ fn calculate_candidate_score(
     } else {
         1.0
     };
-    
+
     let status_diff = (status_s as f32 - traits.status as f32) / 10.0;
     let status_diff = status_diff.max(0.0).min(1.0);
-    
+
     let deference_penalty = traits.agreeableness * (1.0 - traits.assertiveness) * status_diff;
     let deference_penalty = deference_penalty.max(0.0).min(0.9);
 
-    let mut score = willingness * engagement * silence_boost * is_selected * (1.0 - deference_penalty);
+    let mut score =
+        willingness * engagement * silence_boost * is_selected * (1.0 - deference_penalty);
 
     let mut proximity_boost = 0.0;
     let state_map = match scene_state {
@@ -415,16 +573,25 @@ fn calculate_candidate_score(
     if let Some(map) = state_map {
         let bot_id_str = bot.id.to_string();
         if let Some(serde_json::Value::Object(state)) = map.get(&bot_id_str) {
-            let location = state.get("location").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+            let location = state
+                .get("location")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_lowercase();
             if !location.is_empty() && location != "main room" {
-                let search_in = format!("{} {}", user_text, last_msg.map(|m| m.content.as_str()).unwrap_or("")).to_lowercase();
+                let search_in = format!(
+                    "{} {}",
+                    user_text,
+                    last_msg.map(|m| m.content.as_str()).unwrap_or("")
+                )
+                .to_lowercase();
                 if search_in.contains(&location) {
                     proximity_boost = 1.5;
                 }
             }
         }
     }
-    
+
     score += proximity_boost;
     score
 }
@@ -481,7 +648,10 @@ pub fn run_efficient_selector_rust(
     let mut status_s = 5;
     if let Some(msg) = last_msg {
         if msg.sender_type == "character" {
-            if let Some(speaker_bot) = bots.iter().find(|b| b.name.to_lowercase() == msg.sender_name.to_lowercase()) {
+            if let Some(speaker_bot) = bots
+                .iter()
+                .find(|b| b.name.to_lowercase() == msg.sender_name.to_lowercase())
+            {
                 let personality = speaker_bot.personality.as_deref().unwrap_or("");
                 status_s = parse_character_status(&personality.to_lowercase());
             }
@@ -495,7 +665,15 @@ pub fn run_efficient_selector_rust(
 
     let mut scored_candidates = Vec::new();
     for bot in &active_candidates {
-        let score = calculate_candidate_score(bot, &other_names, last_msg, user_text, tau, status_s, &scene_state);
+        let score = calculate_candidate_score(
+            bot,
+            &other_names,
+            last_msg,
+            user_text,
+            tau,
+            status_s,
+            &scene_state,
+        );
         scored_candidates.push((bot.id, bot.name.clone(), score));
     }
 

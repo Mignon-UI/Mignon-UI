@@ -34,8 +34,8 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Security Audit (bun pm audit)
-        run: bun pm audit
+      - name: Security Audit (bun audit)
+        run: bun audit --audit-level=high
 
       - name: Run ESLint
         run: bun run lint

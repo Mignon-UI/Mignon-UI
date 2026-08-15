@@ -1,9 +1,8 @@
 // src-tauri/src/lib.rs
 // Rust entrypoint for Tauri v2. Configures plugins and exposes cryptographic commands for secure key storage.
 
-mod turn_taking;
 mod llm_stream;
-
+mod turn_taking;
 
 use aes_gcm::{
     aead::{Aead, KeyInit},
@@ -260,15 +259,15 @@ fn compute_similarities_rust(
         }
     }
 
-    scored_results.sort_by(|a, b| a._distance.partial_cmp(&b._distance).unwrap_or(std::cmp::Ordering::Equal));
+    scored_results.sort_by(|a, b| {
+        a._distance
+            .partial_cmp(&b._distance)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     scored_results.truncate(top_k);
 
     Ok(scored_results)
 }
-
-
-
-
 
 #[tauri::command]
 #[allow(unused_variables)]
