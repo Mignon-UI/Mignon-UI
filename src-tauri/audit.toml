@@ -1,0 +1,13 @@
+# src-tauri/audit.toml
+# Cargo Audit configuration for Mignon UI.
+
+[advisories]
+ignore = [
+    # rkyv 0.7.46 - Unchecked deserialization vulnerability in a sub-dependency of Tauri.
+    # No semver-compatible patch is available for the 0.7 series.
+    "RUSTSEC-2026-0235",
+
+    # rsa 0.9.10 - Marvin Attack timing sidechannel vulnerability in a sub-dependency.
+    # No patch is yet available upstream from the maintainers.
+    "RUSTSEC-2023-0071"
+]
