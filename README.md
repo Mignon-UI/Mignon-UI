@@ -115,7 +115,8 @@ Ensure you have the following installed:
 
 ---
 
-## 📄 License & Links
+## 📄 License & Legal Notice
 
-* **License**: This project is licensed under the **GNU Affero General Public License v3 (AGPL-3.0)**. See the [LICENSE](LICENSE) file for complete details.
+* **Software License**: This project is licensed under the **GNU Affero General Public License v3 (AGPL-3.0)**. See the [LICENSE](LICENSE) file for complete details.
+* **🏷️ Trademark & Brand Assets**: The source code is freely open under the AGPL-3.0 license. However, the name **"Mignon UI"**, the official mascot, logo, and associated visual brand assets are proprietary trademarks of the project. They may not be used to endorse, brand, or distribute commercial or derivative products without prior written permission.
 * **Documentation**: Detailed technical blueprints can be found in our [Documentation Directory](docs/index.md).
