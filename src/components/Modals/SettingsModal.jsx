@@ -4,16 +4,18 @@ import { useSettingsContext } from '../../context/SettingsContext';
 import { useConnectionProfiles } from '../../hooks/useConnectionProfiles';
 import { useToast } from '../../context/ToastContext';
 import { checkForUpdates } from '../../services/updateService';
+import { exportDatabaseBackup, restoreDatabaseBackup } from '../../services/db';
 import { APP_VERSION } from '../../config';
 import { 
   Settings as SettingsIcon, X, Smile, Plus, User as UserIcon, 
   Sparkles, Sun, Moon, Monitor, Save, Pencil, Trash2, RefreshCw, 
   Info, FilePlus, ArrowDownToLine, Check, AlertTriangle, Activity, Loader2,
-  Eye, EyeOff
+  Eye, EyeOff, Gauge, Database, Download, Upload
 } from 'lucide-react';
 import { getThemeSwatches } from '../../utils/themeHelper';
 import { safeFetch } from '../../utils/safeFetch';
-import { decryptKey } from '../../services/llmClient';
+import { decryptKey } from '../../utils/keySecurity';
+import { PERFORMANCE_PRESETS, detectRecommendedPreset } from '../../utils/hardwareDetector';
 
 export default function SettingsModal({ isOpen, isInline }) {
   const isTauri = typeof window !== 'undefined' && (!!window.__TAURI_IPC__ || !!window.__TAURI_INTERNALS__);
@@ -36,10 +38,76 @@ export default function SettingsModal({ isOpen, isInline }) {
   const personaAvatarInputRef = useRef(null);
   const mouseDownTargetRef = useRef(null);
 
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const restoreFileInputRef = useRef(null);
+
   const [availableModels, setAvailableModels] = useState([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const modelSelectorRef = useRef(null);
+
+  const handleExportBackup = async () => {
+    setIsBackingUp(true);
+    try {
+      const res = await exportDatabaseBackup();
+      if (res.success && !res.cancelled) {
+        toast('Database backup exported successfully!', 'success');
+      }
+    } catch (err) {
+      console.error('[Backup] Export failed:', err);
+      toast(`Export failed: ${err.message || err.toString()}`, 'error');
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  const handleRestoreBackupClick = () => {
+    if (isTauri) {
+      if (window.confirm("Restoring a backup will overwrite your current chats, characters, and settings. The app will relaunch immediately. Do you wish to proceed?")) {
+        triggerNativeRestore();
+      }
+    } else {
+      if (restoreFileInputRef.current) {
+        restoreFileInputRef.current.click();
+      }
+    }
+  };
+
+  const triggerNativeRestore = async () => {
+    setIsRestoring(true);
+    try {
+      const res = await restoreDatabaseBackup();
+      if (res.success && !res.cancelled) {
+        toast('Database restored! Relaunching...', 'success');
+      }
+    } catch (err) {
+      console.error('[Restore] Native restore failed:', err);
+      toast(`Restore failed: ${err.message || err.toString()}`, 'error');
+      setIsRestoring(false);
+    }
+  };
+
+  const handleWebFileRestore = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!window.confirm("Restoring a backup will overwrite your current database. The page will reload immediately. Continue?")) {
+      e.target.value = '';
+      return;
+    }
+
+    setIsRestoring(true);
+    try {
+      await restoreDatabaseBackup(file);
+    } catch (err) {
+      console.error('[Restore] Web restore failed:', err);
+      toast(`Restore failed: ${err.message || err.toString()}`, 'error');
+      setIsRestoring(false);
+    } finally {
+      e.target.value = '';
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -424,10 +492,10 @@ export default function SettingsModal({ isOpen, isInline }) {
             value={settings.settingsForm.provider}
             onChange={(e) => settings.handleSettingsProviderChange(e.target.value)}
           >
-            <option value="ollama">Local Ollama</option>
-            <option value="kobold">Local Kobold.cpp</option>
+            <option value="ollama">Ollama</option>
+            <option value="kobold">Kobold.cpp</option>
+            <option value="openrouter">OpenRouter</option>
             <option value="custom">Custom (OpenAI compatible)</option>
-            <option value="openrouter">Cloud OpenRouter</option>
           </select>
           {!isTauri && (settings.settingsForm.provider === "ollama" || settings.settingsForm.provider === "kobold") && (
             <div style={{
@@ -440,6 +508,50 @@ export default function SettingsModal({ isOpen, isInline }) {
             </div>
           )}
         </div>
+
+        {settings.settingsForm.provider !== "openrouter" && (
+          <div className="form-group" id="group-local-endpoint">
+            <label>{settings.settingsForm.provider === "custom" ? "Endpoint URL" : "Local Endpoint URL"}</label>
+            <input
+              type="text"
+              id="setting-local-endpoint"
+              placeholder={settings.settingsForm.provider === "custom" ? "https://api.openai.com/v1" : "http://127.0.0.1:11434/v1"}
+              value={settings.settingsForm.local_endpoint}
+              onChange={(e) => settings.setSettingsForm(prev => ({ ...prev, local_endpoint: e.target.value }))}
+            />
+            {settings.settingsForm.provider === "custom" && (
+              <div style={{
+                marginTop: '6px',
+                fontSize: '0.78rem',
+                color: 'var(--text-sec)',
+                fontFamily: 'var(--font-code)'
+              }}>
+                {(!settings.settingsForm.local_endpoint || settings.settingsForm.local_endpoint.includes('127.0.0.1') || settings.settingsForm.local_endpoint.includes('localhost')) ? (
+                  <span><strong>Custom Local Endpoint:</strong> Hardware-optimized settings active for LM Studio, LocalAI, vLLM.</span>
+                ) : (
+                  <span><strong>Custom Cloud Endpoint:</strong> Token-aware settings active for OpenAI, DeepSeek, Groq, etc.</span>
+                )}
+              </div>
+            )}
+            <small className="help-text" style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
+              {settings.settingsForm.provider === "custom" ? (
+                <>
+                  <span>Groq: <code>https://api.groq.com/openai/v1</code></span>
+                  <span>OpenAI: <code>https://api.openai.com/v1</code></span>
+                  <span>Gemini: <code>https://generativelanguage.googleapis.com/v1beta/openai</code></span>
+                  <span>DeepSeek: <code>https://api.deepseek.com/v1</code></span>
+                  <span>Anthropic: <code>https://api.anthropic.com/v1</code></span>
+                </>
+              ) : (
+                <>
+                  <span>Ollama: <code>http://127.0.0.1:11434/v1</code></span>
+                  <span>Kobold.cpp: <code>http://127.0.0.1:5001/v1</code></span>
+                  <span>LM Studio: <code>http://localhost:1234/v1</code></span>
+                </>
+              )}
+            </small>
+          </div>
+        )}
 
         {settings.settingsForm.provider === "openrouter" && (
           <div className="form-group" id="group-openrouter-key">
@@ -472,7 +584,7 @@ export default function SettingsModal({ isOpen, isInline }) {
 
         {settings.settingsForm.provider === "custom" && (
           <div className="form-group" id="group-custom-key">
-            <label>Custom API Key (Optional)</label>
+            <label>API Key</label>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <input
                 type={showCustomKey ? 'text' : 'password'}
@@ -514,36 +626,6 @@ export default function SettingsModal({ isOpen, isInline }) {
               <option value="0">Unlimited (Warning: Bill Shock risk)</option>
             </select>
             <small className="help-text">Prevents runaway auto-chaining loops from draining your cloud credits.</small>
-          </div>
-        )}
-
-        {settings.settingsForm.provider !== "openrouter" && (
-          <div className="form-group" id="group-local-endpoint">
-            <label>{settings.settingsForm.provider === "custom" ? "Endpoint URL" : "Local Endpoint URL"}</label>
-            <input
-              type="text"
-              id="setting-local-endpoint"
-              placeholder={settings.settingsForm.provider === "custom" ? "https://api.openai.com/v1" : "http://127.0.0.1:11434/v1"}
-              value={settings.settingsForm.local_endpoint}
-              onChange={(e) => settings.setSettingsForm(prev => ({ ...prev, local_endpoint: e.target.value }))}
-            />
-            <small className="help-text" style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
-              {settings.settingsForm.provider === "custom" ? (
-                <>
-                  <span>Groq: <code>https://api.groq.com/openai/v1</code></span>
-                  <span>OpenAI: <code>https://api.openai.com/v1</code></span>
-                  <span>Gemini: <code>https://generativelanguage.googleapis.com/v1beta/openai</code></span>
-                  <span>DeepSeek: <code>https://api.deepseek.com/v1</code></span>
-                  <span>Anthropic: <code>https://api.anthropic.com/v1</code></span>
-                </>
-              ) : (
-                <>
-                  <span>Ollama: <code>http://127.0.0.1:11434/v1</code></span>
-                  <span>Kobold.cpp: <code>http://127.0.0.1:5001/v1</code></span>
-                  <span>LM Studio: <code>http://localhost:1234/v1</code></span>
-                </>
-              )}
-            </small>
           </div>
         )}
 
@@ -601,6 +683,143 @@ export default function SettingsModal({ isOpen, isInline }) {
 
 
 
+        {/* ── PERFORMANCE PRESET SELECTOR ── */}
+        {(() => {
+          const isCloud = settings.settingsForm.provider === 'openrouter' ||
+            (settings.settingsForm.provider === 'custom' &&
+             settings.settingsForm.local_endpoint &&
+             !settings.settingsForm.local_endpoint.includes('127.0.0.1') &&
+             !settings.settingsForm.local_endpoint.includes('localhost'));
+
+          const showAuto = isTauri && !isCloud;
+          const rawPresetKey = settings.settingsForm.performance_preset || (showAuto ? 'auto' : 'medium');
+          const currentPresetKey = (!showAuto && rawPresetKey === 'auto') ? 'medium' : rawPresetKey;
+          const detected = detectRecommendedPreset(settings.settingsForm.provider, settings.settingsForm.local_endpoint);
+          const effectiveKey = currentPresetKey === 'auto' ? detected.presetKey : currentPresetKey;
+          const activePresetObj = PERFORMANCE_PRESETS[effectiveKey] || PERFORMANCE_PRESETS.medium;
+
+          const presetButtons = showAuto
+            ? [
+                { key: 'auto', tag: 'Auto' },
+                { key: 'low', tag: 'Low' },
+                { key: 'medium', tag: 'Medium' },
+                { key: 'high', tag: 'High' },
+                { key: 'ultra', tag: 'Ultra' }
+              ]
+            : [
+                { key: 'low', tag: 'Low' },
+                { key: 'medium', tag: 'Medium' },
+                { key: 'high', tag: 'High' },
+                { key: 'ultra', tag: 'Ultra' }
+              ];
+
+          return (
+            <div className="form-group" style={{ marginBottom: '20px', marginTop: '16px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
+                  <Gauge size={16} /> Performance Preset
+                </span>
+                <span style={{ fontSize: '0.78rem', fontWeight: 'normal' }}>
+                  {showAuto && currentPresetKey === 'auto' ? (
+                    <span style={{
+                      background: 'var(--bg-tab-active)',
+                      color: 'var(--text-tab-active)',
+                      padding: '2px 8px',
+                      borderRadius: 'var(--r-sm)',
+                      border: '1px solid var(--border)',
+                      fontWeight: 'bold',
+                      fontFamily: 'var(--font-code)',
+                      boxShadow: '1px 1px 0px var(--border)'
+                    }}>
+                      Auto ({activePresetObj.label})
+                    </span>
+                  ) : (
+                    <span style={{
+                      background: 'var(--bg-input)',
+                      color: 'var(--text)',
+                      padding: '2px 8px',
+                      borderRadius: 'var(--r-sm)',
+                      border: '1px solid var(--border)',
+                      fontFamily: 'var(--font-code)'
+                    }}>
+                      Active: <strong>{activePresetObj.tag || activePresetObj.label}</strong>
+                    </span>
+                  )}
+                </span>
+              </label>
+
+              {/* Segmented Button Bar */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${presetButtons.length}, 1fr)`,
+                gap: '6px',
+                background: 'var(--bg-input)',
+                padding: '5px',
+                borderRadius: 'var(--r-lg, 12px)',
+                border: 'var(--border-width) solid var(--border)',
+                boxShadow: 'inset 2px 2px 0px rgba(0, 0, 0, 0.08)'
+              }}>
+                {presetButtons.map(({ key, tag }) => {
+                  const isSelected = currentPresetKey === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => settings.applyPerformancePreset(key)}
+                      style={{
+                        padding: '8px 4px',
+                        fontSize: '0.85rem',
+                        fontWeight: 'bold',
+                        fontFamily: 'var(--font-head)',
+                        border: 'none',
+                        background: isSelected ? 'var(--bg-tab-active)' : 'transparent',
+                        color: isSelected ? 'var(--text-tab-active)' : 'var(--text)',
+                        borderRadius: 'var(--r-md, 8px)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      {tag}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Preset Guidance Callout */}
+              <div style={{
+                marginTop: '10px',
+                padding: '10px 14px',
+                borderRadius: 'var(--r-lg, 12px)',
+                background: 'var(--bg-input)',
+                border: 'var(--border-width) solid var(--border)',
+                fontSize: '0.82rem',
+                lineHeight: '1.45',
+                color: 'var(--text-sec)',
+                fontFamily: 'var(--font-code)',
+                boxShadow: 'inset 1px 1px 0px rgba(0, 0, 0, 0.06)'
+              }}>
+                {currentPresetKey === 'custom' ? (
+                  <div>
+                    <strong style={{ color: 'var(--text)', fontFamily: 'var(--font-head)' }}>Custom:</strong> Sliders have been manually adjusted.
+                  </div>
+                ) : showAuto && currentPresetKey === 'auto' ? (
+                  <div>
+                    <strong style={{ color: 'var(--text)', fontFamily: 'var(--font-head)' }}>Auto-Benchmark:</strong> {detected.reason}
+                  </div>
+                ) : (
+                  <div>
+                    <strong style={{ color: 'var(--text)', fontFamily: 'var(--font-head)' }}>{activePresetObj.label}:</strong> {isCloud ? (activePresetObj.cloud_desc || activePresetObj.desc) : activePresetObj.desc}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── 2x2 PARAMETER SLIDERS GRID ── */}
         <div className="form-row">
           <div className="form-group half">
             <label>Temperature (<span>{settings.settingsForm.temperature}</span>)</label>
@@ -609,7 +828,11 @@ export default function SettingsModal({ isOpen, isInline }) {
               id="setting-temperature"
               min="0.1" max="1.5" step="0.05"
               value={settings.settingsForm.temperature}
-              onChange={(e) => settings.setSettingsForm(prev => ({ ...prev, temperature: parseFloat(e.target.value) }))}
+              onChange={(e) => settings.setSettingsForm(prev => ({ 
+                ...prev, 
+                temperature: parseFloat(e.target.value),
+                performance_preset: 'custom'
+              }))}
             />
           </div>
           <div className="form-group half">
@@ -617,9 +840,44 @@ export default function SettingsModal({ isOpen, isInline }) {
             <input
               type="range"
               id="setting-max-tokens"
-              min="128" max="8192" step="128"
+              min="128" max="4096" step="32"
               value={settings.settingsForm.max_tokens}
-              onChange={(e) => settings.setSettingsForm(prev => ({ ...prev, max_tokens: parseInt(e.target.value) }))}
+              onChange={(e) => settings.setSettingsForm(prev => ({ 
+                ...prev, 
+                max_tokens: parseInt(e.target.value),
+                performance_preset: 'custom'
+              }))}
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group half">
+            <label>Context History Limit (<span>{settings.settingsForm.context_limit !== undefined ? settings.settingsForm.context_limit : 14}</span> msgs)</label>
+            <input
+              type="range"
+              id="setting-context-limit"
+              min="6" max="50" step="2"
+              value={settings.settingsForm.context_limit !== undefined ? settings.settingsForm.context_limit : 14}
+              onChange={(e) => settings.setSettingsForm(prev => ({ 
+                ...prev, 
+                context_limit: parseInt(e.target.value),
+                performance_preset: 'custom'
+              }))}
+            />
+          </div>
+          <div className="form-group half">
+            <label>Memory / Lore Depth (<span>{settings.settingsForm.rag_top_k !== undefined ? settings.settingsForm.rag_top_k : 4}</span> chunks)</label>
+            <input
+              type="range"
+              id="setting-rag-top-k"
+              min="1" max="10" step="1"
+              value={settings.settingsForm.rag_top_k !== undefined ? settings.settingsForm.rag_top_k : 4}
+              onChange={(e) => settings.setSettingsForm(prev => ({ 
+                ...prev, 
+                rag_top_k: parseInt(e.target.value),
+                performance_preset: 'custom'
+              }))}
             />
           </div>
         </div>
@@ -877,6 +1135,55 @@ export default function SettingsModal({ isOpen, isInline }) {
           </div>
         </div>
 
+        {/* ── DATABASE & BACKUP ── */}
+        <div className="form-group" style={{ marginTop: '24px', borderTop: 'var(--border-width) solid var(--border)', paddingTop: '20px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-head)', fontWeight: 'bold', fontSize: '1rem', textTransform: 'uppercase' }}>
+            <Database size={16} /> Database & Storage
+          </label>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-sec)', marginTop: '6px', marginBottom: '14px', lineHeight: '1.4' }}>
+            Export full database snapshots (.mignon) or restore from an existing backup file.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(0,0,0,0.15)', padding: '14px', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', boxShadow: '2px 2px 0px rgba(0,0,0,1)' }}>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="secondary-btn"
+                disabled={isBackingUp || isRestoring}
+                style={{ padding: '8px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                onClick={handleExportBackup}
+              >
+                {isBackingUp ? <Loader2 size={14} className="mignon-animate-spin" /> : <Download size={14} />}
+                {isBackingUp ? 'Exporting...' : 'Export Backup (.mignon)'}
+              </button>
+
+              <button
+                type="button"
+                className="secondary-btn"
+                disabled={isBackingUp || isRestoring}
+                style={{ padding: '8px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                onClick={handleRestoreBackupClick}
+              >
+                {isRestoring ? <Loader2 size={14} className="mignon-animate-spin" /> : <Upload size={14} />}
+                {isRestoring ? 'Restoring...' : 'Restore Backup (.mignon)'}
+              </button>
+            </div>
+
+            {/* Hidden file input for web restore */}
+            <input
+              type="file"
+              ref={restoreFileInputRef}
+              accept=".mignon,.sqlite,.db"
+              style={{ display: 'none' }}
+              onChange={handleWebFileRestore}
+            />
+
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-sec)', lineHeight: '1.3' }}>
+              Backups include all your local characters, custom rooms, messages, memories, lorebooks, and connection profiles.
+            </span>
+          </div>
+        </div>
+
         {/* ── SOFTWARE UPDATES ── */}
         <div className="form-group" style={{ marginTop: '24px', borderTop: 'var(--border-width) solid var(--border)', paddingTop: '20px' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-head)', fontWeight: 'bold', fontSize: '1rem', textTransform: 'uppercase' }}>
@@ -889,76 +1196,84 @@ export default function SettingsModal({ isOpen, isInline }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(0,0,0,0.15)', padding: '14px', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', boxShadow: '2px 2px 0px rgba(0,0,0,1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
               <span style={{ color: 'var(--text-sec)' }}>Current Version:</span>
-              <span style={{ fontWeight: 'bold', color: 'var(--text)' }}>v{APP_VERSION}</span>
+              <span style={{ fontWeight: 'bold', color: 'var(--text)' }}>v{APP_VERSION}{!isTauri ? ' (Web)' : ''}</span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px', padding: '4px 0' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text)' }}>
-                Opt-in to Beta Releases channel
-              </span>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={updateChannel === 'beta'}
-                  onChange={(e) => {
-                    const val = e.target.checked ? 'beta' : 'stable';
-                    setUpdateChannel(val);
-                    localStorage.setItem('mignon_update_channel', val);
-                  }}
-                />
-                <span className="slider"></span>
-              </label>
-            </div>
-
-            {updateResult && (
-              <div style={{ marginTop: '4px', padding: '10px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)', background: updateResult.updateAvailable ? 'rgba(0, 150, 80, 0.1)' : 'rgba(255,255,255,0.03)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: 'bold', color: updateResult.updateAvailable ? '#00ffaa' : 'var(--text)' }}>
-                  {updateResult.updateAvailable ? <ArrowDownToLine size={16} /> : <Check size={16} />}
-                  {updateResult.updateAvailable 
-                    ? `New version ${updateResult.latestVersion} available!` 
-                    : 'You are running the latest version!'}
-                </div>
-                
-                {updateResult.updateAvailable && (
-                  <>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-sec)', lineHeight: '1.3' }}>
-                      {updateResult.name || 'Includes performance improvements and fixes.'}
-                    </span>
-                    <button
-                      type="button"
-                      className="primary-btn"
-                      style={{ marginTop: '6px', fontSize: '0.8rem', padding: '6px 12px', width: 'fit-content' }}
-                      onClick={() => {
-                        window.dispatchEvent(new CustomEvent('mignon-show-update-banner', { detail: updateResult }));
-                        if (!isInline) {
-                          ui.setActiveModal(null); // Close settings to show banner
-                        }
+            {!isTauri ? (
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-sec)', margin: 0, lineHeight: '1.4' }}>
+                Web builds are automatically up to date upon page reload.
+              </p>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px', padding: '4px 0' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text)' }}>
+                    Opt-in to Beta Releases channel
+                  </span>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={updateChannel === 'beta'}
+                      onChange={(e) => {
+                        const val = e.target.checked ? 'beta' : 'stable';
+                        setUpdateChannel(val);
+                        localStorage.setItem('mignon_update_channel', val);
                       }}
-                    >
-                      Install Update
-                    </button>
-                  </>
+                    />
+                    <span className="slider"></span>
+                  </label>
+                </div>
+
+                {updateResult && (
+                  <div style={{ marginTop: '4px', padding: '10px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)', background: updateResult.updateAvailable ? 'rgba(0, 150, 80, 0.1)' : 'rgba(255,255,255,0.03)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: 'bold', color: updateResult.updateAvailable ? '#00ffaa' : 'var(--text)' }}>
+                      {updateResult.updateAvailable ? <ArrowDownToLine size={16} /> : <Check size={16} />}
+                      {updateResult.updateAvailable 
+                        ? `New version ${updateResult.latestVersion} available!` 
+                        : 'You are running the latest version!'}
+                    </div>
+                    
+                    {updateResult.updateAvailable && (
+                      <>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-sec)', lineHeight: '1.3' }}>
+                          {updateResult.name || 'Includes performance improvements and fixes.'}
+                        </span>
+                        <button
+                          type="button"
+                          className="primary-btn"
+                          style={{ marginTop: '6px', fontSize: '0.8rem', padding: '6px 12px', width: 'fit-content' }}
+                          onClick={() => {
+                            window.dispatchEvent(new CustomEvent('mignon-show-update-banner', { detail: updateResult }));
+                            if (!isInline) {
+                              ui.setActiveModal(null); // Close settings to show banner
+                            }
+                          }}
+                        >
+                          Install Update
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
-              </div>
-            )}
 
-            {manualCheckError && (
-              <div style={{ marginTop: '4px', padding: '10px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)', background: 'rgba(255, 74, 125, 0.1)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#ff4a7d' }}>
-                <AlertTriangle size={16} />
-                <span>Error: {manualCheckError}</span>
-              </div>
-            )}
+                {manualCheckError && (
+                  <div style={{ marginTop: '4px', padding: '10px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)', background: 'rgba(255, 74, 125, 0.1)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#ff4a7d' }}>
+                    <AlertTriangle size={16} />
+                    <span>Error: {manualCheckError}</span>
+                  </div>
+                )}
 
-            <button
-              type="button"
-              className="secondary-btn"
-              disabled={updateChecking}
-              style={{ padding: '8px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: 'fit-content', marginTop: '4px' }}
-              onClick={handleManualCheck}
-            >
-              <RefreshCw size={14} className={updateChecking ? 'mignon-animate-spin' : ''} />
-              {updateChecking ? 'Checking...' : 'Check for Updates'}
-            </button>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  disabled={updateChecking}
+                  style={{ padding: '8px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: 'fit-content', marginTop: '4px' }}
+                  onClick={handleManualCheck}
+                >
+                  <RefreshCw size={14} className={updateChecking ? 'mignon-animate-spin' : ''} />
+                  {updateChecking ? 'Checking...' : 'Check for Updates'}
+                </button>
+              </>
+            )}
           </div>
         </div>
 

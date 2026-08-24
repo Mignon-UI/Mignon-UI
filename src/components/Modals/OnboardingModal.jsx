@@ -23,8 +23,11 @@ export default function OnboardingModal() {
     custom_key: '',
     local_endpoint: 'http://127.0.0.1:11434/v1',
     selected_model: '',
-    temperature: 0.9,
-    max_tokens: 2048,
+    temperature: 0.85,
+    max_tokens: 350,
+    context_limit: 14,
+    rag_top_k: 4,
+    performance_preset: 'auto',
     system_template: '',
     persona_name: 'User',
     persona_avatar: null,
@@ -47,8 +50,11 @@ export default function OnboardingModal() {
         custom_key: settings.settings.custom_key || '',
         local_endpoint: settings.settings.local_endpoint || 'http://127.0.0.1:11434/v1',
         selected_model: settings.settings.selected_model || '',
-        temperature: settings.settings.temperature !== undefined ? settings.settings.temperature : 0.9,
-        max_tokens: settings.settings.max_tokens !== undefined ? settings.settings.max_tokens : 2048,
+        temperature: settings.settings.temperature !== undefined ? settings.settings.temperature : 0.85,
+        max_tokens: settings.settings.max_tokens !== undefined ? settings.settings.max_tokens : 350,
+        context_limit: settings.settings.context_limit !== undefined ? settings.settings.context_limit : 14,
+        rag_top_k: settings.settings.rag_top_k !== undefined ? settings.settings.rag_top_k : 4,
+        performance_preset: settings.settings.performance_preset || 'auto',
         system_template: settings.settings.system_template || '',
         persona_name: settings.settings.persona_name || 'User',
         persona_avatar: settings.settings.persona_avatar || null,
@@ -311,12 +317,30 @@ export default function OnboardingModal() {
                     value={form.provider}
                     onChange={(e) => handleProviderChange(e.target.value)}
                   >
-                    <option value="ollama">Local Ollama</option>
-                    <option value="kobold">Local Kobold.cpp</option>
+                    <option value="ollama">Ollama</option>
+                    <option value="kobold">Kobold.cpp</option>
+                    <option value="openrouter">OpenRouter</option>
                     <option value="custom">Custom (OpenAI Compatible)</option>
-                    <option value="openrouter">Cloud OpenRouter</option>
                   </select>
                 </div>
+
+                {/* Local & Custom Endpoints */}
+                {form.provider !== 'openrouter' && (
+                  <div className="form-group">
+                    <label>{form.provider === 'custom' ? "API Endpoint URL" : "Local Endpoint URL"}</label>
+                    <input
+                      type="text"
+                      placeholder={form.provider === 'custom' ? 'https://api.openai.com/v1' : 'http://127.0.0.1:11434/v1'}
+                      value={form.local_endpoint}
+                      onChange={(e) => setForm(prev => ({ ...prev, local_endpoint: e.target.value }))}
+                    />
+                    <small className="help-text">
+                      {form.provider === 'ollama' && "Ollama default: http://127.0.0.1:11434/v1"}
+                      {form.provider === 'kobold' && "Kobold.cpp default: http://127.0.0.1:5001/v1"}
+                      {form.provider === 'custom' && "Groq, Gemini, DeepSeek, or custom host address"}
+                    </small>
+                  </div>
+                )}
 
                 {/* OpenRouter API Key */}
                 {form.provider === 'openrouter' && (
@@ -335,31 +359,13 @@ export default function OnboardingModal() {
                 {/* Custom API Key */}
                 {form.provider === 'custom' && (
                   <div className="form-group">
-                    <label>API Key (Optional)</label>
+                    <label>API Key</label>
                     <input
                       type="password"
                       placeholder="Enter API key..."
                       value={form.custom_key}
                       onChange={(e) => setForm(prev => ({ ...prev, custom_key: e.target.value }))}
                     />
-                  </div>
-                )}
-
-                {/* Local Endpoints */}
-                {form.provider !== 'openrouter' && (
-                  <div className="form-group">
-                    <label>{form.provider === 'custom' ? "API Endpoint URL" : "Local Endpoint URL"}</label>
-                    <input
-                      type="text"
-                      placeholder={form.provider === 'custom' ? 'https://api.openai.com/v1' : 'http://127.0.0.1:11434/v1'}
-                      value={form.local_endpoint}
-                      onChange={(e) => setForm(prev => ({ ...prev, local_endpoint: e.target.value }))}
-                    />
-                    <small className="help-text">
-                      {form.provider === 'ollama' && "Ollama default: http://127.0.0.1:11434/v1"}
-                      {form.provider === 'kobold' && "Kobold.cpp default: http://127.0.0.1:5001/v1"}
-                      {form.provider === 'custom' && "Groq, Gemini, DeepSeek, or custom host address"}
-                    </small>
                   </div>
                 )}
 

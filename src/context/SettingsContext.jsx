@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import * as api from '../services/api';
 import { getProviderDefaultSettings } from '../utils/providerSettings';
+import { PERFORMANCE_PRESETS, detectRecommendedPreset } from '../utils/hardwareDetector';
 
 const SettingsContext = createContext(null);
 
@@ -16,8 +17,11 @@ export function SettingsProvider({ children }) {
     custom_key: '',
     local_endpoint: 'http://127.0.0.1:11434/v1',
     selected_model: '',
-    temperature: 0.9,
-    max_tokens: 2048,
+    temperature: 0.85,
+    max_tokens: 350,
+    context_limit: 14,
+    rag_top_k: 4,
+    performance_preset: 'auto',
     system_template: '',
     persona_name: 'User',
     persona_avatar: null,
@@ -34,8 +38,11 @@ export function SettingsProvider({ children }) {
       custom_key: data.custom_key || '',
       local_endpoint: data.local_endpoint || 'http://127.0.0.1:11434/v1',
       selected_model: data.selected_model || '',
-      temperature: data.temperature !== undefined ? data.temperature : 0.9,
-      max_tokens: data.max_tokens !== undefined ? data.max_tokens : 2048,
+      temperature: data.temperature !== undefined ? data.temperature : 0.85,
+      max_tokens: data.max_tokens !== undefined ? data.max_tokens : 350,
+      context_limit: data.context_limit !== undefined ? data.context_limit : 14,
+      rag_top_k: data.rag_top_k !== undefined ? data.rag_top_k : 4,
+      performance_preset: data.performance_preset || 'auto',
       system_template: data.system_template || '',
       persona_name: data.persona_name || 'User',
       persona_avatar: data.persona_avatar || null,
@@ -98,10 +105,62 @@ export function SettingsProvider({ children }) {
     return data;
   }, [checkEngineConnection]);
 
+  const applyPerformancePreset = useCallback((presetKey) => {
+    if (presetKey === 'custom') {
+      setSettingsForm(prev => ({ ...prev, performance_preset: 'custom' }));
+      return;
+    }
+
+    if (presetKey === 'auto') {
+      setSettingsForm(prev => {
+        const detected = detectRecommendedPreset(prev.provider, prev.local_endpoint);
+        const targetPreset = PERFORMANCE_PRESETS[detected.presetKey] || PERFORMANCE_PRESETS.medium;
+        return {
+          ...prev,
+          performance_preset: 'auto',
+          temperature: targetPreset.temperature,
+          max_tokens: targetPreset.max_tokens,
+          context_limit: targetPreset.context_limit,
+          rag_top_k: targetPreset.rag_top_k,
+        };
+      });
+      return;
+    }
+
+    const targetPreset = PERFORMANCE_PRESETS[presetKey];
+    if (targetPreset) {
+      setSettingsForm(prev => ({
+        ...prev,
+        performance_preset: presetKey,
+        temperature: targetPreset.temperature,
+        max_tokens: targetPreset.max_tokens,
+        context_limit: targetPreset.context_limit,
+        rag_top_k: targetPreset.rag_top_k,
+      }));
+    }
+  }, []);
+
   const handleSettingsProviderChange = useCallback((providerVal) => {
     setSettingsForm(prev => {
       const { model, endpoint } = getProviderDefaultSettings(providerVal, prev.selected_model, prev.local_endpoint);
-      return { ...prev, provider: providerVal, selected_model: model, local_endpoint: endpoint };
+      let updatedPresetValues = {};
+      if (prev.performance_preset === 'auto') {
+        const detected = detectRecommendedPreset(providerVal, endpoint);
+        const target = PERFORMANCE_PRESETS[detected.presetKey] || PERFORMANCE_PRESETS.medium;
+        updatedPresetValues = {
+          temperature: target.temperature,
+          max_tokens: target.max_tokens,
+          context_limit: target.context_limit,
+          rag_top_k: target.rag_top_k
+        };
+      }
+      return { 
+        ...prev, 
+        provider: providerVal, 
+        selected_model: model, 
+        local_endpoint: endpoint,
+        ...updatedPresetValues
+      };
     });
   }, []);
 
@@ -128,6 +187,7 @@ export function SettingsProvider({ children }) {
     engineStatus, engineOnline,
     fetchSettings, checkEngineConnection,
     handleSettingsSubmit, handleSettingsProviderChange,
+    applyPerformancePreset,
     resetForm, applySettingsToForm,
   }), [
     settings,
@@ -135,6 +195,7 @@ export function SettingsProvider({ children }) {
     engineStatus, engineOnline,
     fetchSettings, checkEngineConnection,
     handleSettingsSubmit, handleSettingsProviderChange,
+    applyPerformancePreset,
     resetForm, applySettingsToForm,
   ]);
 

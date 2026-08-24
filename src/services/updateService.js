@@ -1,17 +1,32 @@
-import { safeFetch } from '../utils/safeFetch';
+import { safeFetch, isTauri } from '../utils/safeFetch';
 import { APP_VERSION } from '../config';
 
 const GITHUB_API_URL = 'https://api.github.com/repos/Mignon-UI/Mignon-UI/releases';
 const GITHUB_TRACKING_URL = 'https://github.com/Mignon-UI/Mignon-UI/releases/latest';
 
 /**
- * Checks GitHub for the latest release version.
- * Emits a telemetry ping to register active user counts on GitHub Traffic.
+ * Checks for updates using the native Tauri updater plugin on Desktop,
+ * or queries GitHub releases with semver checking.
  *
  * @param {boolean} force - If true, bypasses the 24-hour cache check.
  * @returns {Promise<object>} Update status metadata.
  */
 export async function checkForUpdates(force = false) {
+  if (!isTauri) {
+    return {
+      updateAvailable: false,
+      latestVersion: null,
+      currentVersion: APP_VERSION,
+      releaseNotes: '',
+      url: '',
+      downloadUrl: '',
+      filename: '',
+      name: '',
+      bannerSuppressed: false,
+      error: null
+    };
+  }
+
   const now = Date.now();
   const lastCheck = Number(localStorage.getItem('mignon_last_update_check')) || 0;
 
@@ -20,6 +35,31 @@ export async function checkForUpdates(force = false) {
     localStorage.setItem('mignon_last_update_check', now.toString());
   }
 
+  // 1. Primary: Native Tauri Updater Check
+  try {
+    const { check } = await import('@tauri-apps/plugin-updater');
+    const update = await check();
+
+    if (update) {
+      return {
+        updateAvailable: true,
+        latestVersion: update.version,
+        currentVersion: update.currentVersion || APP_VERSION,
+        releaseNotes: update.body || '',
+        url: 'https://github.com/Mignon-UI/Mignon-UI/releases',
+        downloadUrl: '',
+        filename: '',
+        name: `Version ${update.version}`,
+        bannerSuppressed: localStorage.getItem('mignon_dismissed_version') === update.version,
+        _nativeUpdate: update,
+        error: null
+      };
+    }
+  } catch (err) {
+    console.warn('[UpdateService] Native plugin check unavailable, falling back to GitHub API:', err);
+  }
+
+  // 2. Fallback: GitHub Releases REST API check
   try {
     const res = await safeFetch(GITHUB_API_URL);
     if (!res.ok) throw new Error(`GitHub API responded with status ${res.status}`);

@@ -14,8 +14,10 @@ export default function UpdateBanner() {
   const [downloadComplete, setDownloadComplete] = useState(false);
   const [downloadError, setDownloadError] = useState(null);
 
-  // Check on startup
+  // Check on startup (Desktop / Tauri only)
   useEffect(() => {
+    if (!isTauri) return;
+
     const runStartupCheck = async () => {
       // 3-second delay on startup to let UI finish animations/initialization
       await new Promise(resolve => setTimeout(resolve, 3000));
@@ -50,50 +52,6 @@ export default function UpdateBanner() {
     };
   }, []);
 
-  // Set up Tauri event listeners for background download
-  useEffect(() => {
-    let active = true;
-    const unlisteners = [];
-
-    const setupListeners = async () => {
-      try {
-        const { listen } = await import('@tauri-apps/api/event');
-
-        const uProgress = await listen('download-progress', (event) => {
-          if (active) setProgress(event.payload);
-        });
-        unlisteners.push(uProgress);
-
-        const uComplete = await listen('download-complete', () => {
-          if (active) {
-            setIsDownloading(false);
-            setDownloadComplete(true);
-          }
-        });
-        unlisteners.push(uComplete);
-
-        const uError = await listen('download-error', (event) => {
-          if (active) {
-            setIsDownloading(false);
-            setDownloadError(event.payload || 'An error occurred during download');
-          }
-        });
-        unlisteners.push(uError);
-      } catch (err) {
-        console.error('[UpdateBanner] Failed to register Tauri listeners:', err);
-      }
-    };
-
-    if (isTauri) {
-      setupListeners();
-    }
-
-    return () => {
-      active = false;
-      unlisteners.forEach(unlisten => unlisten());
-    };
-  }, []);
-
   const handleDismiss = () => {
     if (updateInfo?.latestVersion) {
       // Remember dismissal for this version
@@ -111,21 +69,59 @@ export default function UpdateBanner() {
     if (!updateInfo) return;
 
     if (isTauri) {
-      // In Tauri, trigger the background download-and-install
       setIsDownloading(true);
       setProgress(0);
       setDownloadComplete(false);
       setDownloadError(null);
 
       try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('start_update_download', {
-          url: updateInfo.downloadUrl,
-          filename: updateInfo.filename
+        const { check } = await import('@tauri-apps/plugin-updater');
+        const { relaunch } = await import('@tauri-apps/plugin-process');
+
+        let update = updateInfo._nativeUpdate;
+        if (!update) {
+          update = await check();
+        }
+
+        if (!update) {
+          // If no direct signed bundle is found, fallback to opening the release URL
+          if (updateInfo.url) {
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('open_url', { url: updateInfo.url });
+          }
+          setIsDownloading(false);
+          return;
+        }
+
+        let downloaded = 0;
+        let contentLength = 0;
+
+        await update.downloadAndInstall((event) => {
+          switch (event.event) {
+            case 'Started':
+              contentLength = event.data.contentLength || 0;
+              setProgress(0);
+              break;
+            case 'Progress':
+              downloaded += event.data.chunkLength;
+              if (contentLength > 0) {
+                setProgress(Math.min(100, Math.round((downloaded / contentLength) * 100)));
+              }
+              break;
+            case 'Finished':
+              setProgress(100);
+              break;
+          }
         });
+
+        setIsDownloading(false);
+        setDownloadComplete(true);
+
+        // Seamless application relaunch
+        await relaunch();
       } catch (err) {
         setIsDownloading(false);
-        setDownloadError(err.toString());
+        setDownloadError(err.message || err.toString());
       }
     } else {
       // In browser mode, fallback to opening the release url directly
@@ -139,7 +135,7 @@ export default function UpdateBanner() {
     }
   };
 
-  if (!isVisible) return null;
+  if (!isTauri || !isVisible) return null;
 
   return (
     <div className="update-banner-sticky-wrap">
