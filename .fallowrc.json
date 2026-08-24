@@ -15,6 +15,10 @@
     {
       "file": "src/services/crud.js",
       "exports": ["*"]
+    },
+    {
+      "file": "src/services/db.js",
+      "exports": ["*"]
     }
   ]
 }

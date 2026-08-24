@@ -96,7 +96,7 @@ If you want to run the project in development mode or compile your own installer
 
 ### 📋 Prerequisites
 Ensure you have the following installed:
-* **Node.js** (v18.0.0 or higher)
+* **Bun** (v1.4.0 or higher) *(or Node.js v20+)*
 * **Rust / Cargo** (v1.75 or higher)
 * **OS Build Tools**:
   * **Windows**: Visual Studio Community Build Tools (with the **Desktop development with C++** workload enabled).
@@ -106,11 +106,11 @@ Ensure you have the following installed:
 ### 🔷 Quick Start (Development Mode)
 1. Clone the repository and install dependencies:
    ```bash
-   npm install
+   bun install
    ```
 2. Launch the developer sandbox:
    ```bash
-   npm run tauri:dev
+   bun run tauri:dev
    ```
 
 ---

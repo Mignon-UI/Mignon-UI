@@ -13,6 +13,7 @@ website/
 
 # Tauri build artifacts
 src-tauri/target/
+src-tauri/.fastembed_cache/
 
 # Local databases and SQLite files
 *.db
@@ -22,10 +23,13 @@ src-tauri/target/
 data/
 lancedb/
 
-# Local Environment Secrets
+# Local Environment Secrets & Signing Keys
 .env
 .env.local
 .env.*.local
+*.key
+*.pub
+src-tauri/*.key
 
 # IDE / System files
 .DS_Store
@@ -46,3 +50,15 @@ graphify-out/
 AR2.json
 scratch/
 *.log
+
+# Test coverage
+coverage/
+*.lcov
+
+# Bun cache
+.bun/
+
+# Temp / OS files
+*.tmp
+*.temp
+.cache/

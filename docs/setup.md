@@ -10,7 +10,7 @@ Ensure your local development machine matches these environmental guidelines bef
 
 | Dependency | Minimum Version | Target Version | Purpose |
 | :--- | :--- | :--- | :--- |
-| **Node.js** | v18.0.0 | v20.11.0 (LTS) | Powers the Vite dev server, frontend dependencies, and Tauri dev commands. |
+| **Bun** | v1.4.0 | Latest | Powers the fast package manager, test runner, and Vite dev server. *(Node.js v20+ supported)* |
 | **Rust / Cargo** | v1.75.0 | v1.78.0+ | Native compiler engine and package manager building the native wrapper. |
 | **OS Build Tools** | - | Latest | Compiler packages (MSVC Build Tools on Windows, Xcode on macOS, build-essential on Linux). |
 | **Ollama** *(Optional)* | v0.1.30 | Latest | For local offline LLM inference and hosting. |
@@ -55,9 +55,9 @@ Ensure your local development machine matches these environmental guidelines bef
 ---
 
 ### 🔷 Step 3: Install Frontend Dependencies
-Open a terminal in the root workspace folder and sync node modules:
+Open a terminal in the root workspace folder and install dependencies:
 ```bash
-npm install
+bun install
 ```
 
 ---
