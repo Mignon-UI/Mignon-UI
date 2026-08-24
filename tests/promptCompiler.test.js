@@ -1,4 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+
+const mockDbInstance = {
+  select: mock(),
+  execute: mock()
+};
+
+mock.module('../src/services/db', () => ({
+  getDb: mock().mockResolvedValue(mockDbInstance)
+}));
+
 import { getDb } from '../src/services/db';
 import * as rag from '../src/services/rag';
 import {
