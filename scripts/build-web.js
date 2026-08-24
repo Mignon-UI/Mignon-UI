@@ -7,7 +7,7 @@ const staticDir = path.join(rootDir, 'static');
 const websiteAppDir = path.join(rootDir, 'website', 'app');
 
 console.log('1. Compiling React app...');
-execSync('npm run build', { stdio: 'inherit' });
+execSync('bun run build', { stdio: 'inherit' });
 
 console.log('2. Preparing website/app directory...');
 if (fs.existsSync(websiteAppDir)) {

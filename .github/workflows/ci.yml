@@ -27,7 +27,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock', '**/bun.lockb') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
@@ -40,8 +40,8 @@ jobs:
       - name: Run ESLint
         run: bun run lint
 
-      - name: Run Vitest Tests
-        run: bun run test
+      - name: Run Bun Tests
+        run: bun test
 
   backend:
     name: Backend (Rust)
