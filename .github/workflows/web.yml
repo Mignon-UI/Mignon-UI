@@ -3,6 +3,15 @@ name: Web
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'bun.lock'
+      - 'vite.config.js'
+      - 'scripts/build-web.js'
+      - '.github/workflows/web.yml'
   workflow_dispatch:
 
 permissions:
@@ -14,7 +23,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Build & Deploy
+    name: Build & Deploy Web App
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -34,7 +43,7 @@ jobs:
             ${{ runner.os }}-bun-
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: bun install
 
       - name: Build Web App
         run: bun run build:web
@@ -45,4 +54,5 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./website
           publish_branch: gh-pages
+          keep_files: true
           commit_message: "Auto-deploy Web: ${{ github.sha }}"
