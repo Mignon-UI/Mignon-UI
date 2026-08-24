@@ -13,18 +13,14 @@ async function migrateTableColumns(db, tableName, expectedCols) {
     }
 
     if (columnsToAdd.length > 0) {
-      // ponytail: alter table operations are rolled back atomically on error
-      await db.execute("BEGIN TRANSACTION;");
-      try {
-        for (const col of columnsToAdd) {
-          console.log(`[DB Migration] Adding column ${col.name} to table ${tableName}...`);
+      for (const col of columnsToAdd) {
+        console.log(`[DB Migration] Adding column ${col.name} to table ${tableName}...`);
+        try {
           // fallow-ignore-next-line security-sink
           await db.execute(`ALTER TABLE ${tableName} ADD COLUMN ${col.name} ${col.def}`);
+        } catch (err) {
+          console.warn(`[DB Migration] Column ${col.name} add notice:`, err);
         }
-        await db.execute("COMMIT;");
-      } catch (e) {
-        await db.execute("ROLLBACK;");
-        throw e;
       }
     }
   } catch (e) {
@@ -58,8 +54,11 @@ async function _initDatabaseInternal() {
       custom_key TEXT,
       local_endpoint TEXT DEFAULT 'http://127.0.0.1:11434/v1',
       selected_model TEXT,
-      temperature REAL DEFAULT 0.9,
-      max_tokens INTEGER DEFAULT 2048,
+      temperature REAL DEFAULT 0.85,
+      max_tokens INTEGER DEFAULT 350,
+      context_limit INTEGER DEFAULT 14,
+      rag_top_k INTEGER DEFAULT 4,
+      performance_preset TEXT DEFAULT 'auto',
       system_template TEXT,
       cloud_rate_limit INTEGER DEFAULT 15,
       current_profile_id INTEGER,
@@ -80,8 +79,11 @@ async function _initDatabaseInternal() {
       custom_key TEXT,
       local_endpoint TEXT,
       selected_model TEXT,
-      temperature REAL DEFAULT 0.9,
-      max_tokens INTEGER DEFAULT 2048,
+      temperature REAL DEFAULT 0.85,
+      max_tokens INTEGER DEFAULT 350,
+      context_limit INTEGER DEFAULT 14,
+      rag_top_k INTEGER DEFAULT 4,
+      performance_preset TEXT DEFAULT 'auto',
       system_template TEXT,
       cloud_rate_limit INTEGER DEFAULT 15
     )
@@ -218,8 +220,11 @@ async function _initDatabaseInternal() {
     custom_key: "TEXT",
     local_endpoint: "TEXT DEFAULT 'http://127.0.0.1:11434/v1'",
     selected_model: "TEXT",
-    temperature: "REAL DEFAULT 0.9",
-    max_tokens: "INTEGER DEFAULT 2048",
+    temperature: "REAL DEFAULT 0.85",
+    max_tokens: "INTEGER DEFAULT 350",
+    context_limit: "INTEGER DEFAULT 14",
+    rag_top_k: "INTEGER DEFAULT 4",
+    performance_preset: "TEXT DEFAULT 'auto'",
     system_template: "TEXT",
     cloud_rate_limit: "INTEGER DEFAULT 15",
     current_profile_id: "INTEGER",
@@ -227,6 +232,16 @@ async function _initDatabaseInternal() {
     persona_avatar: "TEXT",
     persona_description: "TEXT",
     persona_character_id: "INTEGER"
+  });
+
+  await migrateTableColumns(db, 'connection_profiles', {
+    temperature: "REAL DEFAULT 0.85",
+    max_tokens: "INTEGER DEFAULT 350",
+    context_limit: "INTEGER DEFAULT 14",
+    rag_top_k: "INTEGER DEFAULT 4",
+    performance_preset: "TEXT DEFAULT 'auto'",
+    system_template: "TEXT",
+    cloud_rate_limit: "INTEGER DEFAULT 15"
   });
 
   await migrateTableColumns(db, 'characters', {

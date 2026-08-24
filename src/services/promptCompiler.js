@@ -80,20 +80,20 @@ async function retrieveKeywordLore(query) {
   }));
 }
 
-async function retrieveRelevantContext(query, worldId, queryVec = null) {
+async function retrieveRelevantContext(query, worldId, queryVec = null, topK = RAG_TOP_K) {
   if (!query || !query.trim()) return [];
 
   const keywordResults = await retrieveKeywordLore(query);
   let semanticResults = [];
   try {
-    const rawSemantic = await retrieveEmbeddings(queryVec || query, RAG_TOP_K, { type: "lore", sourceId: String(worldId || "") });
+    const rawSemantic = await retrieveEmbeddings(queryVec || query, topK, { type: "lore", sourceId: String(worldId || "") });
     semanticResults = rawSemantic.filter(r => r._distance <= RAG_DISTANCE_CUTOFF);
   } catch (e) {
     console.error("[RAG] Error fetching semantic search results:", e);
   }
 
   const allResults = [...keywordResults, ...semanticResults];
-  const uniqueParentIds = [...new Set(allResults.map(r => parseInt(r.source_id, 10)))].slice(0, RAG_TOP_K);
+  const uniqueParentIds = [...new Set(allResults.map(r => parseInt(r.source_id, 10)))].slice(0, topK);
 
   if (uniqueParentIds.length === 0) return [];
 
@@ -118,10 +118,10 @@ async function retrieveRelevantContext(query, worldId, queryVec = null) {
     }));
 }
 
-async function retrieveRelevantMemories(query, roomId, queryVec = null) {
+async function retrieveRelevantMemories(query, roomId, queryVec = null, topK = 3) {
   if (!query || !query.trim()) return [];
   try {
-    const results = await retrieveEmbeddings(queryVec || query, 3, { type: "memory", sourceId: roomId });
+    const results = await retrieveEmbeddings(queryVec || query, topK, { type: "memory", sourceId: roomId });
     return results.filter(r => r._distance <= RAG_DISTANCE_CUTOFF);
   } catch (e) {
     console.error("[RAG] Error fetching episodic memories:", e);
@@ -150,7 +150,7 @@ async function compilePlayerPersona(settings) {
 </player_persona>\n\n`;
 }
 
-async function getRecentMessages(roomId, limit = 20) {
+async function getRecentMessages(roomId, limit = 14) {
   const db = await getDb();
   const messages = await db.select(
     "SELECT id, content, swipes, active_swipe_index FROM messages WHERE room_id = ? ORDER BY id DESC LIMIT ?",
@@ -160,7 +160,7 @@ async function getRecentMessages(roomId, limit = 20) {
   return messages;
 }
 
-async function compileRagContext(messages, worldId, roomId) {
+async function compileRagContext(messages, worldId, roomId, ragTopK = 4) {
   if (!messages.length) return "";
 
   const ragQuery = await buildRagQuery(messages, worldId);
@@ -173,8 +173,8 @@ async function compileRagContext(messages, worldId, roomId) {
   }
 
   const [relevantChunks, relevantMemories] = await Promise.all([
-    retrieveRelevantContext(ragQuery, worldId, queryVec),
-    retrieveRelevantMemories(ragQuery, roomId, queryVec)
+    retrieveRelevantContext(ragQuery, worldId, queryVec, ragTopK),
+    retrieveRelevantMemories(ragQuery, roomId, queryVec, ragTopK)
   ]);
 
   let xml = "";
@@ -286,8 +286,10 @@ export async function compileSystemPrompt(roomId, targetBot, settings) {
   systemPrompt += await compilePlayerPersona(settings);
 
   // ── Semi-Static Prompt Middle (RAG Lookup) ──
-  const messages = await getRecentMessages(roomId, 20);
-  systemPrompt += await compileRagContext(messages, targetBot.world_id, roomId);
+  const contextLimit = settings?.context_limit || 14;
+  const ragTopK = settings?.rag_top_k || 4;
+  const messages = await getRecentMessages(roomId, contextLimit);
+  systemPrompt += await compileRagContext(messages, targetBot.world_id, roomId, ragTopK);
 
   // ── Dynamic Prompt Suffix ──
   if (room) {
@@ -341,9 +343,11 @@ export async function compileJointMultiAgentPrompt(roomId, candidates, settings)
   systemPrompt += await compilePlayerPersona(settings);
 
   // ── Semi-Static Prompt Middle (RAG) ──
-  const messages = await getRecentMessages(roomId, 20);
+  const contextLimit = settings?.context_limit || 14;
+  const ragTopK = settings?.rag_top_k || 4;
+  const messages = await getRecentMessages(roomId, contextLimit);
   const worldId = candidates[0]?.world_id || null;
-  systemPrompt += await compileRagContext(messages, worldId, roomId);
+  systemPrompt += await compileRagContext(messages, worldId, roomId, ragTopK);
 
   // ── Dynamic Prompt Suffix ──
   if (room?.scene_state) {
@@ -371,6 +375,7 @@ export async function compileJointMultiAgentPrompt(roomId, candidates, settings)
 
 export async function formatChatHistory(roomId, targetBot, settings = null, excludeFrom = null) {
   const db = await getDb();
+  const contextLimit = settings?.context_limit || 14;
 
   let queryStr = "SELECT id, sender_type, character_id, sender_name, content, swipes, active_swipe_index FROM messages WHERE room_id = ?";
   const params = [roomId];
@@ -378,7 +383,8 @@ export async function formatChatHistory(roomId, targetBot, settings = null, excl
     queryStr += " AND id < ?";
     params.push(excludeFrom);
   }
-  queryStr += " ORDER BY id DESC LIMIT 20";
+  queryStr += " ORDER BY id DESC LIMIT ?";
+  params.push(contextLimit);
 
   const messages = await db.select(queryStr, params);
   messages.reverse();

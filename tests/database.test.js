@@ -1,25 +1,20 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, mock } from 'bun:test';
+
+const mockDbInstance = {
+  select: mock(),
+  execute: mock()
+};
+
+mock.module('../src/services/db', () => ({
+  getDb: mock().mockResolvedValue(mockDbInstance)
+}));
+
+mock.module('../src/utils/keySecurity', () => ({
+  encryptKey: mock(async (key) => `enc::aes256gcm::mocked_${key}`),
+  decryptKey: mock(async (key) => key.replace('enc::aes256gcm::mocked_', ''))
+}));
+
 import { getDb } from '../src/services/db';
-
-// Mock getDb in src/services/db.js inside the hoisted vi.mock block
-vi.mock('../src/services/db', () => {
-  const mockDbInstance = {
-    select: vi.fn(),
-    execute: vi.fn()
-  };
-  return {
-    getDb: vi.fn().mockResolvedValue(mockDbInstance)
-  };
-});
-
-// Mock encryptKey/decryptKey in src/services/llmClient.js
-vi.mock('../src/services/llmClient', () => {
-  return {
-    encryptKey: vi.fn().mockImplementation(async (key) => `enc::aes256gcm::mocked_${key}`),
-    decryptKey: vi.fn().mockImplementation(async (key) => key.replace('enc::aes256gcm::mocked_', ''))
-  };
-});
-
 import * as crud from '../src/services/crud';
 
 describe('Database CRUD Operations Tests', () => {
@@ -27,7 +22,8 @@ describe('Database CRUD Operations Tests', () => {
 
   beforeEach(async () => {
     mockDb = await getDb();
-    vi.clearAllMocks();
+    mockDb.select.mockReset();
+    mockDb.execute.mockReset();
   });
 
   describe('Settings CRUD', () => {
@@ -179,11 +175,13 @@ describe('Database CRUD Operations Tests', () => {
       mockDb.select.mockResolvedValueOnce([{ id: 10 }]); // last inserted msg ID
       mockDb.select.mockResolvedValueOnce([
         { id: 50, summary_text: 'Summary', start_message_id: 100, end_message_id: 100 }
-      ]); // summaries
-      mockDb.select.mockResolvedValueOnce([]); // final getRooms return
+      ]); // origSummaries
+      mockDb.select.mockResolvedValueOnce([{ id: 50, summary_text: 'Summary' }]); // lastSumm (line 479)
+      mockDb.select.mockResolvedValueOnce([{ id: 'mocked-id', name: 'Original (Branch)' }]); // getRooms sessions
+      mockDb.select.mockResolvedValueOnce([{ character_id: 3 }]); // getRooms members
 
       const result = await crud.branchRoom('room-1', 100);
-      expect(result).toHaveProperty('room');
+      expect(result).toHaveProperty('clonedSummaries');
       // Verify message copy query was run
       expect(mockDb.execute).toHaveBeenCalled();
     });

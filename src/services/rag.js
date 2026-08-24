@@ -18,7 +18,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { safeFetch } from '../utils/safeFetch';
 import { getDb } from './db';
 import { getSettings } from './crud';
-import { decryptKey } from './llmClient';
+import { decryptKey } from '../utils/keySecurity';
 
 const isTauri = () => typeof window !== 'undefined' && (!!window.__TAURI_IPC__ || !!window.__TAURI_INTERNALS__);
 
@@ -156,8 +156,8 @@ export async function getEmbeddingDimension() {
   if (provider === 'openrouter' || modelName.includes('text-embedding-3-small')) {
     return 1536; // OpenAI text-embedding-3-small
   }
-  if (modelName.toLowerCase().includes('minilm')) {
-    return 384;  // all-MiniLM-L6-v2 family
+  if (isTauri() || modelName.toLowerCase().includes('minilm') || modelName.toLowerCase().includes('bge')) {
+    return 384;  // FastEmbed BGESmallENV15 / all-MiniLM-L6-v2 family on Desktop
   }
   // Jina-v2-small-en (WASM fallback), Ollama default, Kobold
   return 512;
@@ -169,7 +169,7 @@ export async function getEmbeddingDimension() {
 
 /**
  * Generate embeddings for a list of strings.
- * Falls back through: Cloud → Local API → WASM.
+ * Falls back through: Cloud → Local API → Native Rust → WASM.
  */
 export async function embedTexts(texts) {
   if (!texts || texts.length === 0) return [];
@@ -179,20 +179,24 @@ export async function embedTexts(texts) {
   const apiEndpoint = settings?.local_endpoint || 'http://127.0.0.1:11434/v1';
   const modelName   = settings?.selected_model || 'default';
 
-  // Truncate to safe maximum (matches rag_store.py 8 000-char limit)
-  const cleanTexts = texts.map(t => (typeof t === 'string' ? t.slice(0, 8000) : ''));
+  const cleanTexts = texts.map(t => typeof t === 'string' ? t : JSON.stringify(t));
 
-  // ── 1. Cloud OpenRouter ───────────────────────────────────────────────────
-  if (provider === 'openrouter') {
+  // ── 1. Cloud API offload (OpenRouter / text-embedding-3-small) ────────────
+  if (provider === 'openrouter' && settings?.openrouter_key) {
     try {
-      const apiKey = await decryptKey(settings?.openrouter_key || '');
+      const apiKey = await decryptKey(settings.openrouter_key);
       const res = await safeFetch('https://openrouter.ai/api/v1/embeddings', {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'HTTP-Referer': 'https://github.com/Mignon-UI/Mignon-UI',
+          'X-Title': 'Mignon UI'
         },
-        body: JSON.stringify({ model: 'openai/text-embedding-3-small', input: cleanTexts })
+        body: JSON.stringify({
+          model: 'openai/text-embedding-3-small',
+          input: cleanTexts
+        })
       });
       if (res.ok) {
         const data = await res.json();
@@ -200,7 +204,7 @@ export async function embedTexts(texts) {
       }
       throw new Error(`Cloud embeddings status ${res.status}`);
     } catch (e) {
-      console.warn('[RAG] Cloud embedding failed, falling back to local WASM Jina...', e);
+      console.warn('[RAG] Cloud embedding failed, falling back to local API...', e);
     }
   }
 
@@ -225,11 +229,24 @@ export async function embedTexts(texts) {
       }
       throw new Error(`Local API embeddings status ${res.status}`);
     } catch (e) {
-      console.warn('[RAG] Local API embedding offload failed, falling back to local WASM Jina...', e);
+      console.warn('[RAG] Local API embedding offload failed, falling back to native Rust / WASM...', e);
     }
   }
 
-  // ── 3. WASM fallback (jinaai/jina-embeddings-v2-small-en) ────────────────
+  // ── 3. Native Rust FastEmbed offload (Tauri Desktop) ──────────────────────
+  if (isTauri()) {
+    try {
+      const rustEmbeddings = await invoke('embed_texts_rust', { texts: cleanTexts });
+      if (Array.isArray(rustEmbeddings) && rustEmbeddings.length === cleanTexts.length) {
+        console.log(`[RAG] Native Rust FastEmbed generated ${rustEmbeddings.length} vector(s) (${rustEmbeddings[0]?.length || 0}-dim).`);
+        return rustEmbeddings;
+      }
+    } catch (e) {
+      console.warn('[RAG] Native Rust embedding offload failed, falling back to local WASM Jina...', e);
+    }
+  }
+
+  // ── 4. WASM fallback (jinaai/jina-embeddings-v2-small-en) ─────────────────
   try {
     return await runInWorker('EMBED_TEXTS', { texts: cleanTexts });
   } catch (e) {

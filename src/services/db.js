@@ -112,7 +112,7 @@ function triggerDelayedSave() {
   }, 1000);
 }
 
-export async function flushPendingSave() {
+async function flushPendingSave() {
   if (!hasUnsavedChanges || !globalSqlDb) return;
 
   if (activeSavePromise) {
@@ -199,6 +199,9 @@ export async function getDb() {
         await rawDb.execute("PRAGMA journal_mode = WAL;");
         await rawDb.execute("PRAGMA synchronous = NORMAL;");
         await rawDb.execute("PRAGMA foreign_keys = ON;");
+        await rawDb.execute("PRAGMA cache_size = -64000;"); // 64MB memory page cache
+        await rawDb.execute("PRAGMA temp_store = MEMORY;"); // Temporary tables kept in RAM
+        await rawDb.execute("PRAGMA mmap_size = 268435456;"); // 256MB memory-mapped I/O
         dbInstance = new TauriSqliteWrapper(rawDb);
       } else {
         console.info("[DB] Non-Tauri environment detected. Initializing WebAssembly SQLite (sql.js) via script injection.");
@@ -231,6 +234,8 @@ export async function getDb() {
           sqlDb.run("PRAGMA journal_mode = WAL;");
           sqlDb.run("PRAGMA synchronous = NORMAL;");
           sqlDb.run("PRAGMA foreign_keys = ON;");
+          sqlDb.run("PRAGMA cache_size = -32000;");
+          sqlDb.run("PRAGMA temp_store = MEMORY;");
           dbInstance = new BrowserSqliteWrapper(sqlDb);
         } catch (err) {
           console.error("[DB] Failed to initialize SQLite WASM:", err);
@@ -242,4 +247,86 @@ export async function getDb() {
     })();
   }
   return dbInitializationPromise;
+}
+
+/**
+ * Exports a full snapshot of the database (.mignon) for backup.
+ */
+export async function exportDatabaseBackup() {
+  const timestamp = new Date().toISOString().split('T')[0];
+  const defaultFilename = `mignon-backup-${timestamp}.mignon`;
+
+  if (isTauri) {
+    const { save } = await import('@tauri-apps/plugin-dialog');
+    const { invoke } = await import('@tauri-apps/api/core');
+
+    const filePath = await save({
+      defaultPath: defaultFilename,
+      filters: [{ name: 'Mignon Backup (*.mignon)', extensions: ['mignon', 'sqlite', 'db'] }]
+    });
+
+    if (!filePath) return { success: false, cancelled: true };
+
+    await invoke('export_database_backup', { targetPath: filePath });
+    return { success: true, path: filePath };
+  } else {
+    if (!globalSqlDb) {
+      await getDb();
+    }
+    await forceSaveDatabase();
+
+    const binary = globalSqlDb.export();
+    const blob = new Blob([binary], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = defaultFilename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return { success: true, filename: defaultFilename };
+  }
+}
+
+/**
+ * Restores the database from a selected .mignon / .sqlite backup file.
+ */
+export async function restoreDatabaseBackup(fileObj = null) {
+  if (isTauri) {
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    const { invoke } = await import('@tauri-apps/api/core');
+    const { relaunch } = await import('@tauri-apps/plugin-process');
+
+    const selectedPath = await open({
+      multiple: false,
+      filters: [{ name: 'Mignon Backup (*.mignon)', extensions: ['mignon', 'sqlite', 'db'] }]
+    });
+
+    if (!selectedPath) return { success: false, cancelled: true };
+
+    await invoke('restore_database_backup', { sourcePath: selectedPath });
+    // Relaunch desktop app to cleanly initialize the restored database
+    await relaunch();
+    return { success: true };
+  } else {
+    if (!fileObj) {
+      throw new Error('No file provided for web restoration.');
+    }
+
+    const buffer = await fileObj.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+
+    // Validate SQLite 3 magic header
+    const sqliteHeader = [0x53, 0x51, 0x4C, 0x69, 0x74, 0x65, 0x20, 0x66, 0x6F, 0x72, 0x6D, 0x61, 0x74, 0x20, 0x33, 0x00];
+    const isSqlite = bytes.length >= 16 && sqliteHeader.every((val, idx) => bytes[idx] === val);
+
+    if (!isSqlite) {
+      throw new Error('Invalid backup file: Not a valid Mignon database (.mignon / .sqlite).');
+    }
+
+    await saveDbToIndexedDB(bytes);
+    window.location.reload();
+    return { success: true };
+  }
 }

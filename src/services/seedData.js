@@ -8,8 +8,11 @@ export const DEFAULT_SETTINGS = {
   custom_key: "",
   local_endpoint: "http://127.0.0.1:11434/v1",
   selected_model: null,
-  temperature: 0.9,
-  max_tokens: 2048,
+  temperature: 0.85,
+  max_tokens: 350,
+  context_limit: 14,
+  rag_top_k: 4,
+  performance_preset: "auto",
   system_template: (
     "You are participating in a creative roleplay. Roleplay naturally, maintaining immersion. " +
     "Describe actions, sensations, and surroundings using asterisks like *smiles and walks closer* to distinguish them from spoken dialogue. " +

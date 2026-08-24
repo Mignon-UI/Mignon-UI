@@ -1,5 +1,5 @@
 import { getDb } from './db';
-import { encryptKey } from './llmClient';
+import { encryptKey } from '../utils/keySecurity';
 
 // Settings
 export async function getSettings() {
@@ -29,7 +29,8 @@ export async function saveSettings(settings) {
   await db.execute(
     `UPDATE settings SET 
       provider = ?, openrouter_key = ?, custom_key = ?, local_endpoint = ?, selected_model = ?, 
-      temperature = ?, max_tokens = ?, system_template = ?, cloud_rate_limit = ?, current_profile_id = ?,
+      temperature = ?, max_tokens = ?, context_limit = ?, rag_top_k = ?, performance_preset = ?,
+      system_template = ?, cloud_rate_limit = ?, current_profile_id = ?,
       persona_name = ?, persona_avatar = ?, persona_description = ?, persona_character_id = ?
      WHERE id = 1`,
     [
@@ -40,6 +41,9 @@ export async function saveSettings(settings) {
       settings.selected_model,
       settings.temperature,
       settings.max_tokens,
+      settings.context_limit !== undefined ? settings.context_limit : 14,
+      settings.rag_top_k !== undefined ? settings.rag_top_k : 4,
+      settings.performance_preset || 'auto',
       settings.system_template,
       settings.cloud_rate_limit,
       settings.current_profile_id,
@@ -63,8 +67,8 @@ export async function createProfile(name) {
   const settings = await getSettings();
   await db.execute(
     `INSERT INTO connection_profiles (
-      name, provider, openrouter_key, custom_key, local_endpoint, selected_model, temperature, max_tokens, system_template, cloud_rate_limit
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      name, provider, openrouter_key, custom_key, local_endpoint, selected_model, temperature, max_tokens, context_limit, rag_top_k, performance_preset, system_template, cloud_rate_limit
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       name,
       settings.provider,
@@ -74,6 +78,9 @@ export async function createProfile(name) {
       settings.selected_model,
       settings.temperature,
       settings.max_tokens,
+      settings.context_limit !== undefined ? settings.context_limit : 14,
+      settings.rag_top_k !== undefined ? settings.rag_top_k : 4,
+      settings.performance_preset || 'auto',
       settings.system_template,
       settings.cloud_rate_limit
     ]
@@ -88,7 +95,7 @@ export async function updateProfile(id, name) {
   await db.execute(
     `UPDATE connection_profiles SET 
       name = ?, provider = ?, openrouter_key = ?, custom_key = ?, local_endpoint = ?, 
-      selected_model = ?, temperature = ?, max_tokens = ?, system_template = ?, cloud_rate_limit = ?
+      selected_model = ?, temperature = ?, max_tokens = ?, context_limit = ?, rag_top_k = ?, performance_preset = ?, system_template = ?, cloud_rate_limit = ?
      WHERE id = ?`,
     [
       name,
@@ -99,6 +106,9 @@ export async function updateProfile(id, name) {
       settings.selected_model,
       settings.temperature,
       settings.max_tokens,
+      settings.context_limit !== undefined ? settings.context_limit : 14,
+      settings.rag_top_k !== undefined ? settings.rag_top_k : 4,
+      settings.performance_preset || 'auto',
       settings.system_template,
       settings.cloud_rate_limit,
       id
@@ -122,9 +132,9 @@ export async function activateProfile(id) {
   await db.execute(
     `UPDATE settings SET 
       provider = ?, openrouter_key = ?, custom_key = ?, local_endpoint = ?, selected_model = ?, 
-      temperature = ?, max_tokens = ?, system_template = ?, cloud_rate_limit = ?, current_profile_id = ?
+      temperature = ?, max_tokens = ?, context_limit = ?, rag_top_k = ?, performance_preset = ?, system_template = ?, cloud_rate_limit = ?, current_profile_id = ?
      WHERE id = 1`,
-    [p.provider, p.openrouter_key, p.custom_key, p.local_endpoint, p.selected_model, p.temperature, p.max_tokens, p.system_template, p.cloud_rate_limit, id]
+    [p.provider, p.openrouter_key, p.custom_key, p.local_endpoint, p.selected_model, p.temperature, p.max_tokens, p.context_limit !== undefined ? p.context_limit : 14, p.rag_top_k !== undefined ? p.rag_top_k : 4, p.performance_preset || 'auto', p.system_template, p.cloud_rate_limit, id]
   );
   return getSettings();
 }
@@ -213,7 +223,7 @@ export async function getRooms() {
      LEFT JOIN messages m ON m.id = (SELECT MAX(id) FROM messages WHERE room_id = s.id)
      ORDER BY last_msg_id DESC, s.created_at DESC`
   );
-  return Promise.all(sessions.map(async s => {
+  return Promise.all((sessions || []).map(async s => {
     const members = await db.select(
       `SELECT c.* FROM characters c 
        JOIN room_members rm ON c.id = rm.character_id 

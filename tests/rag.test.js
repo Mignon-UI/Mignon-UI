@@ -1,71 +1,83 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+
+// Mock Worker in tests so it doesn't try to load heavy ONNX models in background worker
+class MockWorker {
+  constructor() {
+    this.onmessage = null;
+    this.onerror = null;
+  }
+  postMessage(data) {
+    queueMicrotask(() => {
+      if (this.onmessage) {
+        if (data.type === 'EMBED_TEXTS') {
+          const texts = data.payload?.texts || data.texts || [];
+          this.onmessage({
+            data: {
+              id: data.id,
+              type: 'SUCCESS',
+              result: texts.map(() => new Array(512).fill(0.01))
+            }
+          });
+        } else if (data.type === 'COMPUTE_SIMILARITIES') {
+          const candidates = data.payload?.candidates || [];
+          this.onmessage({
+            data: {
+              id: data.id,
+              type: 'SUCCESS',
+              result: candidates.map(c => ({
+                id: c.id,
+                title: c.title,
+                text: c.text,
+                similarity: 0.95
+              }))
+            }
+          });
+        }
+      }
+    });
+  }
+  terminate() {}
+}
+
+globalThis.Worker = MockWorker;
+
 import { getDb } from '../src/services/db';
-
-// Mock getDb in src/services/db.js inside the hoisted vi.mock block
-vi.mock('../src/services/db', () => {
-  const mockDbInstance = {
-    select: vi.fn(),
-    execute: vi.fn()
-  };
-  return {
-    getDb: vi.fn().mockResolvedValue(mockDbInstance)
-  };
-});
-
-// Mock @huggingface/transformers to prevent actual WASM model loading in unit tests
-vi.mock('@huggingface/transformers', () => {
-  return {
-    pipeline: vi.fn().mockResolvedValue(async () => {
-      return {
-        data: new Float32Array(512).fill(0.01),
-        dims: [1, 512]
-      };
-    })
-  };
-});
-
-// Mock safeFetch
-vi.mock('../src/utils/safeFetch', () => {
-  return {
-    safeFetch: vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        data: [{ embedding: new Array(1536).fill(0.02) }]
-      })
-    })
-  };
-});
-
 import * as rag from '../src/services/rag';
-import { getSettings } from '../src/services/crud';
-
-// Mock getSettings from crud.js
-vi.mock('../src/services/crud', () => {
-  return {
-    getSettings: vi.fn()
-  };
-});
+import * as crud from '../src/services/crud';
+import * as safeFetchModule from '../src/utils/safeFetch';
 
 describe('RAG Service Tests', () => {
   let mockDb;
 
   beforeEach(async () => {
     mockDb = await getDb();
-    vi.clearAllMocks();
+    mockDb.select.mockReset();
+    mockDb.execute.mockReset();
+    spyOn(crud, 'getSettings').mockResolvedValue({ provider: 'ollama' });
+    spyOn(safeFetchModule, 'safeFetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [{ embedding: new Array(1536).fill(0.02) }]
+      })
+    });
+  });
+
+  afterEach(() => {
+    mock.restore();
   });
 
   describe('getEmbeddingDimension', () => {
     it('should resolve correct dimension size based on provider/model configurations', async () => {
-      getSettings.mockResolvedValueOnce({ provider: 'openrouter' });
+      crud.getSettings.mockResolvedValueOnce({ provider: 'openrouter' });
       expect(await rag.getEmbeddingDimension()).toBe(1536);
 
-      getSettings.mockResolvedValueOnce({ provider: 'ollama', selected_model: 'text-embedding-3-small' });
+      crud.getSettings.mockResolvedValueOnce({ provider: 'ollama', selected_model: 'text-embedding-3-small' });
       expect(await rag.getEmbeddingDimension()).toBe(1536);
 
-      getSettings.mockResolvedValueOnce({ provider: 'ollama', selected_model: 'all-minilm-l6-v2' });
+      crud.getSettings.mockResolvedValueOnce({ provider: 'ollama', selected_model: 'all-minilm-l6-v2' });
       expect(await rag.getEmbeddingDimension()).toBe(384);
 
-      getSettings.mockResolvedValueOnce({ provider: 'ollama', selected_model: 'jina-v2-small-en' });
+      crud.getSettings.mockResolvedValueOnce({ provider: 'ollama', selected_model: 'jina-v2-small-en' });
       expect(await rag.getEmbeddingDimension()).toBe(512);
     });
   });
@@ -94,18 +106,17 @@ describe('RAG Service Tests', () => {
     });
 
     it('should fetch embeddings using OpenRouter API when provider is openrouter', async () => {
-      getSettings.mockResolvedValue({ provider: 'openrouter', openrouter_key: 'test' });
+      crud.getSettings.mockResolvedValue({ provider: 'openrouter', openrouter_key: 'test' });
       const result = await rag.embedTexts(['Hello world']);
       expect(result.length).toBe(1);
       expect(result[0].length).toBe(1536);
     });
 
     it('should fallback to WASM Jina embeddings on API failure', async () => {
-      const { safeFetch } = await import('../src/utils/safeFetch');
       // Force API failure to trigger local WASM fallback
-      safeFetch.mockResolvedValueOnce({ ok: false, status: 500 });
+      safeFetchModule.safeFetch.mockResolvedValueOnce({ ok: false, status: 500 });
 
-      getSettings.mockResolvedValue({ provider: 'ollama', local_endpoint: 'http://invalid' });
+      crud.getSettings.mockResolvedValue({ provider: 'ollama', local_endpoint: 'http://invalid' });
       const result = await rag.embedTexts(['Hello local']);
       expect(result.length).toBe(1);
       // Fallback WASM Jina returns 512 dimensions
@@ -134,7 +145,7 @@ describe('RAG Service Tests', () => {
         return [];
       });
 
-      getSettings.mockResolvedValue({ provider: 'ollama' });
+      crud.getSettings.mockResolvedValue({ provider: 'ollama' });
 
       // Run syncRagIndex
       const result = await rag.syncRagIndex();
@@ -154,7 +165,7 @@ describe('RAG Service Tests', () => {
       const bytes = new Uint8Array(buffer, 2, 8); // Offset 2 is not 4-byte aligned!
       mockDb.select.mockResolvedValueOnce([{ vector: bytes }]);
 
-      getSettings.mockResolvedValue({ provider: 'ollama', selected_model: 'jina-v2-small-en' });
+      crud.getSettings.mockResolvedValue({ provider: 'ollama', selected_model: 'jina-v2-small-en' });
       
       // Should not throw start offset Alignment RangeError
       const result = await rag.checkAndRebuildEmbeddingsIfNeeded();
@@ -167,7 +178,7 @@ describe('RAG Service Tests', () => {
       mockDb.select.mockResolvedValueOnce([{ vector: bytes }]);
 
       // Expected dimension is 512
-      getSettings.mockResolvedValue({ provider: 'ollama', selected_model: 'jina-v2-small-en' });
+      crud.getSettings.mockResolvedValue({ provider: 'ollama', selected_model: 'jina-v2-small-en' });
 
       const result = await rag.checkAndRebuildEmbeddingsIfNeeded();
       expect(result).toBe(true);
@@ -177,9 +188,8 @@ describe('RAG Service Tests', () => {
 
   describe('retrieveEmbeddings', () => {
     it('should perform semantic search and filter results', async () => {
-      const { safeFetch } = await import('../src/utils/safeFetch');
       // Force API failure to trigger local Jina WASM fallback (512 dimensions)
-      safeFetch.mockResolvedValueOnce({ ok: false, status: 500 });
+      safeFetchModule.safeFetch.mockResolvedValueOnce({ ok: false, status: 500 });
 
       // Stored vector of size 512
       const floatVec = new Float32Array(512).fill(0.01);
@@ -188,7 +198,7 @@ describe('RAG Service Tests', () => {
       mockDb.select.mockResolvedValueOnce([
         { id: '1', type: 'lore', source_id: '10', title: 'Lore', text: 'Lore text', vector: bytes }
       ]);
-      getSettings.mockResolvedValue({ provider: 'ollama', selected_model: 'jina-v2-small-en' });
+      crud.getSettings.mockResolvedValue({ provider: 'ollama', selected_model: 'jina-v2-small-en' });
 
       const results = await rag.retrieveEmbeddings('query text', 5, { type: 'lore' });
       expect(results.length).toBe(1);

@@ -3,7 +3,7 @@
 
 import { getDb } from './db';
 import { safeFetch } from '../utils/safeFetch';
-import * as llm from './llmClient';
+import { decryptKey } from '../utils/keySecurity';
 
 export async function testConnection() {
   try {
@@ -17,7 +17,7 @@ export async function testConnection() {
     
     if (provider === "openrouter") {
       const url = "https://openrouter.ai/api/v1/models";
-      const apiKey = await llm.decryptKey(settings.openrouter_key);
+      const apiKey = await decryptKey(settings.openrouter_key);
       const headers = { "Authorization": `Bearer ${apiKey}` };
       const res = await safeFetch(url, { headers, method: "GET" });
       if (res.ok) {
@@ -27,7 +27,7 @@ export async function testConnection() {
     }
     
     if (provider === "custom" && settings?.custom_key) {
-      const apiKey = await llm.decryptKey(settings.custom_key);
+      const apiKey = await decryptKey(settings.custom_key);
       if (base.includes("anthropic.com")) {
         const url = base.endsWith("/v1") ? `${base}/messages` : `${base}/v1/messages`;
         const headers = {

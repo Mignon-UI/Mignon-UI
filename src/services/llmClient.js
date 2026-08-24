@@ -4,38 +4,11 @@
 import { invoke } from '@tauri-apps/api/core';
 import { safeFetch } from '../utils/safeFetch';
 import { runInWorker } from './rag';
+import { decryptKey } from '../utils/keySecurity';
 
 import { APP_NAME } from '../config';
 
 const isTauri = () => typeof window !== 'undefined' && (!!window.__TAURI_IPC__ || !!window.__TAURI_INTERNALS__);
-
-// Secure key helpers calling Tauri Rust commands
-export async function encryptKey(plaintext) {
-  if (!isTauri()) return plaintext;
-  try {
-    return await invoke('encrypt_key', { plaintext });
-  } catch (e) {
-    console.error("[LLM Client] Encryption failed:", e);
-    return plaintext;
-  }
-}
-
-export async function decryptKey(encryptedStr) {
-  if (!encryptedStr) return "";
-  if (!encryptedStr.startsWith("enc::")) return encryptedStr;
-
-  if (!isTauri()) {
-    console.warn("[LLM Client] Cannot decrypt key starting with 'enc::' in browser mode. Please re-enter your API key in Settings.");
-    return "";
-  }
-
-  try {
-    return await invoke('decrypt_key', { encryptedStr });
-  } catch (e) {
-    console.error("[LLM Client] Decryption failed:", e);
-    return "";
-  }
-}
 
 // Resolve the endpoint, model, and headers based on active settings
 async function resolveLlmEndpoint(settings) {
@@ -76,6 +49,10 @@ function buildPayload(model, system, user, temp, maxTokens, stream, isAnthropic)
     temperature: temp,
     max_tokens: maxTokens,
     stream,
+    options: {
+      num_predict: maxTokens,
+      temperature: temp
+    },
     ...(isAnthropic 
       ? { system, messages: [{ role: "user", content: user }] }
       : { messages: [{ role: "system", content: system }, { role: "user", content: user }] })
@@ -91,8 +68,8 @@ export async function streamLlmResponse(settings, systemPrompt, userPrompt, onTo
     modelName, 
     systemPrompt, 
     userPrompt, 
-    settings?.temperature || 0.9, 
-    settings?.max_tokens || 2048, 
+    settings?.temperature !== undefined ? settings.temperature : 0.85, 
+    settings?.max_tokens !== undefined ? settings.max_tokens : 350, 
     true, 
     isAnthropic
   );
@@ -201,8 +178,8 @@ export async function queryLlmNonStream(settings, systemPrompt, userPrompt, temp
     modelName, 
     systemPrompt, 
     userPrompt, 
-    temperature !== null ? temperature : (settings?.temperature || 0.9), 
-    maxTokens !== null ? maxTokens : (settings?.max_tokens || 2048), 
+    temperature !== null ? temperature : (settings?.temperature !== undefined ? settings.temperature : 0.85), 
+    maxTokens !== null ? maxTokens : (settings?.max_tokens !== undefined ? settings.max_tokens : 350), 
     false, 
     isAnthropic
   );

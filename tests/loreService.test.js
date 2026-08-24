@@ -1,27 +1,22 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-
-// Mock crud and rag dependencies
-vi.mock('../src/services/crud', () => {
-  return {
-    createWorld: vi.fn().mockImplementation(async (w) => ({ id: 42, name: w.name, description: w.description })),
-    createLore: vi.fn().mockImplementation(async (l) => ({ id: 100, ...l })),
-    updateWorld: vi.fn().mockImplementation(async (id, w) => ({ id, name: w.name, description: w.description }))
-  };
-});
-
-vi.mock('../src/services/rag', () => {
-  return {
-    saveEmbedding: vi.fn().mockResolvedValue()
-  };
-});
-
+import { describe, it, expect, beforeEach, afterEach, spyOn, mock } from 'bun:test';
 import { importWorldInfo, updateWorld } from '../src/services/loreService';
 import * as crud from '../src/services/crud';
 import * as rag from '../src/services/rag';
 
 describe('loreService Tests', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    spyOn(crud, 'createWorld').mockImplementation(async (w) => ({ id: 42, name: w.name, description: w.description }));
+    spyOn(crud, 'createLore').mockImplementation(async (l) => ({ id: 100, ...l }));
+    spyOn(crud, 'updateWorld').mockImplementation(async (id, w) => ({ id, name: w.name, description: w.description }));
+    spyOn(rag, 'saveEmbedding').mockResolvedValue();
+    crud.createWorld.mockClear();
+    crud.createLore.mockClear();
+    crud.updateWorld.mockClear();
+    rag.saveEmbedding.mockClear();
+  });
+
+  afterEach(() => {
+    mock.restore();
   });
 
   describe('importWorldInfo', () => {
