@@ -36,7 +36,6 @@ jobs:
 
       - name: Security Audit (bun audit)
         run: bun audit --audit-level=high
-        continue-on-error: true
 
       - name: Run ESLint
         run: bun run lint

@@ -170,8 +170,9 @@ fn calculate_cosine_similarity(
     let mut cand_norm_sq = 0.0f32;
     let min_len = query_vector.len().min(num_floats);
 
-    for (i, chunk) in candidate_bytes.chunks_exact(4).enumerate().take(min_len) {
-        let val = f32::from_ne_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+    let (chunks, _) = candidate_bytes.as_chunks::<4>();
+    for (i, chunk) in chunks.iter().enumerate().take(min_len) {
+        let val = f32::from_ne_bytes(*chunk);
         let q = query_vector[i];
         dot += q * val;
         cand_norm_sq += val * val;
