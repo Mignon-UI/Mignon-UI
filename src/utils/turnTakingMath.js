@@ -2,11 +2,11 @@
 // Pure mathematical and rule-based parsing logic for the Turn-Taking selector (Formula 3).
 // Contains no external framework or network dependencies (safe for Web Workers and Node.js testing).
 
-export function escapeRegex(string) {
+function escapeRegex(string) {
   return string.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
 }
 
-export function getKeywordRelevance(msgText, bioText) {
+function getKeywordRelevance(msgText, bioText) {
   if (!msgText?.trim() || !bioText?.trim()) return 0.5;
 
   const bio = bioText.toLowerCase();
@@ -18,7 +18,7 @@ export function getKeywordRelevance(msgText, bioText) {
   return Math.max(0.5, Math.min(1.0, 0.5 + overlap * 0.15));
 }
 
-export function calculateOceanTraits(bioLower) {
+function calculateOceanTraits(bioLower) {
   const compute = (weights, initial = 0.5) => {
     let sum = initial;
     for (const kw in weights) {
@@ -57,7 +57,7 @@ export function calculateOceanTraits(bioLower) {
   };
 }
 
-export function parseCharacterStatus(bioLower) {
+function parseCharacterStatus(bioLower) {
   const statusDict = {
     king: 10, queen: 10, emperor: 10, god: 10, ruler: 10, lord: 9, duke: 9, general: 9, "high priest": 9,
     captain: 8, chief: 8, master: 8, knight: 7, officer: 7, elder: 7, "average citizen": 5,
@@ -77,7 +77,7 @@ export function parseCharacterStatus(bioLower) {
   return match ? statusDict[match] : 5;
 }
 
-export function calculateComfortLevels(bioLower, otherNames, assertiveness) {
+function calculateComfortLevels(bioLower, otherNames, assertiveness) {
   const rules = [
     [/\bbest\s+friend(?:s)?\s+(?:with|of)\s+X\b/i, 0.95],
     [/\bclosest\s+to\s+X\b/i, 0.95],
@@ -123,11 +123,7 @@ export function calculateComfortLevels(bioLower, otherNames, assertiveness) {
 
 const bioCache = new Map();
 
-export function clearBioCache() {
-  bioCache.clear();
-}
-
-export function parseCharacterBio(bio, otherNames) {
+function parseCharacterBio(bio, otherNames) {
   const bioLower = (bio || "").toLowerCase();
   const traits = calculateOceanTraits(bioLower);
   return {
@@ -140,7 +136,7 @@ export function parseCharacterBio(bio, otherNames) {
   };
 }
 
-export function getCachedParsedBio(botId, bio, otherNames) {
+function getCachedParsedBio(botId, bio, otherNames) {
   if (bioCache.size > 200) {
     bioCache.clear();
   }
@@ -154,7 +150,7 @@ export function getCachedParsedBio(botId, bio, otherNames) {
   return cached;
 }
 
-export function softmax(scores, temperature = 0.5) {
+function softmax(scores, temperature = 0.5) {
   const t = Math.max(0.05, temperature);
   const maxS = scores.length ? Math.max(...scores) : 0;
   const exps = scores.map(s => Math.exp((s - maxS) / t));
@@ -162,7 +158,7 @@ export function softmax(scores, temperature = 0.5) {
   return sum ? exps.map(e => e / sum) : new Array(scores.length).fill(1 / scores.length);
 }
 
-export function checkDirectAddress(userText, lastMsg, bots) {
+function checkDirectAddress(userText, lastMsg, bots) {
   const check = (text, logPrefix, targetBots = bots) => {
     if (!text) return null;
     for (const bot of targetBots) {
@@ -188,7 +184,7 @@ export function checkDirectAddress(userText, lastMsg, bots) {
   return null;
 }
 
-export function filterIncapacitatedBots(bots, sceneState) {
+function filterIncapacitatedBots(bots, sceneState) {
   const terms = ["unconscious", "fainted", "asleep", "sleeping", "knocked out"];
 
   return bots.filter(bot => {
@@ -206,7 +202,7 @@ export function filterIncapacitatedBots(bots, sceneState) {
   });
 }
 
-export async function calculateCandidateScore(bot, otherNames, lastMsg, userText, tau, statusS, sceneState) {
+async function calculateCandidateScore(bot, otherNames, lastMsg, userText, tau, statusS, sceneState) {
   const traits = getCachedParsedBio(bot.id, bot.personality, otherNames);
   const others = otherNames.filter(n => n.toLowerCase() !== bot.name.toLowerCase());
   const comfortVals = others.map(n => traits.comfort[n] ?? 0.45);
@@ -247,7 +243,7 @@ export async function calculateCandidateScore(bot, otherNames, lastMsg, userText
   return { id: bot.id, name: bot.name, score };
 }
 
-export function chooseWeightedWinner(scoredCandidates) {
+function chooseWeightedWinner(scoredCandidates) {
   const scores = scoredCandidates.map(c => c.score);
   const probs = softmax(scores, 0.5);
 

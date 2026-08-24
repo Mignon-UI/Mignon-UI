@@ -1,26 +1,20 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, mock } from 'bun:test';
+
+const mockDbInstance = {
+  select: mock(),
+  execute: mock()
+};
+
+mock.module('../src/services/db', () => ({
+  getDb: mock().mockResolvedValue(mockDbInstance)
+}));
+
+mock.module('../src/utils/keySecurity', () => ({
+  encryptKey: mock(async (key) => `enc::aes256gcm::mocked_${key}`),
+  decryptKey: mock(async (key) => key.replace('enc::aes256gcm::mocked_', ''))
+}));
+
 import { getDb } from '../src/services/db';
-
-// Mock getDb in src/services/db.js inside the hoisted vi.mock block
-vi.mock('../src/services/db', () => {
-  const mockDbInstance = {
-    select: vi.fn(),
-    execute: vi.fn()
-  };
-  return {
-    getDb: vi.fn().mockResolvedValue(mockDbInstance)
-  };
-});
-
-// Mock encryptKey/decryptKey in src/services/llmClient.js
-vi.mock('../src/services/llmClient', () => {
-  return {
-    encryptKey: vi.fn().mockImplementation(async (key) => `enc::aes256gcm::mocked_${key}`),
-    decryptKey: vi.fn().mockImplementation(async (key) => key.replace('enc::aes256gcm::mocked_', ''))
-  };
-});
-
-// Import functions to test from api.js and crud.js
 import * as api from '../src/services/api';
 import * as crud from '../src/services/crud';
 
@@ -29,7 +23,8 @@ describe('Security & Hashing Audit Tests', () => {
 
   beforeEach(async () => {
     mockDb = await getDb();
-    vi.clearAllMocks();
+    mockDb.select.mockReset();
+    mockDb.execute.mockReset();
   });
 
   describe('API Broker Key Masking', () => {
@@ -129,6 +124,9 @@ describe('Security & Hashing Audit Tests', () => {
         selected_model: 'gpt-4o',
         temperature: 0.85,
         max_tokens: 1024,
+        context_limit: 14,
+        rag_top_k: 4,
+        performance_preset: 'auto',
         system_template: 'System instructions...',
         cloud_rate_limit: 10
       };
@@ -154,9 +152,12 @@ describe('Security & Hashing Audit Tests', () => {
       expect(params[5]).toBe('gpt-4o');
       expect(params[6]).toBe(0.85);
       expect(params[7]).toBe(1024);
-      expect(params[8]).toBe('System instructions...');
-      expect(params[9]).toBe(10);
-      expect(params[10]).toBe(42);
+      expect(params[8]).toBe(14);
+      expect(params[9]).toBe(4);
+      expect(params[10]).toBe('auto');
+      expect(params[11]).toBe('System instructions...');
+      expect(params[12]).toBe(10);
+      expect(params[13]).toBe(42);
     });
   });
 });
