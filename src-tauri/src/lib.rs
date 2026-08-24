@@ -269,8 +269,6 @@ fn open_url(url: String) -> Result<(), String> {
     open_file_natively(&url)
 }
 
-
-
 fn open_file_natively(path: &str) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
@@ -381,7 +379,9 @@ fn restore_database_backup(app: AppHandle, source_path: String) -> Result<(), St
     // Validate SQLite magic header bytes: "SQLite format 3\0"
     let file_bytes = fs::read(src).map_err(|e| format!("Failed to read backup file: {}", e))?;
     if file_bytes.len() < 16 || &file_bytes[0..16] != b"SQLite format 3\0" {
-        return Err("Invalid backup file: Not a valid Mignon database (.mignon / .sqlite)".to_string());
+        return Err(
+            "Invalid backup file: Not a valid Mignon database (.mignon / .sqlite)".to_string(),
+        );
     }
 
     let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
