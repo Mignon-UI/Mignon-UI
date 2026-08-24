@@ -31,6 +31,9 @@
       ]
     },
     "dialog:default",
-    "fs:default"
+    "fs:default",
+    "updater:default",
+    "process:default",
+    "process:allow-restart"
   ]
 }
