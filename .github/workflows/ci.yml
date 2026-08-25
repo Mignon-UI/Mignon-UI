@@ -124,11 +124,9 @@ jobs:
 
       - name: Bun Security Audit
         run: bun audit --audit-level=high
-        continue-on-error: true
 
       - name: Install cargo-audit
         uses: taiki-e/install-action@cargo-audit
 
       - name: Cargo Security Audit
-        run: cargo audit --file src-tauri/Cargo.lock
-        continue-on-error: true
+        run: cargo audit --file src-tauri/Cargo.lock --ignore RUSTSEC-2025-0080 --ignore RUSTSEC-2025-0098 --ignore RUSTSEC-2025-0100
