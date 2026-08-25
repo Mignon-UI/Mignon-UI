@@ -129,4 +129,4 @@ jobs:
         uses: taiki-e/install-action@cargo-audit
 
       - name: Cargo Security Audit
-        run: cargo audit --file src-tauri/Cargo.lock --deny vulnerabilities
+        run: cargo audit --file src-tauri/Cargo.lock --config src-tauri/audit.toml
