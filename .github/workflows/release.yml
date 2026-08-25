@@ -19,7 +19,9 @@ jobs:
       matrix:
         include:
           - platform: 'macos-latest'
-            args: '--target universal-apple-darwin'
+            args: '--target aarch64-apple-darwin'
+          - platform: 'macos-13'
+            args: '--target x86_64-apple-darwin'
           - platform: 'ubuntu-22.04'
             args: ''
           - platform: 'windows-latest'
@@ -29,6 +31,7 @@ jobs:
     env:
       CARGO_INCREMENTAL: 0
       CARGO_TERM_COLOR: always
+      RUSTFLAGS: ${{ matrix.platform == 'ubuntu-22.04' && '-C link-arg=-fuse-ld=mold' || '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -41,18 +44,20 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || (matrix.platform == 'macos-13' && 'x86_64-apple-darwin' || '') }}
 
       - name: Cache Rust dependencies
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
 
-      - name: Install system dependencies (Linux only)
+      - name: Install system dependencies & mold linker (Linux only)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
+            mold \
+            clang \
             libgtk-3-dev \
             libwebkit2gtk-4.1-dev \
             libssl-dev \
