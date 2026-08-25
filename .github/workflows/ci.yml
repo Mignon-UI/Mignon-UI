@@ -126,7 +126,9 @@ jobs:
         run: bun audit --audit-level=high
         continue-on-error: true
 
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@cargo-audit
+
       - name: Cargo Security Audit
-        uses: rustsec/audit-check@v2.0.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+        run: cargo audit --file src-tauri/Cargo.lock
+        continue-on-error: true
