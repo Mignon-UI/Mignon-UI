@@ -10,7 +10,6 @@ on:
       - 'package.json'
       - 'bun.lock'
       - 'vite.config.js'
-      - 'scripts/build-web.js'
       - '.github/workflows/web.yml'
   workflow_dispatch:
 
@@ -46,13 +45,15 @@ jobs:
         run: bun install
 
       - name: Build Web App
-        run: bun run build:web
+        run: bun run build
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./website
+          publish_dir: ./static
+          destination_dir: app
           publish_branch: gh-pages
           keep_files: true
-          commit_message: "Auto-deploy Web: ${{ github.sha }}"
+          commit_message: "Auto-deploy Web App: ${{ github.sha }}"
+
