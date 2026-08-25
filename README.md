@@ -1,11 +1,19 @@
 <img src="resources/mascot/mascot_dark_classic.svg" align="left" width="140" style="margin-right: 20px; margin-bottom: 10px;" alt="Mignon UI Mascot" />
 
-### Mignon UI
+# Mignon UI
 
 **The Local AI Roleplay Frontend Client.**<br/>
 *Immerse yourself in stories and scenarios with multiple AI characters in a single room, styled with stunning custom aesthetic themes.*
 
+<p>
+  <a href="https://mignon-ui.github.io/Mignon-UI/"><img src="https://img.shields.io/badge/🌐_Website-Live_Site-ff69b4?style=for-the-badge" alt="Website" /></a>
+  <a href="https://mignon-ui.github.io/Mignon-UI/app/"><img src="https://img.shields.io/badge/🚀_Web_App-Try_Online-6b3649?style=for-the-badge" alt="Try Online" /></a>
+  <a href="https://github.com/Mignon-UI/Mignon-UI/releases"><img src="https://img.shields.io/github/v/release/Mignon-UI/Mignon-UI?style=for-the-badge&color=00f0ff&label=Release" alt="Latest Release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-a3defe?style=for-the-badge" alt="License" /></a>
+</p>
+
 <br clear="left"/>
+
 
 ---
 
