@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-and-release:
-    name: Build & Release
+    name: Release (${{ matrix.platform }})
     permissions:
       contents: write
     strategy:
@@ -20,16 +20,12 @@ jobs:
         include:
           - platform: 'macos-latest'
             args: '--target universal-apple-darwin'
-            container: ''
           - platform: 'ubuntu-22.04'
             args: ''
-            container: 'ghcr.io/mignon-ui/mignon-ui-ci-runner:latest'
           - platform: 'windows-latest'
             args: ''
-            container: ''
 
     runs-on: ${{ matrix.platform }}
-    container: ${{ matrix.container || null }}
     env:
       CARGO_INCREMENTAL: 0
       CARGO_TERM_COLOR: always
@@ -37,20 +33,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Bun (Host)
-        if: matrix.container == ''
+      - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      - name: Set up Bun (Container)
-        if: matrix.container != ''
-        run: |
-          curl -fsSL https://bun.sh/install | bash
-          echo "$HOME/.bun/bin" >> $GITHUB_PATH
-
       - name: Install Rust stable
-        if: matrix.container == ''
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
@@ -61,7 +49,7 @@ jobs:
           workspaces: src-tauri -> target
 
       - name: Install system dependencies (Linux only)
-        if: matrix.platform == 'ubuntu-22.04' && matrix.container == ''
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -71,8 +59,7 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev
 
-      - name: Cache Bun dependencies (Linux only)
-        if: matrix.platform == 'ubuntu-22.04'
+      - name: Cache Bun dependencies
         uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
@@ -81,7 +68,7 @@ jobs:
             ${{ runner.os }}-bun-
 
       - name: Install frontend dependencies
-        run: bun install --frozen-lockfile
+        run: bun install
 
       - name: Build and Package Tauri App
         uses: tauri-apps/tauri-action@v0
@@ -89,7 +76,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__ # Uses the version from package.json/tauri.conf.json if triggered manually
+          tagName: v__VERSION__
           releaseName: 'Mignon UI v__VERSION__'
           releaseBody: 'Installers for Mignon UI. Download the package for your platform below.'
           releaseDraft: true
