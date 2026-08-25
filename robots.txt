@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://mignon-ui.github.io/Mignon-UI/sitemap.xml

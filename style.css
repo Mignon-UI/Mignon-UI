@@ -1565,6 +1565,55 @@ h1, h2, h3, h4, .font-display {
     border-radius: var(--r-xs);
 }
 
+/* ==========================================================================
+   FAQ SECTION
+   ========================================================================== */
+
+.faq-section {
+    max-width: 1200px;
+    margin: 6rem auto 0;
+    padding: 0 2rem;
+}
+
+.faq-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .faq-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.faq-item {
+    background-color: var(--bg-window);
+    border: var(--border-width) solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 1.75rem;
+    transition: var(--transition);
+}
+
+.faq-item:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.faq-question {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    color: var(--text);
+    font-family: var(--font-head);
+}
+
+.faq-answer {
+    color: var(--text-sec);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
 
 /* ==========================================================================
    FOOTER

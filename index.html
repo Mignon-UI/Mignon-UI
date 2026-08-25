@@ -3,27 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mignon UI - The Local AI Roleplay Frontend Client</title>
+    <title>Mignon UI — Private Local AI Roleplay & Multi-Character Client</title>
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://mignon-ui.github.io/Mignon-UI/">
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="assets/mascot_dark_classic.svg">
     
     <!-- Meta Tags -->
-    <meta name="description" content="Immerse yourself in stories and scenarios with multiple AI characters in a single room, styled with stunning custom aesthetic themes. Offline-first and private.">
-    <meta name="keywords" content="Mignon UI, AI, roleplay, LLM, local AI, Ollama, Kobold.cpp, tavern cards, character AI, front-end client, neobrutalism">
+    <meta name="description" content="Free, offline-first local AI roleplay client. Chat with multiple AI characters in custom lobbies with Ollama, KoboldCPP, and Tavern card support.">
+    <meta name="keywords" content="Mignon UI, AI roleplay, local AI client, multi-bot AI chat, Ollama UI, Kobold.cpp, tavern cards, character AI, offline LLM, neobrutalism UI">
     <meta name="author" content="Mignon UI Team">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Mignon UI - The Local AI Roleplay Frontend Client">
-    <meta property="og:description" content="Immerse yourself in stories and scenarios with multiple AI characters. Clean, neobrutalist interface with real-time theme swapping.">
-    <meta property="og:image" content="assets/welcome.webp">
+    <meta property="og:url" content="https://mignon-ui.github.io/Mignon-UI/">
+    <meta property="og:site_name" content="Mignon UI">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:title" content="Mignon UI — Private Local AI Roleplay & Multi-Character Client">
+    <meta property="og:description" content="Free, offline-first local AI roleplay client. Chat with multiple AI characters in custom lobbies with Ollama, KoboldCPP, and Tavern card support.">
+    <meta property="og:image" content="https://mignon-ui.github.io/Mignon-UI/assets/welcome.webp">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Mignon UI - Local AI Roleplay Client Interface">
+    <meta property="og:image:type" content="image/webp">
     
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:title" content="Mignon UI - The Local AI Roleplay Frontend Client">
-    <meta property="twitter:description" content="Immerse yourself in stories and scenarios with multiple AI characters. Clean, neobrutalist interface with real-time theme swapping.">
-    <meta property="twitter:image" content="assets/welcome.webp">
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Mignon UI — Private Local AI Roleplay & Multi-Character Client">
+    <meta name="twitter:description" content="Free, offline-first local AI roleplay client. Chat with multiple AI characters in custom lobbies with Ollama, KoboldCPP, and Tavern card support.">
+    <meta name="twitter:image" content="https://mignon-ui.github.io/Mignon-UI/assets/welcome.webp">
+    <meta name="twitter:image:alt" content="Mignon UI - Local AI Roleplay Client Interface">
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://mignon-ui.github.io/Mignon-UI/#website",
+          "url": "https://mignon-ui.github.io/Mignon-UI/",
+          "name": "Mignon UI",
+          "description": "Private, offline-first local AI roleplay and multi-character chat client.",
+          "inLanguage": "en-US"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://mignon-ui.github.io/Mignon-UI/#software",
+          "name": "Mignon UI",
+          "operatingSystem": "Windows, macOS, Linux, Web",
+          "applicationCategory": "EntertainmentApplication",
+          "applicationSubCategory": "AI Roleplay Client",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+          "description": "A neobrutalist desktop and web frontend client for local AI roleplay with multi-bot lobbies, Tavern card import, and smart memory.",
+          "url": "https://mignon-ui.github.io/Mignon-UI/",
+          "downloadUrl": "https://github.com/Mignon-UI/Mignon-UI/releases",
+          "softwareVersion": "1.0.0-beta",
+          "featureList": [
+            "Dynamic Multi-Bot Lobbies",
+            "Private and 100% Offline-First",
+            "V2 PNG & JSON Tavern Card Import",
+            "Smart Story Memory & Chapter Summaries",
+            "Ollama & Kobold.cpp Integration",
+            "Real-time Theme Swapping"
+          ]
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://mignon-ui.github.io/Mignon-UI/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is Mignon UI?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Mignon UI is a private, offline-first desktop and web client for local AI roleplay and interactive storytelling. It lets you chat with multiple AI characters in a single room with customizable aesthetics."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is Mignon UI free and offline?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes! Mignon UI is 100% free and open-source under the AGPL-3.0 license. Your chat logs, characters, and API keys remain on your device with zero telemetry."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Which local AI backends are supported?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Mignon UI connects seamlessly to Ollama, Kobold.cpp, LM Studio, vLLM, Text Generation WebUI, or any OpenAI-compatible API endpoint."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I import Tavern character cards?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, you can drag and drop standard V2 PNG character cards or JSON character cards directly into Mignon UI to import them instantly."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
 
     <!-- Google Fonts Preconnect & Stylesheet -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -53,6 +146,7 @@
             <a href="#showcase" class="nav-link">Showcase</a>
             <a href="#download" class="nav-link">Downloads</a>
             <a href="#setup" class="nav-link">Setup</a>
+            <a href="#faq" class="nav-link">FAQ</a>
             <a href="https://github.com/Mignon-UI/Mignon-UI" class="nav-cta" target="_blank" rel="noopener noreferrer">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
@@ -87,7 +181,7 @@
             <div class="laptop-mockup">
                 <div class="laptop-screen">
                     <div class="laptop-camera"></div>
-                    <img id="showcase-screenshot" src="assets/welcome.webp" alt="Mignon UI Showcase" class="showcase-screenshot-img" fetchpriority="high" width="800" height="500">
+                    <img id="showcase-screenshot" src="assets/welcome.webp" alt="Mignon UI desktop interface showcasing multi-character AI roleplay lobby and custom theme selector" class="showcase-screenshot-img" fetchpriority="high" width="800" height="500">
                 </div>
                 <div class="laptop-base"></div>
             </div>
@@ -335,6 +429,45 @@
                 </p>
             </div>
         </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="faq-section" id="faq">
+        <div class="section-header">
+            <h2 class="section-title">Frequently Asked Questions</h2>
+            <p class="section-sub">Everything you need to know about Mignon UI and local AI roleplay.</p>
+        </div>
+
+        <div class="faq-grid">
+            <article class="faq-item">
+                <h3 class="faq-question">What is Mignon UI?</h3>
+                <p class="faq-answer">
+                    Mignon UI is a private, offline-first client for local AI roleplay and storytelling. It allows you to create multi-character lobbies, customize aesthetics with retro themes, and maintain long-term memory across sessions.
+                </p>
+            </article>
+
+            <article class="faq-item">
+                <h3 class="faq-question">Is Mignon UI free and private?</h3>
+                <p class="faq-answer">
+                    Yes, Mignon UI is 100% free, open-source (AGPL-3.0), and offline-first. Your chats, character cards, and API keys are stored locally on your device with zero telemetry.
+                </p>
+            </article>
+
+            <article class="faq-item">
+                <h3 class="faq-question">Which local AI engines are supported?</h3>
+                <p class="faq-answer">
+                    Mignon UI works out of the box with Ollama, Kobold.cpp, LM Studio, LocalAI, vLLM, and any server exposing an OpenAI-compatible API endpoint.
+                </p>
+            </article>
+
+            <article class="faq-item">
+                <h3 class="faq-question">Can I import Tavern character cards?</h3>
+                <p class="faq-answer">
+                    Yes! You can drag and drop standard V2 PNG character cards or JSON cards to import characters, personalities, scenarios, and greeting messages automatically.
+                </p>
+            </article>
+        </div>
+    </section>
     </main>
 
     <!-- Footer -->
