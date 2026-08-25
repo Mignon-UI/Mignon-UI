@@ -129,4 +129,4 @@ jobs:
         uses: taiki-e/install-action@cargo-audit
 
       - name: Cargo Security Audit
-        run: cargo audit --file src-tauri/Cargo.lock --ignore RUSTSEC-2025-0080 --ignore RUSTSEC-2025-0098 --ignore RUSTSEC-2025-0100
+        run: cargo audit --file src-tauri/Cargo.lock --deny vulnerabilities
