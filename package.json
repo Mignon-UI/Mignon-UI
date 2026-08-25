@@ -9,7 +9,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "build:web": "bun scripts/build-web.js",
-    "deploy:web": "bun run build:web && npx gh-pages -d website",
+    "deploy:web": "bun run build:web && gh-pages -d website --dotfiles",
     "tauri:dev": "tauri dev --config src-tauri/tauri.dev.json",
     "tauri:build": "tauri build",
     "tauri": "tauri",
