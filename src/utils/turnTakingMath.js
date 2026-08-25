@@ -155,7 +155,7 @@ function softmax(scores, temperature = 0.5) {
   const maxS = scores.length ? Math.max(...scores) : 0;
   const exps = scores.map(s => Math.exp((s - maxS) / t));
   const sum = exps.reduce((a, b) => a + b, 0);
-  return sum ? exps.map(e => e / sum) : new Array(scores.length).fill(1 / scores.length);
+  return sum ? exps.map(e => e / sum) : Array.from({ length: scores.length }, () => 1 / scores.length);
 }
 
 function checkDirectAddress(userText, lastMsg, bots) {

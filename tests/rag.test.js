@@ -15,7 +15,7 @@ class MockWorker {
             data: {
               id: data.id,
               type: 'SUCCESS',
-              result: texts.map(() => new Array(512).fill(0.01))
+              result: texts.map(() => Array.from({ length: 512 }, () => 0.01))
             }
           });
         } else if (data.type === 'COMPUTE_SIMILARITIES') {
@@ -57,7 +57,7 @@ describe('RAG Service Tests', () => {
     spyOn(safeFetchModule, 'safeFetch').mockResolvedValue({
       ok: true,
       json: async () => ({
-        data: [{ embedding: new Array(1536).fill(0.02) }]
+        data: [{ embedding: Array.from({ length: 1536 }, () => 0.02) }]
       })
     });
   });

@@ -279,7 +279,11 @@ export function ChatProvider({ children }) {
   const handleToggleRoomChar = useCallback((charId) => {
     setRoomForm(prev => {
       const next = new Set(prev.selectedCharIds);
-      next.has(charId) ? next.delete(charId) : next.add(charId);
+      if (next.has(charId)) {
+        next.delete(charId);
+      } else {
+        next.add(charId);
+      }
       return { ...prev, selectedCharIds: next };
     });
   }, []);

@@ -252,7 +252,7 @@ export async function embedTexts(texts) {
   } catch (e) {
     console.error('[RAG] Critical: Local Jina WASM extraction in worker failed:', e);
     const dim = await getEmbeddingDimension();
-    return cleanTexts.map(() => new Array(dim).fill(0.0));
+    return cleanTexts.map(() => Array.from({ length: dim }, () => 0.0));
   }
 }
 

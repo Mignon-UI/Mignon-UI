@@ -30,7 +30,8 @@ jobs:
               - 'tests/**'
               - 'package.json'
               - 'bun.lock'
-              - 'eslint.config.js'
+              - 'oxlint.config.ts'
+              - 'tools/oxlint/**'
               - 'vite.config.js'
               - '.github/workflows/ci.yml'
             backend:
@@ -70,7 +71,7 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Run ESLint
+      - name: Run Oxlint
         run: bun run lint
 
       - name: Run Bun Tests

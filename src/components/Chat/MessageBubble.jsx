@@ -37,11 +37,12 @@ const MessageBubble = React.memo(({
 
   // Editing state
   const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState(m.content);
+  const [editContent, setEditContent] = useState(m.content || '');
   const textareaRef = useRef(null);
 
-  useEffect(() => {
+  const handleStartEdit = useCallback(() => {
     setEditContent(m.content || '');
+    setIsEditing(true);
   }, [m.content]);
 
   // Auto-grow textarea
@@ -250,7 +251,7 @@ const MessageBubble = React.memo(({
               {isLast && (
                 <button
                   title="Edit Message"
-                  onClick={() => setIsEditing(true)}
+                  onClick={handleStartEdit}
                   style={transparentBtnStyle}
                 >
                   <Pencil style={{ width: '15px', height: '15px' }} />
