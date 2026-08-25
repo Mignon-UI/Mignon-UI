@@ -1,0 +1,38 @@
+# Node & Tools
+node_modules/
+.agents/
+.fallow/
+.graphifyignore
+graphify-out/
+AR2.json
+data/
+scratch/
+.bun/
+
+# Source & builds
+src-tauri/
+src/
+public/
+tests/
+dist/
+dist-ssr/
+static/
+build/
+website/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Secrets & Local Keys
+*.key
+*.pub
+*.env*
+
+# Databases & Logs
+*.db
+*.db-journal
+*.sqlite*
+*.log
