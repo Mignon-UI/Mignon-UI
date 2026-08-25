@@ -17,6 +17,7 @@ jobs:
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
+      security: ${{ steps.filter.outputs.security }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -34,6 +35,12 @@ jobs:
               - '.github/workflows/ci.yml'
             backend:
               - 'src-tauri/**'
+              - '.github/workflows/ci.yml'
+            security:
+              - 'src-tauri/Cargo.lock'
+              - 'src-tauri/Cargo.toml'
+              - 'package.json'
+              - 'bun.lock'
               - '.github/workflows/ci.yml'
 
   frontend:
@@ -60,9 +67,6 @@ jobs:
 
       - name: Install dependencies
         run: bun install
-
-      - name: Security Audit (bun audit)
-        run: bun audit --audit-level=high
 
       - name: Run ESLint
         run: bun run lint
@@ -104,8 +108,26 @@ jobs:
       - name: Cargo Clippy (lints & check)
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --no-deps -- -D warnings
 
-      - name: Cargo Audit (vulnerability scan)
-        uses: actions-rust-lang/audit@v1
+  security:
+    name: Security Audits
+    needs: changes
+    if: ${{ needs.changes.outputs.security == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          workingDirectory: src-tauri
+          bun-version: latest
+
+      - name: Bun Security Audit
+        run: bun audit --audit-level=high
+        continue-on-error: true
+
+      - name: Cargo Security Audit
+        uses: rustsec/audit-check@v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
