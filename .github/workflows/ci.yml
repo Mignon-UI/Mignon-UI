@@ -89,14 +89,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Cache APT packages
-        uses: actions/cache@v4
-        with:
-          path: /var/cache/apt/archives
-          key: ${{ runner.os }}-apt-gtk-webkit-v1
-          restore-keys: |
-            ${{ runner.os }}-apt-gtk-webkit-
-
       - name: Install Linux GUI dependencies
         run: sudo apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
 
