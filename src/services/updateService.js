@@ -2,7 +2,7 @@ import { safeFetch, isTauri } from '../utils/safeFetch';
 import { APP_VERSION } from '../config';
 
 const GITHUB_API_URL = 'https://api.github.com/repos/Mignon-UI/Mignon-UI/releases';
-const GITHUB_TRACKING_URL = 'https://github.com/Mignon-UI/Mignon-UI/releases/latest';
+const UPDATE_CHECK_URL = 'https://github.com/Mignon-UI/Mignon-UI/releases/latest';
 
 /**
  * Checks for updates using the native Tauri updater plugin on Desktop,
@@ -31,7 +31,7 @@ export async function checkForUpdates(force = false) {
   const lastCheck = Number(localStorage.getItem('mignon_last_update_check')) || 0;
 
   if (force || now - lastCheck >= 24 * 60 * 60 * 1000) {
-    safeFetch(GITHUB_TRACKING_URL, { method: 'GET', mode: 'no-cors' }).catch(() => {});
+    safeFetch(UPDATE_CHECK_URL, { method: 'GET', headers: { 'Referer': 'https://mignon-ui.github.io/Mignon-UI/' } }).catch(() => {});
     localStorage.setItem('mignon_last_update_check', now.toString());
   }
 
