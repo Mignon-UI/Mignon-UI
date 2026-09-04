@@ -135,7 +135,7 @@ async function flushPendingSave() {
   await activeSavePromise;
 }
 
-export async function forceSaveDatabase() {
+async function forceSaveDatabase() {
   hasUnsavedChanges = true;
   if (pendingSaveTimeout) {
     clearTimeout(pendingSaveTimeout);
