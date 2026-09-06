@@ -1,0 +1,18 @@
+# Mignon UI
+
+> The aesthetic, lightweight local AI roleplay client for multi-bot lobbies.
+
+Mignon UI is a private, offline-first desktop frontend (Tauri + React) and web app for chatting with multiple AI characters simultaneously. It is designed as a distraction-free, beautifully styled alternative to complex cockpits like SillyTavern.
+
+## Key Capabilities
+- **Multi-Bot Lobbies:** Group chats where multiple AI characters converse with each other and the user naturally with turn-taking logic.
+- **Ecosystem Compatibility:** Native import of Tavern character cards (.png V2) and World Lorebooks.
+- **Local & Cloud AI Backends:** Out-of-the-box support for Local Ollama, Kobold.cpp (optimized for 6GB VRAM laptops via ContextShift), OpenRouter, and custom OpenAI-compatible endpoints.
+- **Aesthetic Customization:** High-contrast aesthetic themes (Bubblegum Pop, Neo-Cyber, Dollhouse, Dark Yellow, Sketch Book) in light/dark modes.
+- **Privacy & Security:** Stored in a local database on-device, zero telemetry, open source under AGPL-3.0.
+
+## Links & Resources
+- [Official Website](https://mignon-ui.github.io/Mignon-UI/)
+- [Try Web App (No Install)](https://mignon-ui.github.io/Mignon-UI/app/)
+- [GitHub Repository & Releases](https://github.com/Mignon-UI/Mignon-UI)
+- [Optimization Guide for Low VRAM Laptops](https://github.com/Mignon-UI/Mignon-UI/blob/main/docs/optimization.md)
