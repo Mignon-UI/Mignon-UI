@@ -1,18 +1,22 @@
 import { describe, it, expect, beforeEach, afterEach, spyOn, mock } from 'bun:test';
-import { importWorldInfo, updateWorld } from '../src/services/loreService';
+import { createTestDb } from './testDbHelper';
+
+let testDb;
+
+mock.module('../src/services/db', () => ({
+  getDb: async () => testDb
+}));
+
+import { importWorldInfo, updateWorld, deleteWorld, fetchWorlds } from '../src/services/loreService';
 import * as crud from '../src/services/crud';
 import * as rag from '../src/services/rag';
 
-describe('loreService Tests', () => {
+describe('loreService Tests (Genuine SQLite & RAG Integration)', () => {
   beforeEach(() => {
-    spyOn(crud, 'createWorld').mockImplementation(async (w) => ({ id: 42, name: w.name, description: w.description }));
-    spyOn(crud, 'createLore').mockImplementation(async (l) => ({ id: 100, ...l }));
-    spyOn(crud, 'updateWorld').mockImplementation(async (id, w) => ({ id, name: w.name, description: w.description }));
+    testDb = createTestDb({ seed: true });
     spyOn(rag, 'saveEmbedding').mockResolvedValue();
-    crud.createWorld.mockClear();
-    crud.createLore.mockClear();
-    crud.updateWorld.mockClear();
-    rag.saveEmbedding.mockClear();
+    spyOn(rag, 'clearEmbeddings').mockResolvedValue();
+    spyOn(rag, 'deleteEmbedding').mockResolvedValue();
   });
 
   afterEach(() => {
@@ -20,7 +24,7 @@ describe('loreService Tests', () => {
   });
 
   describe('importWorldInfo', () => {
-    it('should successfully create a world and populate lore entries with RAG embeddings', async () => {
+    it('should create world in SQLite and populate lore entries with RAG vector indexing', async () => {
       const mockJson = {
         entries: {
           "0": {
@@ -39,47 +43,70 @@ describe('loreService Tests', () => {
         }
       };
 
-      const result = await importWorldInfo('TestWorld.json', mockJson);
+      const world = await importWorldInfo('TestWorld.json', mockJson);
       
-      // Verify world creation
-      expect(crud.createWorld).toHaveBeenCalledWith({
-        name: 'TestWorld',
-        description: 'Imported from TestWorld.json'
-      });
-      expect(result).toEqual({ id: 42, name: 'TestWorld', description: 'Imported from TestWorld.json' });
+      expect(world).toBeDefined();
+      expect(world.name).toBe('TestWorld');
+      expect(world.description).toBe('Imported from TestWorld.json');
 
-      // Verify lore entries creation
-      expect(crud.createLore).toHaveBeenCalledTimes(2);
-      expect(crud.createLore).toHaveBeenNthCalledWith(1, {
-        world_id: 42,
-        title: 'Core World Law',
-        keys: 'world, setting',
-        content: 'This is a test world content.',
-        weight: 1000,
-        is_active: true
-      });
+      // Verify the world actually exists in SQLite
+      const worlds = await fetchWorlds();
+      expect(worlds.some(w => w.id === world.id)).toBe(true);
 
-      // Verify RAG embeddings save
+      // Verify lore entries were created in SQLite
+      const lores = await crud.getLore();
+      const worldLores = lores.filter(l => l.world_id === world.id);
+      expect(worldLores.length).toBe(2);
+
+      const law = worldLores.find(l => l.title === 'Core World Law');
+      expect(law).toBeDefined();
+      expect(law.keys).toBe('world, setting');
+      expect(law.content).toBe('This is a test world content.');
+      expect(law.weight).toBe(1000);
+      expect(law.is_active).toBe(true);
+
+      // Verify RAG vector embeddings were queued for indexing
       expect(rag.saveEmbedding).toHaveBeenCalledTimes(2);
+      expect(rag.saveEmbedding).toHaveBeenCalledWith(
+        `lore_${law.id}`,
+        'lore',
+        String(world.id),
+        'Core World Law',
+        '[LORE: Core World Law]\nTrigger keywords: world, setting\n\nThis is a test world content.'
+      );
     });
 
-    it('should handle empty/missing entries gracefully', async () => {
-      const result = await importWorldInfo('EmptyWorld.json', null);
-      expect(crud.createWorld).toHaveBeenCalledWith({
-        name: 'EmptyWorld',
-        description: 'Imported from EmptyWorld.json'
-      });
-      expect(crud.createLore).not.toHaveBeenCalled();
+    it('should handle empty or null entries without errors', async () => {
+      const world = await importWorldInfo('EmptyWorld.json', null);
+      expect(world.name).toBe('EmptyWorld');
       expect(rag.saveEmbedding).not.toHaveBeenCalled();
-      expect(result.name).toBe('EmptyWorld');
+
+      const worlds = await fetchWorlds();
+      expect(worlds.some(w => w.id === world.id)).toBe(true);
     });
   });
 
-  describe('updateWorld', () => {
-    it('should call crud.updateWorld with correct arguments', async () => {
-      const result = await updateWorld(42, { name: 'NewName', description: 'NewDesc' });
-      expect(crud.updateWorld).toHaveBeenCalledWith(42, { name: 'NewName', description: 'NewDesc' });
-      expect(result).toEqual({ id: 42, name: 'NewName', description: 'NewDesc' });
+  describe('updateWorld & deleteWorld', () => {
+    it('should update world details in SQLite', async () => {
+      const world = await crud.createWorld({ name: 'Initial World', description: 'Desc 1' });
+      const updated = await updateWorld(world.id, { name: 'Renamed World', description: 'Desc 2' });
+
+      expect(updated.name).toBe('Renamed World');
+      expect(updated.description).toBe('Desc 2');
+
+      const worlds = await fetchWorlds();
+      const match = worlds.find(w => w.id === world.id);
+      expect(match.name).toBe('Renamed World');
+    });
+
+    it('should delete world and clear its RAG vector embeddings', async () => {
+      const world = await crud.createWorld({ name: 'Disposable World' });
+      await deleteWorld(world.id);
+
+      expect(rag.clearEmbeddings).toHaveBeenCalledWith('lore', String(world.id));
+
+      const worlds = await fetchWorlds();
+      expect(worlds.some(w => w.id === world.id)).toBe(false);
     });
   });
 });

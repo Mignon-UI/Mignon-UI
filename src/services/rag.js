@@ -550,10 +550,29 @@ export async function retrieveEmbeddings(query, topK = 5, filter = {}) {
   // 5. Offload similarity computations (Tauri -> Rust, Browser -> Web Worker)
   if (isTauri()) {
     try {
-      return await invoke('compute_similarities_rust', {
+      // IPC Optimization: Send only ID and vector coordinates over the bridge.
+      // Eliminates multi-megabyte JSON serialization of document texts and titles.
+      const ipcCandidates = sanitizedCandidates.map(c => ({ id: c.id, vector: c.vector }));
+      const scoredMatches = await invoke('compute_similarities_rust', {
         queryVector: Array.from(queryVec),
-        candidates: sanitizedCandidates,
+        candidates: ipcCandidates,
         topK
+      });
+
+      const candidateMap = new Map();
+      for (const item of sanitizedCandidates) {
+        candidateMap.set(String(item.id), item);
+      }
+
+      return scoredMatches.map(res => {
+        const meta = candidateMap.get(String(res.id));
+        return {
+          ...res,
+          type: meta?.type ?? res.type,
+          source_id: meta?.source_id ?? res.source_id,
+          title: meta?.title ?? res.title,
+          text: meta?.text ?? res.text
+        };
       });
     } catch (e) {
       console.error('[RAG] Rust similarity offload failed, falling back to Web Worker:', e);

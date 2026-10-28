@@ -237,7 +237,7 @@ export async function generateBotResponse(roomId, botId, autoChain, mutedIds, mo
           }
 
           // Strip any trailing next_speaker tags from final response text before saving
-          const cleanResponse = fullResponseText.replace(/<next_speaker\s+id="[^"]+">/gi, "").trim();
+          const cleanResponse = fullResponseText.replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/<next_speaker\s+id="[^"]+">/gi, "").trim();
           if (!cleanResponse) {
             throw new Error(`AI for ${targetBot.name} generated an empty response.`);
           }
@@ -351,7 +351,7 @@ export async function regenerateSwipe(roomId, msgId, onToken, signal) {
     onToken(token);
   }, signal);
 
-  const cleanResponse = fullResponse.trim();
+  const cleanResponse = fullResponse.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
   if (!cleanResponse) {
     throw new Error("LLM returned an empty response for swipe.");
   }

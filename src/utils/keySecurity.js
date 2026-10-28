@@ -24,7 +24,7 @@ export async function decryptKey(encryptedStr) {
     return "";
   }
   try {
-    return await invoke('decrypt_key', { ciphertext: encryptedStr });
+    return await invoke('decrypt_key', { encrypted_str: encryptedStr, ciphertext: encryptedStr });
   } catch (e) {
     console.error("[KeySecurity] Decryption failed:", e);
     return "";

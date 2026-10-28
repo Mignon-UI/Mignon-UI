@@ -9,7 +9,12 @@ function escapeHTML(text) {
 }
 
 export function formatRoleplayText(text) {
-  let html = escapeHTML(text);
+  if (!text) return "";
+
+  // ponytail: strip any internal <think>...</think> tags completely so reasoning is never displayed in chat
+  const clean = text.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, "").trimStart();
+
+  let html = escapeHTML(clean);
   
   // Convert *actions* or *actions (unclosed) into action-text tags
   // Matches text inside asterisks e.g. *walks in*

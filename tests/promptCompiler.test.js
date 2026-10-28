@@ -1,15 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { createTestDb } from './testDbHelper';
 
-const mockDbInstance = {
-  select: mock(),
-  execute: mock()
-};
+let testDb;
 
 mock.module('../src/services/db', () => ({
-  getDb: mock().mockResolvedValue(mockDbInstance)
+  getDb: async () => testDb
 }));
 
-import { getDb } from '../src/services/db';
 import * as rag from '../src/services/rag';
 import {
   compileSystemPrompt,
@@ -17,13 +14,10 @@ import {
   formatChatHistory
 } from '../src/services/promptCompiler';
 
-describe('Prompt Compiler Service Tests', () => {
-  let mockDb;
+describe('Prompt Compiler Service Tests (Genuine SQLite & Prompt Assembly)', () => {
+  beforeEach(() => {
+    testDb = createTestDb({ seed: true });
 
-  beforeEach(async () => {
-    mockDb = await getDb();
-    mockDb.select.mockReset();
-    mockDb.execute.mockReset();
     spyOn(rag, 'retrieveEmbeddings').mockResolvedValue([
       {
         id: 'lore_1',
@@ -43,6 +37,34 @@ describe('Prompt Compiler Service Tests', () => {
 
   describe('compileSystemPrompt', () => {
     it('should assemble a complete system prompt with bot profile, scenario, persona, and system directives', async () => {
+      const roomId = 'room-sys-100';
+
+      // Insert real chat session with scene_state in SQLite
+      await testDb.execute(
+        `INSERT INTO chat_sessions (id, name, description, scene_state) VALUES (?, ?, ?, ?)`,
+        [
+          roomId,
+          'Garrison Gate',
+          'The ancient stone garrison.',
+          JSON.stringify({
+            environment: { location: 'Gatehouse', atmosphere: 'Thunderous rain' },
+            '1': { name: 'Lyra', location: 'Gatehouse', action: 'Polishing armor', mood: 'stern' },
+            '2': { name: 'Kaelen', location: 'Rafters', action: 'Observing silently', mood: 'focused' },
+            active_motivation: 'Secure the gate before sundown'
+          })
+        ]
+      );
+
+      // Link members (Lyra = 1, Kaelen = 2 from seeded characters)
+      await testDb.execute(`INSERT INTO room_members (room_id, character_id) VALUES (?, ?)`, [roomId, 1]);
+      await testDb.execute(`INSERT INTO room_members (room_id, character_id) VALUES (?, ?)`, [roomId, 2]);
+
+      // Insert message for context
+      await testDb.execute(
+        `INSERT INTO messages (room_id, sender_type, character_id, sender_name, content) VALUES (?, ?, ?, ?, ?)`,
+        [roomId, 'user', null, 'User', 'Is the perimeter secure?']
+      );
+
       const targetBot = {
         id: 1,
         name: 'Lyra',
@@ -59,47 +81,7 @@ describe('Prompt Compiler Service Tests', () => {
         rag_top_k: 3
       };
 
-      // Mock DB calls in compileSystemPrompt:
-      // 1. Room members
-      // 2. Load characters in room
-      // 3. Room details (description, scene_state)
-      // 4. Messages for RAG context
-      // 5. Keyword lore queries
-      mockDb.select.mockImplementation(async (sql) => {
-        if (sql.includes('FROM room_members')) {
-          return [{ character_id: 1 }, { character_id: 2 }];
-        }
-        if (sql.includes('FROM characters WHERE id IN')) {
-          return [
-            { id: 1, name: 'Lyra', personality: 'A proud tsundere knight.' },
-            { id: 2, name: 'Kaelen', personality: 'A quiet assassin.' }
-          ];
-        }
-        if (sql.includes('FROM chat_sessions WHERE id = ?')) {
-          return [
-            {
-              description: 'The ancient stone garrison.',
-              scene_state: JSON.stringify({
-                environment: { location: 'Gatehouse', atmosphere: 'Thunderous rain' },
-                '1': { name: 'Lyra', location: 'Gatehouse', action: 'Polishing armor', mood: 'stern' },
-                '2': { name: 'Kaelen', location: 'Rafters', action: 'Observing silently', mood: 'focused' },
-                active_motivation: 'Secure the gate before sundown'
-              })
-            }
-          ];
-        }
-        if (sql.includes('FROM messages WHERE room_id = ?')) {
-          return [
-            { id: 1, content: 'Is the perimeter secure?', swipes: null, active_swipe_index: 0 }
-          ];
-        }
-        if (sql.includes('FROM lore_entries WHERE is_active = 1')) {
-          return [];
-        }
-        return [];
-      });
-
-      const prompt = await compileSystemPrompt(100, targetBot, settings);
+      const prompt = await compileSystemPrompt(roomId, targetBot, settings);
 
       expect(prompt).toBeDefined();
       expect(prompt).toContain('Roleplay strictly as Lyra.');
@@ -109,7 +91,7 @@ describe('Prompt Compiler Service Tests', () => {
       expect(prompt).toContain('<global_room_scenario>');
       expect(prompt).toContain('The ancient stone garrison.');
       expect(prompt).toContain('<group_chat_members>');
-      expect(prompt).toContain('<name>Kaelen</name>');
+      expect(prompt).toContain('<name>Kaelen Vane</name>');
       expect(prompt).toContain('<player_persona>');
       expect(prompt).toContain('<name>Arthur</name>');
       expect(prompt).toContain('A novice squire trying his best.');
@@ -118,13 +100,19 @@ describe('Prompt Compiler Service Tests', () => {
       expect(prompt).toContain('<atmosphere>Thunderous rain</atmosphere>');
       expect(prompt).toContain('Secure the gate before sundown');
       expect(prompt).toContain('<directive>You are now roleplaying strictly and only as [Lyra].');
-      expect(prompt).toContain('Do not write dialogue, actions, or reactions for other characters: Kaelen.');
+      expect(prompt).toContain('Do not write dialogue, actions, or reactions for other characters: Kaelen Vane.');
       expect(prompt).toContain('Do not write dialogue, actions, thoughts, or decisions for the User (Arthur).');
     });
   });
 
   describe('compileJointMultiAgentPrompt', () => {
-    it('should assemble candidate roster and multi-agent coordinator directives', async () => {
+    it('should assemble candidate roster and multi-agent coordinator directives from real database', async () => {
+      const roomId = 'room-joint-200';
+      await testDb.execute(
+        `INSERT INTO chat_sessions (id, name, description) VALUES (?, ?, ?)`,
+        [roomId, 'Command Post', 'Command Tent']
+      );
+
       const candidates = [
         { id: 1, name: 'Lyra', personality: 'Knight', scenario: 'Gatehouse', system_prompt: 'Coordinator prompt' },
         { id: 2, name: 'Kaelen', personality: 'Assassin', scenario: 'Rafters' }
@@ -136,17 +124,7 @@ describe('Prompt Compiler Service Tests', () => {
         rag_top_k: 2
       };
 
-      mockDb.select.mockImplementation(async (sql) => {
-        if (sql.includes('FROM chat_sessions WHERE id = ?')) {
-          return [{ description: 'Command Tent', scene_state: null }];
-        }
-        if (sql.includes('FROM messages WHERE room_id = ?')) {
-          return [];
-        }
-        return [];
-      });
-
-      const prompt = await compileJointMultiAgentPrompt(200, candidates, settings);
+      const prompt = await compileJointMultiAgentPrompt(roomId, candidates, settings);
 
       expect(prompt).toContain('<candidate_roster>');
       expect(prompt).toContain('<character id="1">');
@@ -160,55 +138,49 @@ describe('Prompt Compiler Service Tests', () => {
   });
 
   describe('formatChatHistory', () => {
-    it('should correctly format chat messages, resolving user persona name and active swipe index', async () => {
-      const targetBot = { id: 1, name: 'Lyra', post_history_instructions: 'Keep responses under 3 sentences.' };
+    it('should format real SQLite chat messages, resolving persona name and active swipe index', async () => {
+      const roomId = 'room-hist-300';
+      await testDb.execute(`INSERT INTO chat_sessions (id, name) VALUES (?, ?)`, [roomId, 'History Room']);
+      await testDb.execute(`INSERT INTO room_members (room_id, character_id) VALUES (?, ?)`, [roomId, 1]);
+
+      // Message 1: User
+      await testDb.execute(
+        `INSERT INTO messages (room_id, sender_type, character_id, sender_name, content, swipes, active_swipe_index)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [roomId, 'user', null, 'User', 'Hello Lyra.', null, 0]
+      );
+
+      // Message 2: Bot with swipes (active index = 1)
+      await testDb.execute(
+        `INSERT INTO messages (room_id, sender_type, character_id, sender_name, content, swipes, active_swipe_index)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          roomId,
+          'character',
+          1,
+          'Lyra Valerius',
+          'Default greeting.',
+          JSON.stringify(['Default greeting.', '*nods curtly* What do you need, Arthur?']),
+          1
+        ]
+      );
+
+      // Message 3: User
+      await testDb.execute(
+        `INSERT INTO messages (room_id, sender_type, character_id, sender_name, content, swipes, active_swipe_index)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [roomId, 'user', null, 'User', 'Can you teach me swordplay?', null, 0]
+      );
+
+      const targetBot = { id: 1, name: 'Lyra Valerius', post_history_instructions: 'Keep responses under 3 sentences.' };
       const settings = { persona_name: 'Arthur', context_limit: 10 };
 
-      mockDb.select.mockImplementation(async (sql) => {
-        if (sql.includes('FROM messages WHERE room_id = ?')) {
-          return [
-            {
-              id: 1,
-              sender_type: 'user',
-              sender_name: 'User',
-              content: 'Hello Lyra.',
-              swipes: null,
-              active_swipe_index: 0
-            },
-            {
-              id: 2,
-              sender_type: 'character',
-              character_id: 1,
-              sender_name: 'Lyra',
-              content: 'Default greeting.',
-              swipes: JSON.stringify(['Default greeting.', '*nods curtly* What do you need, Arthur?']),
-              active_swipe_index: 1
-            },
-            {
-              id: 3,
-              sender_type: 'user',
-              sender_name: 'User',
-              content: 'Can you teach me swordplay?',
-              swipes: null,
-              active_swipe_index: 0
-            }
-          ];
-        }
-        if (sql.includes('FROM room_members WHERE room_id = ?')) {
-          return [{ character_id: 1 }];
-        }
-        if (sql.includes('FROM characters WHERE id IN')) {
-          return [{ id: 1, name: 'Lyra' }];
-        }
-        return [];
-      });
-
-      const history = await formatChatHistory(300, targetBot, settings);
+      const history = await formatChatHistory(roomId, targetBot, settings);
 
       expect(history).toContain('Arthur: Hello Lyra.');
-      expect(history).toContain('Lyra: *nods curtly* What do you need, Arthur?');
+      expect(history).toContain('Lyra Valerius: *nods curtly* What do you need, Arthur?');
       expect(history).toContain('Arthur: Can you teach me swordplay?');
-      expect(history).toContain('(Lyra is now responding to Arthur...)');
+      expect(history).toContain('(Lyra Valerius is now responding to Arthur...)');
       expect(history).toContain('Keep responses under 3 sentences.');
     });
   });

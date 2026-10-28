@@ -10,6 +10,11 @@ import { APP_NAME } from '../config';
 
 const isTauri = () => typeof window !== 'undefined' && (!!window.__TAURI_IPC__ || !!window.__TAURI_INTERNALS__);
 
+export function isReasoningModel(modelName) {
+  if (!modelName) return false;
+  return /(gemma4|r1|qwq|reason|think|o1|o3)/i.test(modelName);
+}
+
 // Resolve the endpoint, model, and headers based on active settings
 async function resolveLlmEndpoint(settings) {
   const headers = {};
@@ -64,12 +69,16 @@ export async function streamLlmResponse(settings, systemPrompt, userPrompt, onTo
   const { url, modelName, headers } = await resolveLlmEndpoint(settings);
   const isAnthropic = url.includes("api.anthropic.com");
 
+  const userMaxTokens = settings?.max_tokens !== undefined ? settings.max_tokens : 350;
+  // ponytail: reasoning models require a higher token budget so they can finish thinking and output dialogue
+  const effectiveMaxTokens = isReasoningModel(modelName) && userMaxTokens < 1500 ? 1500 : userMaxTokens;
+
   const payload = buildPayload(
     modelName, 
     systemPrompt, 
     userPrompt, 
     settings?.temperature !== undefined ? settings.temperature : 0.85, 
-    settings?.max_tokens !== undefined ? settings.max_tokens : 350, 
+    effectiveMaxTokens, 
     true, 
     isAnthropic
   );
@@ -174,12 +183,15 @@ export async function queryLlmNonStream(settings, systemPrompt, userPrompt, temp
   const { url, modelName, headers } = await resolveLlmEndpoint(settings);
   const isAnthropic = url.includes("api.anthropic.com");
 
+  const baseTokens = maxTokens !== null ? maxTokens : (settings?.max_tokens !== undefined ? settings.max_tokens : 350);
+  const effectiveMaxTokens = isReasoningModel(modelName) && baseTokens < 1500 ? 1500 : baseTokens;
+
   const payload = buildPayload(
     modelName, 
     systemPrompt, 
     userPrompt, 
     temperature !== null ? temperature : (settings?.temperature !== undefined ? settings.temperature : 0.85), 
-    maxTokens !== null ? maxTokens : (settings?.max_tokens !== undefined ? settings.max_tokens : 350), 
+    effectiveMaxTokens, 
     false, 
     isAnthropic
   );
@@ -201,7 +213,8 @@ export async function queryLlmNonStream(settings, systemPrompt, userPrompt, temp
         }
       } else {
         if (parsed.choices && parsed.choices.length > 0) {
-          return parsed.choices[0].message?.content || "";
+          const content = parsed.choices[0].message?.content || "";
+          return content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
         }
       }
     }

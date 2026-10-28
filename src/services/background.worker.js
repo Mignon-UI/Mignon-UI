@@ -153,10 +153,13 @@ self.onmessage = async (event) => {
                   token = parsed.delta?.text;
                 }
               } else {
-                if (parsed.choices && parsed.choices.length > 0) {
-                  token = parsed.choices[0].delta?.content;
-                } else {
-                  token = parsed.message?.content;
+                const choice = parsed.choices?.[0];
+                const delta = choice?.delta;
+                if (delta) {
+                  // ponytail: discard internal reasoning/thought tokens — only stream dialogue content
+                  token = delta.content || null;
+                } else if (parsed.message) {
+                  token = parsed.message.content || null;
                 }
               }
 
@@ -168,6 +171,7 @@ self.onmessage = async (event) => {
             }
           }
         }
+
         self.postMessage({ id, type: 'SUCCESS', result: { taskId } });
       } finally {
         activeStreams.delete(taskId);

@@ -47,7 +47,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg2QjRENkRDMjdBMkU1RDAKUldUUTVhSW4zTmEwaGc4VFAvLzFaTzlwUDJaVUNsNzVxNkN2c25icGRuVWJxUmhLY2gzdHZ6VlQK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDIyOEIwRjE3MENGNDFBN0MKUldSOEd2UU1GdytMSXNZNXlTOGJCQmxRUmtrWktZMlRHRjA3ZzViWG9sM2ZJRmVXMWpWbjE0QmcK",
       "endpoints": [
         "https://github.com/Mignon-UI/Mignon-UI/releases/latest/download/latest.json"
       ]

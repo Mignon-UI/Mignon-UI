@@ -193,7 +193,8 @@ function filterIncapacitatedBots(bots, sceneState) {
 
     const action = (state.action || "").toLowerCase();
     const mood = (state.mood || "").toLowerCase();
-    const isIncapacitated = terms.some(term => action.includes(term) || mood.includes(term));
+    const status = (state.status || "").toLowerCase();
+    const isIncapacitated = terms.some(term => action.includes(term) || mood.includes(term) || status.includes(term));
 
     if (isIncapacitated) {
       console.log(`[Efficient] Bot: ${bot.name} is physically incapacitated. Skipping.`);
@@ -319,3 +320,12 @@ export async function runMainThreadEfficientSelector(messageContent, bots, messa
 
   return winnerId;
 }
+
+export {
+  checkDirectAddress,
+  calculateOceanTraits,
+  parseCharacterStatus,
+  calculateComfortLevels,
+  filterIncapacitatedBots,
+  getKeywordRelevance
+};

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { PERFORMANCE_PRESETS, detectRecommendedPreset, matchCurrentPreset } from '../src/utils/hardwareDetector';
+import { PERFORMANCE_PRESETS, detectRecommendedPreset, matchCurrentPreset, clearHardwareCache } from '../src/utils/hardwareDetector';
 
 describe('Hardware Detector & Performance Presets', () => {
   it('should define all 5 core presets with valid parameters', () => {
@@ -45,5 +45,10 @@ describe('Hardware Detector & Performance Presets', () => {
       temperature: 0.85
     };
     expect(matchCurrentPreset(customForm)).toBe('custom');
+  });
+
+  it('should export clearHardwareCache function that executes cleanly', () => {
+    expect(typeof clearHardwareCache).toBe('function');
+    expect(() => clearHardwareCache()).not.toThrow();
   });
 });

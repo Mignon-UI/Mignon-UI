@@ -34,33 +34,53 @@ fn hex_decode(hex_str: &str) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
+// Cache master encryption key in memory to eliminate repeated disk reads on every crypto operation
+static MASTER_KEY_CACHE: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
+
+fn hex_encode(bytes: &[u8]) -> String {
+    use std::fmt::Write;
+    let mut s = String::with_capacity(bytes.len() * 2);
+    for &b in bytes {
+        let _ = write!(s, "{:02x}", b);
+    }
+    s
+}
+
 // Helper to get or create a persistent 32-byte symmetric encryption key in the secure app data directory
-fn get_secret_key(app: &AppHandle) -> Result<Vec<u8>, String> {
+fn get_secret_key(app: &AppHandle) -> Result<&'static [u8], String> {
+    if let Some(key) = MASTER_KEY_CACHE.get() {
+        return Ok(key.as_slice());
+    }
+
     let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     fs::create_dir_all(&app_dir).map_err(|e| e.to_string())?;
     let key_path = app_dir.join("secret.key");
 
-    if key_path.exists() {
-        fs::read(&key_path).map_err(|e| e.to_string())
+    let key = if key_path.exists() {
+        fs::read(&key_path).map_err(|e| e.to_string())?
     } else {
         // Generate secure 32 random bytes using getrandom CSPRNG
-        let mut key = vec![0u8; 32];
-        getrandom::getrandom(&mut key).map_err(|e| e.to_string())?;
+        let mut new_key = vec![0u8; 32];
+        getrandom::getrandom(&mut new_key).map_err(|e| e.to_string())?;
 
-        fs::write(&key_path, &key).map_err(|e| e.to_string())?;
+        fs::write(&key_path, &new_key).map_err(|e| e.to_string())?;
 
         // Restrict file permissions to owner-only (0600) on Unix-like platforms
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let metadata = fs::metadata(&key_path).map_err(|e| e.to_string())?;
-            let mut permissions = metadata.permissions();
-            permissions.set_mode(0o600);
-            fs::set_permissions(&key_path, permissions).map_err(|e| e.to_string())?;
+            if let Ok(metadata) = fs::metadata(&key_path) {
+                let mut permissions = metadata.permissions();
+                permissions.set_mode(0o600);
+                let _ = fs::set_permissions(&key_path, permissions);
+            }
         }
 
-        Ok(key)
-    }
+        new_key
+    };
+
+    let _ = MASTER_KEY_CACHE.set(key);
+    Ok(MASTER_KEY_CACHE.get().unwrap().as_slice())
 }
 
 // AES-256-GCM encryption helper
@@ -93,22 +113,27 @@ fn encrypt_key(app: AppHandle, plaintext: String) -> Result<String, String> {
         return Ok(String::new());
     }
     let key = get_secret_key(&app)?;
-    let (nonce, ciphertext) = aes_gcm_encrypt(plaintext.as_bytes(), &key)?;
-    let nonce_hex: String = nonce.iter().map(|b| format!("{:02x}", b)).collect();
-    let cipher_hex: String = ciphertext.iter().map(|b| format!("{:02x}", b)).collect();
+    let (nonce, ciphertext) = aes_gcm_encrypt(plaintext.as_bytes(), key)?;
+    let nonce_hex = hex_encode(&nonce);
+    let cipher_hex = hex_encode(&ciphertext);
     Ok(format!("enc::aes256gcm::{}:{}", nonce_hex, cipher_hex))
 }
 
 #[tauri::command]
-fn decrypt_key(app: AppHandle, encrypted_str: String) -> Result<String, String> {
-    if encrypted_str.is_empty() {
+fn decrypt_key(
+    app: AppHandle,
+    encrypted_str: Option<String>,
+    ciphertext: Option<String>,
+) -> Result<String, String> {
+    let encrypted = encrypted_str.or(ciphertext).unwrap_or_default();
+    if encrypted.is_empty() {
         return Ok(String::new());
     }
-    if !encrypted_str.starts_with("enc::") {
-        return Ok(encrypted_str);
+    if !encrypted.starts_with("enc::") {
+        return Ok(encrypted);
     }
 
-    if let Some(parts_str) = encrypted_str.strip_prefix("enc::aes256gcm::") {
+    if let Some(parts_str) = encrypted.strip_prefix("enc::aes256gcm::") {
         let key = get_secret_key(&app)?;
         let parts: Vec<&str> = parts_str.split(':').collect();
         if parts.len() != 2 {
@@ -121,9 +146,9 @@ fn decrypt_key(app: AppHandle, encrypted_str: String) -> Result<String, String> 
         }
         let cipher_bytes = hex_decode(parts[1])?;
 
-        let decrypted = aes_gcm_decrypt(&nonce_bytes, &cipher_bytes, &key)?;
+        let decrypted = aes_gcm_decrypt(&nonce_bytes, &cipher_bytes, key)?;
         String::from_utf8(decrypted).map_err(|e| e.to_string())
-    } else if encrypted_str.starts_with("enc::rc4hex::") {
+    } else if encrypted.starts_with("enc::rc4hex::") {
         // Deprecated RC4 fallback: return empty to force settings re-entry
         Ok(String::new())
     } else {
@@ -135,9 +160,13 @@ fn decrypt_key(app: AppHandle, encrypted_str: String) -> Result<String, String> 
 #[derive(serde::Deserialize)]
 struct Candidate {
     id: String,
+    #[serde(default)]
     r#type: String,
+    #[serde(default)]
     source_id: String,
+    #[serde(default)]
     title: String,
+    #[serde(default)]
     text: String,
     vector: Vec<u8>,
 }
@@ -222,12 +251,20 @@ fn compute_similarities_rust(
         }
     }
 
+    if scored_results.len() > top_k {
+        scored_results.select_nth_unstable_by(top_k, |a, b| {
+            a._distance
+                .partial_cmp(&b._distance)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        scored_results.truncate(top_k);
+    }
+
     scored_results.sort_by(|a, b| {
         a._distance
             .partial_cmp(&b._distance)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
-    scored_results.truncate(top_k);
 
     Ok(scored_results)
 }
@@ -295,8 +332,9 @@ fn open_file_natively(path: &str) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
-fn get_system_gpu_info() -> Result<String, String> {
+static GPU_INFO_CACHE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+fn detect_system_gpu() -> String {
     #[cfg(target_os = "windows")]
     {
         let output = std::process::Command::new("powershell")
@@ -321,11 +359,11 @@ fn get_system_gpu_info() -> Result<String, String> {
                         || lower.contains("gtx")
                         || lower.contains("radeon")
                     {
-                        return Ok(l.to_string());
+                        return l.to_string();
                     }
                 }
                 if let Some(first) = trimmed.lines().next() {
-                    return Ok(first.trim().to_string());
+                    return first.trim().to_string();
                 }
             }
         }
@@ -339,7 +377,7 @@ fn get_system_gpu_info() -> Result<String, String> {
             let text = String::from_utf8_lossy(&out.stdout);
             for line in text.lines() {
                 if line.contains("Chipset Model:") {
-                    return Ok(line.replace("Chipset Model:", "").trim().to_string());
+                    return line.replace("Chipset Model:", "").trim().to_string();
                 }
             }
         }
@@ -351,12 +389,23 @@ fn get_system_gpu_info() -> Result<String, String> {
             let text = String::from_utf8_lossy(&out.stdout);
             for line in text.lines() {
                 if line.contains("VGA") || line.contains("3D") {
-                    return Ok(line.trim().to_string());
+                    return line.trim().to_string();
                 }
             }
         }
     }
-    Ok("".to_string())
+    "".to_string()
+}
+
+#[tauri::command]
+fn get_system_gpu_info() -> Result<String, String> {
+    if let Some(cached) = GPU_INFO_CACHE.get() {
+        return Ok(cached.clone());
+    }
+
+    let detected = detect_system_gpu();
+    let _ = GPU_INFO_CACHE.set(detected.clone());
+    Ok(detected)
 }
 
 #[tauri::command]

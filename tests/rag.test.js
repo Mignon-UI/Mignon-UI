@@ -26,6 +26,8 @@ class MockWorker {
               type: 'SUCCESS',
               result: candidates.map(c => ({
                 id: c.id,
+                type: c.type,
+                source_id: c.source_id,
                 title: c.title,
                 text: c.text,
                 similarity: 0.95
@@ -41,18 +43,21 @@ class MockWorker {
 
 globalThis.Worker = MockWorker;
 
-import { getDb } from '../src/services/db';
+import { createTestDb } from './testDbHelper';
+
+let testDb;
+
+mock.module('../src/services/db', () => ({
+  getDb: async () => testDb
+}));
+
 import * as rag from '../src/services/rag';
 import * as crud from '../src/services/crud';
 import * as safeFetchModule from '../src/utils/safeFetch';
 
 describe('RAG Service Tests', () => {
-  let mockDb;
-
   beforeEach(async () => {
-    mockDb = await getDb();
-    mockDb.select.mockReset();
-    mockDb.execute.mockReset();
+    testDb = createTestDb({ seed: true });
     spyOn(crud, 'getSettings').mockResolvedValue({ provider: 'ollama' });
     spyOn(safeFetchModule, 'safeFetch').mockResolvedValue({
       ok: true,
@@ -125,84 +130,117 @@ describe('RAG Service Tests', () => {
   });
 
   describe('syncRagIndex', () => {
-    it('should increment index correctly adding and deleting stale documents', async () => {
-      // Setup mocked database fetches for sync
-      mockDb.select.mockImplementation(async (query) => {
-        if (query.includes('FROM embeddings')) {
-          // Existing IDs in DB
-          return [{ id: 'stale_id_1' }, { id: 'skipped_id_2' }];
-        }
-        if (query.includes('FROM lore_entries')) {
-          return [];
-        }
-        if (query.includes('FROM characters')) {
-          // Single character
-          return [{ id: 1, name: 'Lyra', personality: 'Hacker', alternate_greetings: '[]' }];
-        }
-        if (query.includes('FROM chat_summaries')) {
-          return [];
-        }
-        return [];
-      });
+    it('should increment index correctly adding and deleting stale documents using real SQLite', async () => {
+      safeFetchModule.safeFetch.mockResolvedValue({ ok: false, status: 500 });
+      crud.getSettings.mockResolvedValue({ provider: 'ollama', selected_model: 'jina-v2-small-en' });
 
-      crud.getSettings.mockResolvedValue({ provider: 'ollama' });
+      // Insert an active world and lore entry into real SQLite
+      await testDb.execute("INSERT INTO worlds (id, name, description) VALUES (1, 'Arcadia', 'Realm')");
+      await testDb.execute(`INSERT INTO lore_entries (world_id, title, keys, content, is_active, weight)
+        VALUES (1, 'Ancient Citadel', 'citadel, fortress', 'The sky citadel.', 1, 100)`);
+
+      // Insert an existing stale embedding into real SQLite
+      const dummyVec = new Uint8Array(new Float32Array(512).fill(0.01).buffer);
+      await testDb.execute(
+        `INSERT INTO embeddings (id, type, source_id, title, text, vector)
+         VALUES ('stale_doc_id', 'lore', '999', 'Old Doc', 'Old text', ?)`,
+        [dummyVec]
+      );
+
+      // Verify stale doc exists in SQLite before sync
+      const staleBefore = await testDb.select("SELECT * FROM embeddings WHERE id = 'stale_doc_id'");
+      expect(staleBefore.length).toBe(1);
 
       // Run syncRagIndex
       const result = await rag.syncRagIndex();
-      
-      expect(result).toHaveProperty('added');
-      expect(result).toHaveProperty('skipped');
-      expect(result).toHaveProperty('deleted');
-      
-      // Verification
-      expect(mockDb.execute).toHaveBeenCalled();
+
+      expect(result.added).toBeGreaterThan(0);
+      expect(result.deleted).toBe(1);
+
+      // Verify directly from real SQLite table that stale doc was deleted
+      const staleAfter = await testDb.select("SELECT * FROM embeddings WHERE id = 'stale_doc_id'");
+      expect(staleAfter.length).toBe(0);
+
+      // Verify new lore entry was indexed into embeddings table
+      const allEmbeddings = await testDb.select("SELECT id, type, title FROM embeddings");
+      expect(allEmbeddings.some(e => e.title === 'Ancient Citadel')).toBe(true);
     });
   });
 
   describe('checkAndRebuildEmbeddingsIfNeeded', () => {
-    it('should detect and handle unaligned Float32Array offsets safely', async () => {
-      const buffer = new ArrayBuffer(12);
-      const bytes = new Uint8Array(buffer, 2, 8); // Offset 2 is not 4-byte aligned!
-      mockDb.select.mockResolvedValueOnce([{ vector: bytes }]);
-
+    it('should detect and handle unaligned Float32Array offsets safely in real SQLite', async () => {
       crud.getSettings.mockResolvedValue({ provider: 'ollama', selected_model: 'jina-v2-small-en' });
-      
-      // Should not throw start offset Alignment RangeError
+      // Create an unaligned 512-dim vector buffer
+      const buffer = new ArrayBuffer(512 * 4 + 4);
+      const unalignedBytes = new Uint8Array(buffer, 2, 512 * 4); // Offset 2 is not 4-byte aligned
+      for (let i = 0; i < unalignedBytes.length; i++) unalignedBytes[i] = 1;
+
+      await testDb.execute(
+        `INSERT INTO embeddings (id, type, source_id, title, text, vector)
+         VALUES ('unaligned_test', 'test', '1', 'Unaligned', 'Text', ?)`,
+        [unalignedBytes]
+      );
+
       const result = await rag.checkAndRebuildEmbeddingsIfNeeded();
-      expect(result).toBeDefined();
+      // Should not throw and should detect same dimension
+      expect(result).toBe(false);
     });
 
-    it('should clear embeddings and return true on dimension mismatch', async () => {
-      // Stored vector has 4 dimensions (16 bytes)
+    it('should clear embeddings and return true on dimension mismatch in real SQLite', async () => {
+      // Stored vector has 4 dimensions (16 bytes), but model expects 512
       const bytes = new Uint8Array(new Float32Array([1.0, 2.0, 3.0, 4.0]).buffer);
-      mockDb.select.mockResolvedValueOnce([{ vector: bytes }]);
+      await testDb.execute(
+        `INSERT INTO embeddings (id, type, source_id, title, text, vector)
+         VALUES ('mismatched_test', 'test', '1', 'Mismatch', 'Text', ?)`,
+        [bytes]
+      );
 
-      // Expected dimension is 512
       crud.getSettings.mockResolvedValue({ provider: 'ollama', selected_model: 'jina-v2-small-en' });
 
       const result = await rag.checkAndRebuildEmbeddingsIfNeeded();
       expect(result).toBe(true);
-      expect(mockDb.execute).toHaveBeenCalledWith('DELETE FROM embeddings');
+
+      // Verify in real SQLite that embeddings table was cleared
+      const remaining = await testDb.select('SELECT count(*) as count FROM embeddings');
+      expect(remaining[0].count).toBe(0);
     });
   });
 
   describe('retrieveEmbeddings', () => {
-    it('should perform semantic search and filter results', async () => {
-      // Force API failure to trigger local Jina WASM fallback (512 dimensions)
-      safeFetchModule.safeFetch.mockResolvedValueOnce({ ok: false, status: 500 });
-
-      // Stored vector of size 512
-      const floatVec = new Float32Array(512).fill(0.01);
-      const bytes = new Uint8Array(floatVec.buffer);
-      
-      mockDb.select.mockResolvedValueOnce([
-        { id: '1', type: 'lore', source_id: '10', title: 'Lore', text: 'Lore text', vector: bytes }
-      ]);
+    it('should perform semantic search and apply SQL WHERE filter in real SQLite', async () => {
+      safeFetchModule.safeFetch.mockResolvedValue({ ok: false, status: 500 });
       crud.getSettings.mockResolvedValue({ provider: 'ollama', selected_model: 'jina-v2-small-en' });
 
-      const results = await rag.retrieveEmbeddings('query text', 5, { type: 'lore' });
-      expect(results.length).toBe(1);
-      expect(results[0].title).toBe('Lore');
+      const floatVec = new Float32Array(512).fill(0.01);
+      const bytes = new Uint8Array(floatVec.buffer);
+
+      // Insert real candidate rows into SQLite
+      await testDb.execute(
+        `INSERT INTO embeddings (id, type, source_id, title, text, vector)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        ['lore_target', 'lore', '10', 'The Great Archive', 'Repository of lore', bytes]
+      );
+      await testDb.execute(
+        `INSERT INTO embeddings (id, type, source_id, title, text, vector)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        ['char_other', 'character', '20', 'Captain Drake', 'Pirate captain', bytes]
+      );
+
+      // Filter by type: 'lore'
+      const loreResults = await rag.retrieveEmbeddings('archive lore', 5, { type: 'lore' });
+      expect(loreResults.length).toBe(1);
+      expect(loreResults[0].title).toBe('The Great Archive');
+      expect(loreResults[0].type).toBe('lore');
+
+      // Filter by type: 'character'
+      const charResults = await rag.retrieveEmbeddings('captain', 5, { type: 'character' });
+      expect(charResults.length).toBe(1);
+      expect(charResults[0].title).toBe('Captain Drake');
+      expect(charResults[0].type).toBe('character');
+
+      // Filter by non-existent type
+      const emptyResults = await rag.retrieveEmbeddings('anything', 5, { type: 'memory' });
+      expect(emptyResults).toHaveLength(0);
     });
   });
 });

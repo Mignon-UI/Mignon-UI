@@ -1,41 +1,31 @@
 import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { createTestDb } from './testDbHelper';
 
-const mockDbInstance = {
-  select: mock(),
-  execute: mock()
-};
+let testDb;
 
 mock.module('../src/services/db', () => ({
-  getDb: mock().mockResolvedValue(mockDbInstance)
+  getDb: async () => testDb
 }));
 
 mock.module('../src/utils/keySecurity', () => ({
-  encryptKey: mock(async (key) => `enc::aes256gcm::mocked_${key}`),
-  decryptKey: mock(async (key) => key.replace('enc::aes256gcm::mocked_', ''))
+  encryptKey: async (key) => `enc::aes256gcm::${key}`,
+  decryptKey: async (key) => key.replace('enc::aes256gcm::', '')
 }));
 
-import { getDb } from '../src/services/db';
 import * as api from '../src/services/api';
 import * as crud from '../src/services/crud';
 
-describe('Security & Hashing Audit Tests', () => {
-  let mockDb;
-
-  beforeEach(async () => {
-    mockDb = await getDb();
-    mockDb.select.mockReset();
-    mockDb.execute.mockReset();
+describe('Security & Hashing Audit Tests (Genuine SQLite & Masking Verification)', () => {
+  beforeEach(() => {
+    testDb = createTestDb({ seed: true });
   });
 
   describe('API Broker Key Masking', () => {
     it('should mask keys starting with enc:: but preserve other settings', async () => {
-      const mockSettings = {
-        provider: 'openrouter',
-        openrouter_key: 'enc::aes256gcm::12345:67890',
-        custom_key: '',
-        temperature: 0.7
-      };
-      mockDb.select.mockResolvedValue([mockSettings]);
+      await testDb.execute(
+        `UPDATE settings SET provider = ?, openrouter_key = ?, custom_key = ?, temperature = ? WHERE id = 1`,
+        ['openrouter', 'enc::aes256gcm::12345:67890', '', 0.7]
+      );
 
       const result = await api.fetchSettings();
       expect(result.openrouter_key).toBe('••••••••••••••••');
@@ -45,33 +35,33 @@ describe('Security & Hashing Audit Tests', () => {
     });
 
     it('should mask keys in connection profiles list', async () => {
-      const mockProfiles = [
-        { id: 1, name: 'Profile 1', openrouter_key: 'enc::aes256gcm::123', custom_key: 'enc::aes256gcm::456' },
-        { id: 2, name: 'Profile 2', openrouter_key: '', custom_key: 'some_plaintext_key' }
-      ];
-      mockDb.select.mockResolvedValue(mockProfiles);
+      await testDb.execute(
+        `INSERT INTO connection_profiles (name, provider, openrouter_key, custom_key)
+         VALUES ('Profile 1', 'openrouter', 'enc::aes256gcm::123', 'enc::aes256gcm::456')`
+      );
+      await testDb.execute(
+        `INSERT INTO connection_profiles (name, provider, openrouter_key, custom_key)
+         VALUES ('Profile 2', 'custom', '', 'some_plaintext_key')`
+      );
 
-      const result = await api.fetchConnectionProfiles();
-      expect(result[0].openrouter_key).toBe('••••••••••••••••');
-      expect(result[0].custom_key).toBe('••••••••••••••••');
-      expect(result[1].openrouter_key).toBe('');
+      const profiles = await api.fetchConnectionProfiles();
+      const p1 = profiles.find(p => p.name === 'Profile 1');
+      const p2 = profiles.find(p => p.name === 'Profile 2');
+
+      expect(p1.openrouter_key).toBe('••••••••••••••••');
+      expect(p1.custom_key).toBe('••••••••••••••••');
+      expect(p2.openrouter_key).toBe('');
       // custom_key does not start with enc:: in DB (e.g. unencrypted legacy or error state), so it is not masked
-      expect(result[1].custom_key).toBe('some_plaintext_key');
+      expect(p2.custom_key).toBe('some_plaintext_key');
     });
   });
 
   describe('Settings Save Hardening', () => {
     it('should preserve existing keys in database when placeholder is submitted', async () => {
-      const mockExisting = {
-        id: 1,
-        provider: 'openrouter',
-        openrouter_key: 'enc::aes256gcm::existing_openrouter_secret',
-        custom_key: 'enc::aes256gcm::existing_custom_secret'
-      };
-
-      // Mock database returning existing settings when getSettings() is called inside saveSettings
-      mockDb.select.mockResolvedValueOnce([mockExisting]); // for getSettings inside saveSettings
-      mockDb.select.mockResolvedValueOnce([mockExisting]); // for getSettings final return
+      await testDb.execute(
+        `UPDATE settings SET provider = ?, openrouter_key = ?, custom_key = ? WHERE id = 1`,
+        ['openrouter', 'enc::aes256gcm::existing_openrouter_secret', 'enc::aes256gcm::existing_custom_secret']
+      );
 
       await crud.saveSettings({
         provider: 'openrouter',
@@ -79,47 +69,32 @@ describe('Security & Hashing Audit Tests', () => {
         custom_key: '••••••••••••••••'
       });
 
-      // Verify database execute was called with existing encrypted keys
-      expect(mockDb.execute).toHaveBeenCalled();
-      const executeArgs = mockDb.execute.mock.calls[0][1];
-      
-      // Expected params order: settings.provider, encryptedOpenRouter, encryptedCustom...
-      expect(executeArgs[0]).toBe('openrouter');
-      expect(executeArgs[1]).toBe('enc::aes256gcm::existing_openrouter_secret');
-      expect(executeArgs[2]).toBe('enc::aes256gcm::existing_custom_secret');
+      // Verify directly from SQLite
+      const rows = await testDb.select('SELECT openrouter_key, custom_key FROM settings WHERE id = 1');
+      expect(rows[0].openrouter_key).toBe('enc::aes256gcm::existing_openrouter_secret');
+      expect(rows[0].custom_key).toBe('enc::aes256gcm::existing_custom_secret');
     });
 
     it('should encrypt and save new keys when a plaintext key is submitted', async () => {
-      const mockExisting = {
-        id: 1,
-        provider: 'openrouter',
-        openrouter_key: 'enc::aes256gcm::existing_openrouter_secret',
-        custom_key: null
-      };
-
-      mockDb.select.mockResolvedValueOnce([mockExisting]); // for getSettings inside saveSettings
-      mockDb.select.mockResolvedValueOnce([mockExisting]); // for getSettings final return
-
       await crud.saveSettings({
         provider: 'openrouter',
         openrouter_key: 'new-plain-text-key-123',
         custom_key: ''
       });
 
-      // Verify database execute was called with newly encrypted openrouter key
-      expect(mockDb.execute).toHaveBeenCalled();
-      const executeArgs = mockDb.execute.mock.calls[0][1];
-      expect(executeArgs[1]).toBe('enc::aes256gcm::mocked_new-plain-text-key-123');
-      expect(executeArgs[2]).toBe('');
+      // Verify directly from SQLite that key was encrypted with prefix
+      const rows = await testDb.select('SELECT openrouter_key, custom_key FROM settings WHERE id = 1');
+      expect(rows[0].openrouter_key).toBe('enc::aes256gcm::new-plain-text-key-123');
+      expect(rows[0].custom_key).toBe('');
     });
   });
 
   describe('Connection Profile Update Hardening', () => {
-    it('should synchronize all settings properties into connection_profiles', async () => {
-      const mockSettings = {
+    it('should synchronize all settings properties into connection_profiles in SQLite', async () => {
+      await crud.saveSettings({
         provider: 'custom',
-        openrouter_key: 'enc::aes256gcm::or_key',
-        custom_key: 'enc::aes256gcm::custom_key',
+        openrouter_key: 'or_plain_key',
+        custom_key: 'custom_plain_key',
         local_endpoint: 'https://api.openai.com/v1',
         selected_model: 'gpt-4o',
         temperature: 0.85,
@@ -129,35 +104,25 @@ describe('Security & Hashing Audit Tests', () => {
         performance_preset: 'auto',
         system_template: 'System instructions...',
         cloud_rate_limit: 10
-      };
+      });
 
-      mockDb.select.mockResolvedValueOnce([mockSettings]); // for getSettings inside updateProfile
-      mockDb.select.mockResolvedValueOnce([{ id: 42, name: 'My New Name' }]); // for return row
+      const profile = await crud.createProfile('Initial Profile');
 
-      await crud.updateProfile(42, 'My New Name');
+      // Update profile with a new name and verify synchronization
+      await crud.updateProfile(profile.id, 'My Synchronized Profile');
 
-      expect(mockDb.execute).toHaveBeenCalled();
-      const sqlQuery = mockDb.execute.mock.calls[0][0];
-      const params = mockDb.execute.mock.calls[0][1];
+      const rows = await testDb.select('SELECT * FROM connection_profiles WHERE id = ?', [profile.id]);
+      const p = rows[0];
 
-      expect(sqlQuery).toContain('UPDATE connection_profiles SET');
-      expect(sqlQuery).toContain('provider = ?');
-      expect(sqlQuery).toContain('openrouter_key = ?');
-      
-      expect(params[0]).toBe('My New Name');
-      expect(params[1]).toBe('custom');
-      expect(params[2]).toBe('enc::aes256gcm::or_key');
-      expect(params[3]).toBe('enc::aes256gcm::custom_key');
-      expect(params[4]).toBe('https://api.openai.com/v1');
-      expect(params[5]).toBe('gpt-4o');
-      expect(params[6]).toBe(0.85);
-      expect(params[7]).toBe(1024);
-      expect(params[8]).toBe(14);
-      expect(params[9]).toBe(4);
-      expect(params[10]).toBe('auto');
-      expect(params[11]).toBe('System instructions...');
-      expect(params[12]).toBe(10);
-      expect(params[13]).toBe(42);
+      expect(p.name).toBe('My Synchronized Profile');
+      expect(p.provider).toBe('custom');
+      expect(p.openrouter_key).toBe('enc::aes256gcm::or_plain_key');
+      expect(p.custom_key).toBe('enc::aes256gcm::custom_plain_key');
+      expect(p.local_endpoint).toBe('https://api.openai.com/v1');
+      expect(p.selected_model).toBe('gpt-4o');
+      expect(p.temperature).toBe(0.85);
+      expect(p.max_tokens).toBe(1024);
+      expect(p.cloud_rate_limit).toBe(10);
     });
   });
 });

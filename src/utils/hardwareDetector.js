@@ -60,17 +60,46 @@ export const PERFORMANCE_PRESETS = {
   }
 };
 
+const GPU_CACHE_KEY = 'mignon_cached_gpu';
 let cachedGpuInfo = null;
 
-// Automatically probe native system GPU on desktop
-if (typeof window !== 'undefined' && (!!window.__TAURI_IPC__ || !!window.__TAURI_INTERNALS__)) {
+// Read persistently cached GPU info from previous launches
+if (typeof window !== 'undefined') {
+  try {
+    cachedGpuInfo = localStorage.getItem(GPU_CACHE_KEY) || null;
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+// Automatically probe native system GPU on desktop only if not already cached
+if (!cachedGpuInfo && typeof window !== 'undefined' && (!!window.__TAURI_IPC__ || !!window.__TAURI_INTERNALS__)) {
   import('@tauri-apps/api/core').then(({ invoke }) => {
     invoke('get_system_gpu_info').then(name => {
       if (name && typeof name === 'string' && name.trim()) {
         cachedGpuInfo = name.trim();
+        try {
+          localStorage.setItem(GPU_CACHE_KEY, cachedGpuInfo);
+        } catch {
+          // Ignore storage errors
+        }
       }
     }).catch(() => {});
   }).catch(() => {});
+}
+
+/**
+ * Clears cached hardware detection data to allow re-probing.
+ */
+export function clearHardwareCache() {
+  cachedGpuInfo = null;
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem(GPU_CACHE_KEY);
+    } catch {
+      // Ignore storage errors
+    }
+  }
 }
 
 /**
@@ -97,6 +126,11 @@ function getGpuRenderer() {
       const combined = `${unmaskedVendor} ${unmaskedRenderer} ${standardVendor} ${standardRenderer}`.trim();
       if (combined) {
         cachedGpuInfo = combined;
+        try {
+          localStorage.setItem(GPU_CACHE_KEY, cachedGpuInfo);
+        } catch {
+          // Ignore storage errors
+        }
         return combined;
       }
     }
@@ -110,7 +144,14 @@ function getGpuRenderer() {
       navigator.gpu.requestAdapter({ powerPreference: 'high-performance' }).then(adapter => {
         if (adapter?.info) {
           const info = `${adapter.info.vendor || ''} ${adapter.info.architecture || ''} ${adapter.info.device || ''} ${adapter.info.description || ''}`.trim();
-          if (info) cachedGpuInfo = info;
+          if (info) {
+            cachedGpuInfo = info;
+            try {
+              localStorage.setItem(GPU_CACHE_KEY, cachedGpuInfo);
+            } catch {
+              // Ignore storage errors
+            }
+          }
         }
       }).catch(() => {});
     } catch {

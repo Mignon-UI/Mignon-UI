@@ -44,7 +44,6 @@ fn run_stream_thread(
     use std::io::BufRead;
     use tauri::Emitter;
 
-    let client_builder = reqwest::blocking::Client::builder();
     let mut headers = reqwest::header::HeaderMap::new();
     for (k, v) in headers_map {
         if let Ok(name) = reqwest::header::HeaderName::from_bytes(k.as_bytes()) {
@@ -54,7 +53,8 @@ fn run_stream_thread(
         }
     }
 
-    let client = client_builder
+    let client = reqwest::blocking::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(15))
         .default_headers(headers)
         .build()
         .map_err(|e| e.to_string())?;
@@ -105,16 +105,16 @@ fn run_stream_thread(
             } else {
                 if let Some(choices) = parsed.get("choices").and_then(|c| c.as_array()) {
                     if !choices.is_empty() {
+                        // ponytail: ignore internal reasoning/thought tokens — only stream dialogue content
                         token = choices[0]
                             .get("delta")
                             .and_then(|d| d.get("content"))
                             .and_then(|c| c.as_str())
                             .map(|s| s.to_string());
                     }
-                } else {
-                    token = parsed
-                        .get("message")
-                        .and_then(|m| m.get("content"))
+                } else if let Some(message) = parsed.get("message") {
+                    token = message
+                        .get("content")
                         .and_then(|c| c.as_str())
                         .map(|s| s.to_string());
                 }
