@@ -111,7 +111,8 @@
 }
 
 .update-banner-btn-download,
-.update-banner-btn-dismiss {
+.update-banner-btn-dismiss,
+.update-banner-btn-notes {
   border: var(--border-width, 2px) solid var(--border, #000);
   box-shadow: var(--shadow-sm);
   border-radius: var(--r-sm, 8px);
@@ -124,16 +125,28 @@
 }
 
 .update-banner-btn-download:hover,
-.update-banner-btn-dismiss:hover {
+.update-banner-btn-dismiss:hover,
+.update-banner-btn-notes:hover {
   transform: translate(1px, 1px);
   box-shadow: 1px 1px 0px var(--shadow-color);
   opacity: 1;
 }
 
 .update-banner-btn-download:active,
-.update-banner-btn-dismiss:active {
+.update-banner-btn-dismiss:active,
+.update-banner-btn-notes:active {
   transform: translate(2px, 2px);
   box-shadow: none;
+}
+
+.update-banner-btn-notes {
+  background: var(--bg-card-active, rgba(255, 255, 255, 0.08));
+  color: var(--text, #fff);
+  padding: 8px 14px;
+}
+
+.update-banner-btn-notes:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.15));
 }
 
 .update-banner-btn-download {
@@ -151,6 +164,83 @@
 
 .update-banner-btn-dismiss:hover {
   background: var(--bg-card-active, rgba(255, 255, 255, 0.1));
+}
+
+/* Expandable Release Notes Drawer */
+.update-banner-notes-drawer {
+  border-top: 1px solid var(--border, #000);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: bannerSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.update-banner-notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-head);
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: var(--text, #fff);
+}
+
+.update-banner-notes-close {
+  background: transparent;
+  border: none;
+  color: var(--text-sec, #aaa);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.update-banner-notes-close:hover {
+  color: var(--text, #fff);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.update-banner-notes-body {
+  overflow-y: auto;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-sec, #ccc);
+  white-space: pre-wrap;
+  font-family: var(--font-body);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 10px 12px;
+  border-radius: var(--r-sm, 6px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  max-height: 200px;
+}
+
+.update-banner-notes-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.update-banner-link {
+  background: none;
+  border: none;
+  color: var(--blue, #4ba3e3);
+  font-size: 0.78rem;
+  font-family: var(--font-body);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  transition: color 0.15s ease;
+}
+
+.update-banner-link:hover {
+  color: var(--pink, #ff4a7d);
 }
 
 /* Download Progress Overlay */

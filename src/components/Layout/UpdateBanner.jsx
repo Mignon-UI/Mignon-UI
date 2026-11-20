@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { checkForUpdates } from '../../services/updateService';
 import { isTauri } from '../../utils/safeFetch';
-import { ArrowDownToLine, X, AlertCircle, CheckCircle, RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowDownToLine, X, AlertCircle, CheckCircle, RefreshCw, Sparkles, FileText, ExternalLink } from 'lucide-react';
 
 export default function UpdateBanner() {
   const [updateInfo, setUpdateInfo] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   
   // Download states
   const [isDownloading, setIsDownloading] = useState(false);
@@ -59,6 +60,7 @@ export default function UpdateBanner() {
     }
     
     setIsExiting(true);
+    setShowNotes(false);
     setTimeout(() => {
       setIsVisible(false);
       setIsExiting(false);
@@ -135,6 +137,20 @@ export default function UpdateBanner() {
     }
   };
 
+  const handleOpenExternalRelease = async () => {
+    const targetUrl = updateInfo?.url || 'https://github.com/Mignon-UI/Mignon-UI/releases';
+    if (isTauri) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('open_url', { url: targetUrl });
+      } catch {
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      }
+    } else {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   if (!isTauri || !isVisible) return null;
 
   return (
@@ -162,6 +178,15 @@ export default function UpdateBanner() {
           {!isDownloading && !downloadComplete && (
             <div className="update-banner-actions">
               <button 
+                type="button"
+                className="update-banner-btn-notes" 
+                onClick={() => setShowNotes(!showNotes)}
+                title="View Release Notes"
+              >
+                <FileText size={14} />
+                {showNotes ? 'Hide Notes' : "What's New"}
+              </button>
+              <button 
                 className="update-banner-btn-download" 
                 onClick={handleUpdate}
               >
@@ -178,6 +203,35 @@ export default function UpdateBanner() {
             </div>
           )}
         </div>
+
+        {/* Expandable Release Notes Drawer */}
+        {showNotes && (
+          <div className="update-banner-notes-drawer">
+            <div className="update-banner-notes-header">
+              <span>Release Notes ({updateInfo.latestVersion})</span>
+              <button 
+                type="button" 
+                className="update-banner-notes-close" 
+                onClick={() => setShowNotes(false)}
+                title="Close Notes"
+              >
+                <X size={13} />
+              </button>
+            </div>
+            <div className="update-banner-notes-body scrollbar-custom">
+              {updateInfo.releaseNotes || updateInfo.name || 'Check the GitHub Releases page for the full changelog.'}
+            </div>
+            <div className="update-banner-notes-footer">
+              <button 
+                type="button" 
+                className="update-banner-link" 
+                onClick={handleOpenExternalRelease}
+              >
+                <ExternalLink size={12} /> Open GitHub Release Page
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Downloading state */}
         {isDownloading && (

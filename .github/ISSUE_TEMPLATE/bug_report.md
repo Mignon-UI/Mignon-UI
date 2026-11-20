@@ -25,7 +25,7 @@ If applicable, add screenshots, recordings, or frontend console/Tauri terminal l
 
 **Desktop & Runtime Environment (please complete the following information):**
 - OS: [e.g. Windows 11, macOS Sequoia, Ubuntu 24.04]
-- Mignon Version: [e.g. v1.0.0-beta]
+- Mignon Version: [e.g. v1.1.0-beta]
 - Language Model Source: [e.g. Ollama, OpenRouter, Custom API]
 - Active Theme: [e.g. Bubblegum, Cyberpunk]
 
