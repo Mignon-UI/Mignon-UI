@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-and-release:
-    name: Release (${{ matrix.platform }})
+    name: Release (${{ matrix.name }})
     permissions:
       contents: write
     strategy:
@@ -19,12 +19,16 @@ jobs:
       matrix:
         include:
           - platform: 'macos-latest'
+            name: 'macOS (Apple Silicon)'
             args: '--target aarch64-apple-darwin'
-          - platform: 'macos-13'
+          - platform: 'macos-latest'
+            name: 'macOS (Intel)'
             args: '--target x86_64-apple-darwin'
           - platform: 'ubuntu-22.04'
+            name: 'Linux (Ubuntu)'
             args: ''
           - platform: 'windows-latest'
+            name: 'Windows'
             args: ''
 
     runs-on: ${{ matrix.platform }}
@@ -44,7 +48,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || (matrix.platform == 'macos-13' && 'x86_64-apple-darwin' || '') }}
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin, x86_64-apple-darwin' || '' }}
 
       - name: Cache Rust dependencies
         uses: swatinem/rust-cache@v2
