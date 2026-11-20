@@ -3,6 +3,7 @@ ignore = [
     # Transitive upstream advisories (tokenizers / tauri plugins)
     "RUSTSEC-2026-0235", # rkyv: out-of-bounds reads in archives containing Rc/Arc (from tokenizers)
     "RUSTSEC-2023-0071", # rsa: Marvin Attack timing sidechannel (from updater/reqwest)
+    "RUSTSEC-2026-0459", # libsqlite3-sys: CVE-2026-119375 via C SQLite (from tauri-plugin-sql)
 
     # Informational unmaintained notices from vendored and transitive crates
     "RUSTSEC-2024-0370", # proc-macro-error
