@@ -31,11 +31,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### 🔒 Security & Quality
 * **AES-256-GCM Key Encryption**: Replaced legacy RC4 cryptography with hardware-grade AES-256-GCM symmetric encryption for all stored API tokens.
-* **Strict URL Sanitization**: Enforced strict `http`/`https` scheme filtering on native file/URL openers to prevent protocol injection.
-* **Security Dependency Overrides**: Patched known upstream vulnerabilities in `shell-quote`, `adm-zip`, and `sharp`.
-* **Glib Soundness Patch**: Vendored patch resolving `RUSTSEC-2024-0429`.
-* **Automated CI Security Gate**: Integrated `cargo audit --deny vulnerabilities` and `oxlint` strict type safety checks in GitHub Actions.
-
 ---
 
 ## [v1.0.0-beta] - 2026-07-05
