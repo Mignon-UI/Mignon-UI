@@ -103,9 +103,6 @@ jobs:
 
       - name: Upload Windows Portable ZIP to Release
         if: matrix.platform == 'windows-latest'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: src-tauri/target/release/Mignon_UI_windows_portable.zip
-          tag_name: v${{ steps.tauri_build.outputs.appVersion }}
+        run: gh release upload ${{ github.ref_name }} "src-tauri/target/release/Mignon_UI_windows_portable.zip" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
