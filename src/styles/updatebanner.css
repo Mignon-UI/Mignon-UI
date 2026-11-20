@@ -166,6 +166,50 @@
   background: var(--bg-card-active, rgba(255, 255, 255, 0.1));
 }
 
+.update-banner-btn-restart {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--green, #00e676);
+  color: #000;
+  border: var(--border-width, 2px) solid var(--border, #000);
+  border-radius: var(--r-sm, 6px);
+  padding: 8px 16px;
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: 0.85rem;
+  cursor: pointer;
+  box-shadow: 2px 2px 0px var(--shadow-color, #000);
+  transition: all 0.15s ease;
+  animation: restartPulse 2s infinite ease-in-out;
+}
+
+.update-banner-btn-restart:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px var(--shadow-color, #000);
+  filter: brightness(1.08);
+}
+
+.update-banner-btn-restart:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px var(--shadow-color, #000);
+}
+
+.update-banner-btn-restart:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  animation: none;
+}
+
+@keyframes restartPulse {
+  0%, 100% {
+    box-shadow: 2px 2px 0px var(--shadow-color, #000), 0 0 0px rgba(0, 230, 118, 0);
+  }
+  50% {
+    box-shadow: 2px 2px 0px var(--shadow-color, #000), 0 0 10px rgba(0, 230, 118, 0.5);
+  }
+}
+
 /* Expandable Release Notes Drawer */
 .update-banner-notes-drawer {
   border-top: 1px solid var(--border, #000);
